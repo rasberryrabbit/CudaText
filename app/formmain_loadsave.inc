@@ -97,7 +97,7 @@ begin
       path:= '/'+Format('%3.3d', [i]);
       Groups.PagesAndTabIndexOfControl(F, nGroup, nTab);
 
-      c.SetValue(path+'/file', F.Filename);
+      c.SetValue(path+'/file', UTF8Decode(F.Filename));
       c.SetValue(path+'/group', nGroup);
       F.DoSaveHistoryEx(c, path);
     end;
@@ -128,7 +128,7 @@ begin
 
     for i:= 0 to list.Count-1 do
     begin
-      fn:= c.GetValue('/'+list[i]+'/file', '');
+      fn:= UTF8Encode(c.GetValue('/'+list[i]+'/file', ''));
       nGroup:= c.GetValue('/'+list[i]+'/group', Low(TATGroupsNums));
 
       if nGroup in [Low(TATGroupsNums)..High(TATGroupsNums)] then
@@ -244,7 +244,7 @@ begin
 
     ////theme
     FThemeName:= c.GetValue('theme', '');
-    FSessionFilename:= c.GetValue('session', FSessionFilename);
+    FSessionFilename:= UTF8Encode(c.GetValue('session', FSessionFilename));
 
     if FThemeName<>'' then
     begin
@@ -315,9 +315,9 @@ begin
       end;
     end;
 
-    Op.OpFontName:= c.GetValue('font_name', Op.OpFontName);
+    Op.OpFontName:= UTF8Encode(c.GetValue('font_name', UTF8Decode(Op.OpFontName)));
     Op.OpFontSize:= c.GetValue('font_size', Op.OpFontSize);
-    UiOps.VarFontName:= c.GetValue('ui_font_name', UiOps.VarFontName);
+    UiOps.VarFontName:= UTF8Encode(c.GetValue('ui_font_name', UTF8Decode(UiOps.VarFontName)));
     UiOps.VarFontSize:= c.GetValue('ui_font_size', UiOps.VarFontSize);
 
     UiOps.StatusNoSel:= c.GetValue('ui_stat_no_sel', UiOps.StatusNoSel);
@@ -446,7 +446,7 @@ begin
     UiOps.InitialDir:= c.GetValue('ui_initial_dir', UiOps.InitialDir);
 
     UiOps.ExportHtmlNumbers:= c.GetValue('export_html_numbers', UiOps.ExportHtmlNumbers);
-    UiOps.ExportHtmlFontName:= c.GetValue('export_html_font_name', UiOps.ExportHtmlFontName);
+    UiOps.ExportHtmlFontName:= UTF8Encode(c.GetValue('export_html_font_name', UTF8Decode(UiOps.ExportHtmlFontName)));
     UiOps.ExportHtmlFontSize:= c.GetValue('export_html_font_size', UiOps.ExportHtmlFontSize);
 
     UiOps.TreeAutoSync:= c.GetValue('ui_tree_auto_sync', UiOps.TreeAutoSync);
@@ -553,7 +553,7 @@ begin
   try
     cfg.Formatted:= true;
     cfg.Filename:= fn;
-    cfg.SetValue(ConfStrName, OpName);
+    cfg.SetValue(ConfStrName, UTF8Decode(OpName));
     cfg.SetValue(ConfStrSize, OpSize);
   finally
     try

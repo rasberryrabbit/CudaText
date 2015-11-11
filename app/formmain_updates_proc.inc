@@ -236,7 +236,7 @@ begin
   else
   begin
     if F.FileName='' then exit;
-    SAddStringToHistory(F.FileName, FListRecents, UiOps.MaxHistoryMenu);
+    SAddStringToHistory(pchar(F.FileName), FListRecents, UiOps.MaxHistoryMenu);
     F.DoSaveHistory;
   end;
 
@@ -248,8 +248,8 @@ begin
   begin;
     mi:= TMenuItem.Create(Self);
     mi.Caption:= IntToStr(i+1)+'.  '+
-      ExtractFileName(FListRecents[i])+'  ('+
-      ExtractFileDir(FListRecents[i])+')';
+      pchar(ExtractFileName(FListRecents[i]))+'  ('+
+      pchar(ExtractFileDir(FListRecents[i]))+')';
     mi.Tag:= i;
     mi.OnClick:= @MenuRecentsClick;
     sub.Add(mi);

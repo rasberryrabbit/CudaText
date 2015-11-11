@@ -1,0 +1,62 @@
+Index: components/lazutils/winlazfileutils.inc
+===================================================================
+--- components/lazutils/winlazfileutils.inc	(revision 50275)
++++ components/lazutils/winlazfileutils.inc	(working copy)
+@@ -568,9 +568,7 @@
+   {$IFDEF ReallyUseUTF8RTL}
+   f.Name:=UTF8Encode(UnicodeString(F.FindData.cFileName));
+   {$ELSE}
+-  Dummy := '';
+-  Insert(UTF8Encode(UnicodeString(F.FindData.cFileName)), Dummy, 1);
+-  f.Name := Dummy;
++  f.Name := pchar(UTF8Encode(UnicodeString(F.FindData.cFileName)));
+   {$ENDIF}
+   {$else}
+   f.Name:=F.FindData.cFileName;
+Index: lcl/interfaces/win32/win32callback.inc
+===================================================================
+--- lcl/interfaces/win32/win32callback.inc	(revision 50275)
++++ lcl/interfaces/win32/win32callback.inc	(working copy)
+@@ -1356,6 +1356,16 @@
+       Area := PDrawIS^.rcItem;
+       ItemState := TOwnerDrawState(PDrawIS^.itemState);
+       DC := PDrawIS^._hDC;
++      // odFocused on enter control didn't fired with ODA_DRAWENTIRE
++      if (PDrawItemStruct(LParam)^.itemAction and ODA_DRAWENTIRE)<>0 then 
++      begin
++        if lWinControl.Focused and not (odFocused in ItemState) then
++           if ((lWinControl is TCustomListBox)
++               and (TCustomListBox(lWinControl).ItemIndex=ItemID)) or
++              ((lWinControl is TCustomComboBox)
++               and (TCustomComboBox(lWinControl).ItemIndex=ItemID)) then
++                  Include(ItemState,odFocused);
++      end;
+     end;
+     if (aMsg = LM_DRAWLISTITEM) and (WindowInfo <> @DefaultWindowInfo) then
+     begin
+Index: lcl/lcltranslator.pas
+===================================================================
+--- lcl/lcltranslator.pas	(revision 50275)
++++ lcl/lcltranslator.pas	(working copy)
+@@ -101,7 +101,7 @@
+ 
+     if LangID <> '' then
+     begin
+-      AppDir := ExtractFilePath(ParamStrUTF8(0));
++      AppDir := pchar(ExtractFilePath(ParamStrUTF8(0)));
+       LCFileName := ChangeFileExt(ExtractFileName(ParamStrUTF8(0)), LCExt);
+       FullLCFileName := ChangeFileExt(ExtractFileName(ParamStrUTF8(0)), '.' + LangID) + LCExt;
+ 
+Index: lcl/xmlpropstorage.pas
+===================================================================
+--- lcl/xmlpropstorage.pas	(revision 50275)
++++ lcl/xmlpropstorage.pas	(working copy)
+@@ -176,7 +176,7 @@
+   Res: UnicodeString;
+ begin
+   Res:=FXML.GetValue(Utf8Decode(FixPath(Section)+'/'+Ident), Utf8Decode(TheDefault));
+-  Result := Utf8Encode(Res);
++  Result := PChar(Utf8Encode(Res));
+   //debugln('TCustomXMLPropStorage.DoReadString Section="',Section,'" Ident="',Ident,'" Result=',Result);
+ end;
+ 

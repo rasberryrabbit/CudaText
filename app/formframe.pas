@@ -633,7 +633,7 @@ begin
   try
     Editor.LoadFromFile(fn);
     FFileName:= fn;
-    TabCaption:= ExtractFileName(FFileName);
+    TabCaption:= pchar(ExtractFileName(FFileName));
   except
     MsgBox(msgCannotOpenFile+#13+fn, MB_OK or MB_ICONERROR);
     Editor.Strings.Clear;

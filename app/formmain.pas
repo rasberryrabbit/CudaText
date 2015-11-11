@@ -1516,7 +1516,7 @@ begin
     F.DoFileOpen(AFilename);
     Result:= F;
     UpdateStatus;
-    MsgStatus('Opened: '+ExtractFileName(AFilename));
+    MsgStatus('Opened: '+pchar(ExtractFileName(AFilename)));
     DoPyEvent(F.Editor, cEventOnOpen, []);
     Exit
   end;
@@ -1528,7 +1528,7 @@ begin
   Result:= F;
 
   UpdateStatus;
-  MsgStatus('Opened: '+ExtractFileName(AFilename));
+  MsgStatus('Opened: '+pchar(ExtractFileName(AFilename)));
   DoPyEvent(F.Editor, cEventOnOpen, []);
 end;
 
