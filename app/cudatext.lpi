@@ -339,7 +339,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..\comp;..\..\synedit\atsynedit;..\..\econtrol\ec"/>
+      <OtherUnitFiles Value="..\comp;C:\development\extras\atsynedit\atsynedit\"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
