@@ -364,6 +364,7 @@ end;
 
 procedure TfmMain.UpKey(mi: TMenuItem; cmd: integer);
 begin
+  if not Assigned(mi) then exit;
   mi.Tag:= cmd;
   mi.OnClick:= @MenuMainClick;
   mi.ShortCut:= Keymap.GetShortcutFromCommand(cmd);
@@ -480,6 +481,8 @@ begin
   UpKey(mnuViewFullscr, cmd_ToggleFullScreen);
   UpKey(mnuViewSide, cmd_ToggleSidePanel);
   UpKey(mnuViewBottom, cmd_ToggleBottomPanel);
+  UpKey(mnuViewToolbar, cmd_ToggleToolbar);
+  UpKey(mnuViewStatus, cmd_ToggleStatusbar);
 
   UpKey(mnuOpDefault, cmd_OpsOpenDefault);
   UpKey(mnuOpUser, cmd_OpsOpenUser);
