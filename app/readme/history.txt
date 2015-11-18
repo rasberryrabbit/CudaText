@@ -1,4 +1,9 @@
 
+0.9.8
++ opt notif_enable, notif_time (change notification)
++ opt comment_equal_column (cmt at maximal common indent)
++ api
+
 0.9.7
 + cmd "toggle stream comment"
 + cmd "restore lexer styles": feature ported from SynWrite

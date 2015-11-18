@@ -125,6 +125,8 @@ type
     ShowTitlePath: boolean;
     ShowLastFiles: boolean;
     OneInstance: boolean;
+    NotifEnabled: boolean;
+    NotifTimeSec: integer;
   end;
 var
   UiOps: TUiOps;
@@ -312,7 +314,8 @@ type
     cEventOnFuncHint,
     cEventOnGotoDef,
     cEventOnConsole,
-    cEventOnCompare
+    cEventOnCompare,
+    cEventOnStart
     );
   TAppPyEvents = set of TAppPyEvent;
 
@@ -333,7 +336,8 @@ const
     'on_func_hint',
     'on_goto_def',
     'on_console',
-    'on_compare'
+    'on_compare',
+    'on_start'
     );
 
 
@@ -694,6 +698,8 @@ begin
     ShowTitlePath:= false;
     ShowLastFiles:= true;
     OneInstance:= false;
+    NotifEnabled:= false;
+    NotifTimeSec:= 1;
   end;
 end;
 

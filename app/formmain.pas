@@ -1112,6 +1112,8 @@ begin
 
   ActiveControl:= CurrentEditor;
   UpdateStatus;
+  DoPyEvent(CurrentEditor, cEventOnFocus, []);
+  DoPyEvent(CurrentEditor, cEventOnStart, []);
 end;
 
 procedure TfmMain.FrameAddRecent(Sender: TObject);
