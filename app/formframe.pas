@@ -15,7 +15,7 @@ uses
   Classes, SysUtils, Graphics, Forms, Controls, Dialogs,
   ExtCtrls, Menus,
   FileUtil,
-  LCLIntf, LCLProc, LCLType,
+  LCLIntf, LCLProc, LCLType, StdCtrls,
   ATTabs,
   ATGroups,
   ATSynEdit,
@@ -36,7 +36,7 @@ uses
   proc_files,
   proc_msg,
   proc_str,
-  proc_py,
+  proc_py, ATButtons,
   jsonConf,
   math;
 
@@ -1083,8 +1083,16 @@ end;
 
 procedure TEditorFrame.NotifChanged(Sender: TObject);
 begin
-  case MsgBox('File changed outside:'#13+FileName+#13'Reload it?',
-         MB_YESNOCANCEL or MB_ICONQUESTION) of
+  if not Modified then
+  begin
+    DoFileOpen(FileName);
+    exit
+  end;
+
+  case MsgBox('File was changed outside:'#13+FileName+
+         #13#13'Reload?'#13+
+        '(Yes: reload. No: don''t reload. Cancel [Esc]: no more notifications about this file.)',
+        MB_YESNOCANCEL or MB_ICONQUESTION) of
     ID_YES:
       DoFileOpen(FileName);
     ID_CANCEL:

@@ -1498,7 +1498,8 @@ begin
               begin
                 mi.Tag:= -1;
                 mi.Hint:= StrCmd;
-                mi.OnClick:= @fmMain.MenuMainClick;
+                if StrCmd<>'0' then
+                  mi.OnClick:= @fmMain.MenuMainClick;
               end;
 
               Num:= StrToIntDef(StrIndex, -1);
@@ -1511,6 +1512,15 @@ begin
             end
             else
               Result:= ReturnNone;
+          end;
+
+        APP_PROC_SET_EVENTS:
+          begin
+            StrId:= SGetItem(Str, ';'); //module
+            StrCmd:= SGetItem(Str, ';'); //events
+            StrCaption:= SGetItem(Str, ';'); //lexers
+            fmMain.DoPyUpdateEvents(StrId, StrCmd, StrCaption);
+            Result:= ReturnNone;
           end;
 
         else
