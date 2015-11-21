@@ -55,13 +55,15 @@ const
   cmd_DialogLoadLexerStyles = 2540;
   cmd_ToggleToolbar      = 2541;
   cmd_ToggleStatusbar    = 2542;
+  cmd_ResetPythonPlugins = 2543;
+  cmd_DialogCharMap      = 2544;
 
-  cmd_DlgGoto       = 2580;
-  cmd_DlgGotoBm     = 2581;
-  cmd_DlgCommands   = 2582;
-  cmd_DlgTabs       = 2583;
-  cmd_DlgFind       = 2584;
-  cmd_DlgReplace    = 2585;
+  cmd_DialogGoto       = 2580;
+  cmd_DialogGotoBookmark = 2581;
+  cmd_DialogCommands   = 2582;
+  cmd_DialogTabs       = 2583;
+  cmd_DialogFind       = 2584;
+  cmd_DialogReplace    = 2585;
 
   cmd_FindNext         = 2590;
   cmd_FindPrev         = 2591;
@@ -220,6 +222,7 @@ begin
   M.Add(cmd_OpsOpenFileTypes, 'settings: open file-types config', [], []);
   M.Add(cmd_OpsFontText, 'settings: select text font', [], []);
   M.Add(cmd_OpsFontUi, 'settings: select ui font', [], []);
+  M.Add(cmd_ResetPythonPlugins, 'settings: reset python plugins', [], []);
   M.Add(cmd_ToggleFullScreen, 'ui: toggle full-screen mode', ['F11'], []);
   M.Add(cmd_ToggleSidePanel, 'ui: toggle side panel', ['F12'], []);
   M.Add(cmd_ToggleBottomPanel, 'ui: toggle bottom panel', [], []);
@@ -232,17 +235,18 @@ begin
   M.Add(cmd_ShowPanelValidate, 'ui: show panel: validate', [], []);
 
   M.Add(cmd_DialogSaveTabs, 'dialog: save tabs', [], []);
-  M.Add(cmd_DlgCommands, 'dialog: command list', ['F1'], []);
-  M.Add(cmd_DlgTabs, 'dialog: go to tab', [cXControl+'+T'], []);
-  M.Add(cmd_DlgGoto, 'dialog: go to line', [cXControl+'+G'], []);
-  M.Add(cmd_DlgGotoBm, 'dialog: go to bookmark', [cXControl+'+B'], []);
+  M.Add(cmd_DialogCommands, 'dialog: command list', ['F1'], []);
+  M.Add(cmd_DialogTabs, 'dialog: go to tab', [cXControl+'+T'], []);
+  M.Add(cmd_DialogGoto, 'dialog: go to line', [cXControl+'+G'], []);
+  M.Add(cmd_DialogGotoBookmark, 'dialog: go to bookmark', [cXControl+'+B'], []);
   M.Add(cmd_DialogLexerProp, 'dialog: lexer properties', [], []);
   M.Add(cmd_DialogLexerLib, 'dialog: lexer library', [], []);
   M.Add(cmd_DialogLoadLexerStyles, 'dialog: restore lexer styles', [], []);
   M.Add(cmd_DialogColors, 'dialog: config color theme', [], []);
+  M.Add(cmd_DialogCharMap, 'dialog: char map', [], []);
 
-  M.Add(cmd_DlgFind, 'dialog: find', [cXControl+'+F'], []);
-  M.Add(cmd_DlgReplace, 'dialog: replace', [cXControl+'+R'], []);
+  M.Add(cmd_DialogFind, 'dialog: find', [cXControl+'+F'], []);
+  M.Add(cmd_DialogReplace, 'dialog: replace', [cXControl+'+R'], []);
   M.Add(cmd_FindNext, 'find, next', ['F3'], []);
   M.Add(cmd_FindPrev, 'find, prev', ['Shift+F3'], []);
   M.Add(cmd_FindCurWordNext, 'find current word, next', [], []);

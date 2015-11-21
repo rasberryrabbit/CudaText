@@ -30,17 +30,19 @@ begin
     cmd_FileExit:            Close;
     cmd_FileExportHtml:      DoFileExportHtml;
 
-    cmd_DlgCommands:    DoDialogCommands;
-    cmd_DlgGoto:        DoDialogGoto;
-    cmd_DlgGotoBm:      DoDialogGotoBm;
-    cmd_DlgTabs:        DoDialogTabs;
-    cmd_DlgFind:        DoDialogFind(false);
-    cmd_DlgReplace:     DoDialogFind(true);
+    cmd_DialogCommands:    DoDialogCommands;
+    cmd_DialogGoto:        DoDialogGoto;
+    cmd_DialogGotoBookmark:      DoDialogGotoBm;
+    cmd_DialogTabs:        DoDialogTabs;
+    cmd_DialogFind:        DoDialogFind(false);
+    cmd_DialogReplace:     DoDialogFind(true);
     cmd_DialogSaveTabs:    DoDialogSaveTabs;
     cmd_DialogLexerProp:   DoDialogLexerProp(CurrentFrame.Lexer);
     cmd_DialogLexerLib:    DoDialogLexerLib;
     cmd_DialogLoadLexerStyles: DoDialogLoadLexerStyles;
     cmd_DialogColors:      DoDialogColors;
+    cmd_DialogCharMap:     DoDialogCharMap;
+
     cmd_ToggleFullScreen:  DoToggleFullScreen;
     cmd_ToggleSidePanel:   DoToggleSidePanel;
     cmd_ToggleBottomPanel: DoToggleBottomPanel;
@@ -60,13 +62,14 @@ begin
     cmd_FindCurSelNext:  DoFindCurrentWordOrSel(true, false);
     cmd_FindCurSelPrev:  DoFindCurrentWordOrSel(false, false);
 
-    cmd_OpsClearRecent:  DoClearRecentFileHistory;
-    cmd_OpsOpenDefault:  DoOps_OpenFile_Default;
-    cmd_OpsOpenUser:     DoOps_OpenFile_User;
-    cmd_OpsOpenLexerOvr: DoOps_OpenFile_LexerOvr;
-    cmd_OpsOpenFileTypes: DoOps_OpenFile_FileTypes;
-    cmd_OpsFontText:     DoOps_DlgFontText;
-    cmd_OpsFontUi:       DoOps_DlgFontUi;
+    cmd_OpsClearRecent:     DoClearRecentFileHistory;
+    cmd_OpsOpenDefault:     DoOps_OpenFile_Default;
+    cmd_OpsOpenUser:        DoOps_OpenFile_User;
+    cmd_OpsOpenLexerOvr:    DoOps_OpenFile_LexerOvr;
+    cmd_OpsOpenFileTypes:   DoOps_OpenFile_FileTypes;
+    cmd_OpsFontText:        DoOps_DlgFontText;
+    cmd_OpsFontUi:          DoOps_DlgFontUi;
+    cmd_ResetPythonPlugins: DoPyResetPlugins;
 
     cmd_Groups1:     Groups.Mode:= gmOne;
     cmd_Groups2horz: Groups.Mode:= gm2Horz;
@@ -221,9 +224,9 @@ begin
 
   //special handle of call-Find-Goto: it's not ok to handle via timer,
   //timer delay makes bug: Ctrl+F Ctrl+V paste text into editor (if fast)
-  if (Cmd=cmd_DlgFind) or
-     (Cmd=cmd_DlgReplace) or
-     (Cmd=cmd_DlgGoto) then
+  if (Cmd=cmd_DialogFind) or
+     (Cmd=cmd_DialogReplace) or
+     (Cmd=cmd_DialogGoto) then
   begin
     TimerCmd.Tag:= Cmd;
     TimerCmdTimer(nil);

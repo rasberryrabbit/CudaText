@@ -67,6 +67,7 @@ begin
         FPluginsCmd[cnt].ItemCaption:= cfg.GetValue(strPath+'caption', '');
         FPluginsCmd[cnt].ItemLexers:= cfg.GetValue(strPath+'lexers', '');
         FPluginsCmd[cnt].ItemHotkey:= TextToShortCut(cfg.GetValue(strPath+'hotkey', ''));
+        FPluginsCmd[cnt].ItemInMenu:= cfg.GetValue(strPath+'menu', true);
 
         Inc(cnt);
         if cnt>=High(FPluginsCmd) then Break;
@@ -143,6 +144,7 @@ begin
   for i:= 0 to High(FPluginsCmd) do
   begin
     if FPluginsCmd[i].ItemModule='' then Break;
+    if not FPluginsCmd[i].ItemInMenu then Continue;
     mi:= nil;
     miSub:= mnuPlug;
     str:= FPluginsCmd[i].ItemCaption;
@@ -289,5 +291,29 @@ begin
           if Result=cPyFalse then Exit;
         end;
     end;
+end;
+
+
+procedure TfmMain.DoPyResetPlugins;
+var
+  fn, Cmd: string;
+  L: TStringList;
+begin
+  fn:= GetAppPath(cDirPy)+DirectorySeparator+'cudatext_reset_plugins.py';
+  if not FileExists(fn) then
+  begin
+    MsgBox(msgCannotFindFile+#13+fn, MB_OK or MB_ICONERROR);
+    Exit
+  end;
+
+  L:= TStringList.Create;
+  try
+    L.LoadFromFile(fn);
+    GetPythonEngine.ExecStrings(L);
+    Cmd:= Format('_reset_plugins(r"%s")', [GetAppPath(cDirPy)]);
+    GetPythonEngine.ExecString(Cmd);
+  finally
+    FreeAndNil(L)
+  end;
 end;
 
