@@ -171,6 +171,21 @@ begin
 end;
 
 
+function Py_dlg_charmap(Self, Args : PPyObject): PPyObject; cdecl;
+var
+  str: string;
+begin
+  with GetPythonEngine do
+    if Bool(PyArg_ParseTuple(Args, ':dlg_charmap')) then
+    begin
+      str:= DoDialogCharmapModal;
+      if str<>'' then
+        Result:= PyString_FromString(PChar(str))
+      else
+        Result:= ReturnNone;
+    end;
+end;
+
 function Py_msg_status(Self, Args: PPyObject): PPyObject; cdecl;
 var
   P: PChar;
@@ -1807,6 +1822,7 @@ begin
     AddMethod('dlg_menu', @Py_dlg_menu, '');
     AddMethod('dlg_color', @Py_dlg_color, '');
     AddMethod('dlg_checklist', @Py_dlg_checklist, '');
+    AddMethod('dlg_charmap', @Py_dlg_charmap, '');
 
     AddMethod('ed_get_carets', @Py_ed_get_carets, '');
     AddMethod('ed_set_caret', @Py_ed_set_caret, '');
