@@ -75,7 +75,7 @@ end;
 procedure TfmGoto.FormShow(Sender: TObject);
 begin
   UpdateFonts;
-  bClose.Glyph:= GetBitmapX(GetAppColor('ButtonFont'));
+  UpdateButtonIconX(bClose);
 end;
 
 procedure TfmGoto.DoDone(const S: string);
