@@ -251,16 +251,18 @@ function GetAppPath(id: TAppPathId): string;
 function GetLexerOverrideFN(AName: string): string;
 function GetActiveControl(Form: TWinControl): TWinControl;
 function GetDefaultListItemHeight: integer;
+function GetPluginIndexFromModuleAndMethod(AStr: string): integer;
 function MsgBox(const Str: string; Flags: integer): integer;
 function AppFindLexer(const fn: string): TecSyntAnalyzer;
-procedure DoSaveKeyItem(K: TATKeymapItem);
+procedure DoSaveKeyItem(K: TATKeymapItem; const path: string);
 procedure DoEnumLexers(L: TStringList; AlsoDisabled: boolean = false);
 
 var
   Manager: TecSyntaxManager = nil;
   Keymap: TATKeymap = nil;
 
-type TStrEvent = procedure(Sender: TObject; const ARes: string) of object;
+type
+  TStrEvent = procedure(Sender: TObject; const ARes: string) of object;
 
 const
   cmdFirstLexerCommand = 6000;
@@ -339,6 +341,29 @@ const
     'on_compare',
     'on_start'
     );
+
+type
+  TAppPluginCmd = record
+    ItemModule: string;
+    ItemProc: string;
+    ItemCaption: string;
+    ItemLexers: string;
+    ItemInMenu: boolean;
+  end;
+  TAppPluginCmdArray = array[0..200] of TAppPluginCmd;
+
+type
+  TAppPluginEvent = record
+    ItemModule: string;
+    ItemLexers: string;
+    ItemEvents: TAppPyEvents;
+    ItemKeys: string;
+  end;
+  TAppPluginEventArray = array[0..100] of TAppPluginEvent;
+
+var
+  FPluginsCmd: TAppPluginCmdArray;
+  FPluginsEvents: TAppPluginEventArray;
 
 
 implementation
@@ -749,14 +774,12 @@ begin
 end;
 
 
-procedure DoSaveKeyItem(K: TATKeymapItem);
+procedure DoSaveKeyItem(K: TATKeymapItem; const path: string);
 var
   c: TJSONConfig;
-  path: string;
   i: integer;
   sl: tstringlist;
 begin
-  path:= IntToStr(K.Command);
   c:= TJSONConfig.Create(nil);
   sl:= TStringlist.create;
   try
@@ -821,6 +844,26 @@ begin
     for i:= 0 to AnalyzerCount-1 do
       if AlsoDisabled or not Analyzers[i].Internal then
         L.Add(Analyzers[i].LexerName);
+end;
+
+function GetPluginIndexFromModuleAndMethod(AStr: string): integer;
+var
+  i: integer;
+  SModule, SProc: string;
+begin
+  Result:= -1;
+
+  SModule:= SGetItem(AStr);
+  SProc:= SGetItem(AStr);
+  if SModule='' then exit;
+  if SProc='' then exit;
+
+  for i:= Low(FPluginsCmd) to High(FPluginsCmd) do
+    with FPluginsCmd[i] do
+    begin
+      if ItemModule='' then Break;
+      if (ItemModule=SModule) and (ItemProc=SProc) then exit(i);
+    end;
 end;
 
 

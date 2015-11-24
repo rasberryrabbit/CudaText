@@ -31,6 +31,7 @@ uses
   ATSynEdit_Carets,
   ATSynEdit_Export_HTML,
   ATSynEdit_Ranges,
+  ATSynEdit_Adapter_EControl,
   ATTabs,
   ATGroups,
   ATStatusBar,
@@ -71,26 +72,6 @@ uses
   formchecklist,
   formcharmaps,
   math;
-
-type
-  TAppPluginCmd = record
-    ItemModule: string;
-    ItemProc: string;
-    ItemCaption: string;
-    ItemLexers: string;
-    ItemHotkey: TShortcut;
-    ItemInMenu: boolean;
-  end;
-  TAppPluginCmdArray = array[0..200] of TAppPluginCmd;
-
-type
-  TAppPluginEvent = record
-    ItemModule: string;
-    ItemLexers: string;
-    ItemEvents: TAppPyEvents;
-    ItemKeys: string;
-  end;
-  TAppPluginEventArray = array[0..100] of TAppPluginEvent;
 
 
 type
@@ -484,8 +465,6 @@ type
       Parameters: array of String);
   private
     { private declarations }
-    FPluginsCmd: TAppPluginCmdArray;
-    FPluginsEvents: TAppPluginEventArray;
     FListRecents: TStringList;
     FListNewdoc: TStringList;
     FListThemes: TStringList;

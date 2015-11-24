@@ -8,7 +8,9 @@ object fmCharmaps: TfmCharmaps
   Caption = 'Char map'
   ClientHeight = 462
   ClientWidth = 516
+  KeyPreview = True
   OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
   OnShow = FormShow
   Position = poScreenCenter
   LCLVersion = '1.5'
@@ -116,15 +118,15 @@ object fmCharmaps: TfmCharmaps
     Align = alClient
     AutoEdit = False
     BorderSpacing.Around = 6
+    DefaultDrawing = False
     DefaultRowHeight = 24
     ExtendedSelect = False
     Font.Height = -13
-    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goThumbTracking, goSmoothScroll]
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goDrawFocusSelected, goThumbTracking, goSmoothScroll]
     ParentFont = False
     RowCount = 17
     TabOrder = 0
     TitleFont.Height = -13
-    OnKeyDown = GridKeyDown
     OnMouseDown = GridMouseDown
     OnMouseMove = GridMouseMove
     OnSelectCell = GridSelectCell
