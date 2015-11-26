@@ -29,6 +29,7 @@ uses
   ATSynEdit_Commands,
   ATSynEdit_Finder,
   ATSynEdit_Carets,
+  ATSynEdit_Markers,
   ATSynEdit_Export_HTML,
   ATSynEdit_Ranges,
   ATSynEdit_Adapter_EControl,
@@ -497,13 +498,15 @@ type
     procedure DoCudaLibAction(const AMethod: string);
     procedure DoDialogCharMap;
     procedure DoGotoDefinition;
-    procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps);
+    procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps;
+      AForceApply: boolean);
     procedure DoApplyFontFixed;
     procedure DoApplyFontVar;
     procedure DoApplyAllOps;
     procedure DoApplyTheme;
     procedure DoClearRecentFileHistory;
     function DoOnConsole(const Str: string): boolean;
+    function DoOnConsoleNav(const Str: string): boolean;
     procedure DoOps_ShowEventPlugins;
     function DoDialogConfColors(var AColors: TAppTheme): boolean;
     function DoDialogMenuApi(const AText: string; AMultiline: boolean): integer;
@@ -927,6 +930,7 @@ begin
   fmConsole.Parent:= PanelBottom;
   fmConsole.Align:= alClient;
   fmConsole.OnConsole:= @DoOnConsole;
+  fmConsole.OnConsoleNav:= @DoOnConsoleNav;
 
   ListboxOut.Align:= alClient;
   ListboxVal.Align:= alClient;
@@ -1437,6 +1441,11 @@ begin
     begin
       UniqInstance.Enabled:= true;
       TComponentHack(UniqInstance).Loaded;
+
+      if UniqInstance.PriorInstanceRunning then
+        Application.Terminate;
+        //note: app still works and will get DoFileOpen calls (e.g. on session opening)
+        //so later need to check Application.Terminated
     end;
 
   DoApplyTheme;
@@ -1452,6 +1461,7 @@ var
   isOem: boolean;
 begin
   Result:= nil;
+  if Application.Terminated then exit;
 
   if AFilename='' then
   begin
@@ -1478,12 +1488,18 @@ begin
     exit
   end;
 
-  if not IsFileContentText(AFilename, OptTextBufferDetectSizeKb, false, IsOem) then
-  begin
-    if MsgBox(
-      Format(msgConfirmOpenNotText, [AFilename]),
-      MB_OKCANCEL or MB_ICONWARNING)<>id_ok then Exit;
-  end;
+  //NonTextFiles: 0: prompt, 1: open, 2: don't open
+  if UiOps.NonTextFiles<>1 then
+    if not IsFileContentText(AFilename, UiOps.NonTextFilesBufferKb, false, IsOem) then
+      case UiOps.NonTextFiles of
+        0:
+          begin
+            if MsgBox(Format(msgConfirmOpenNotText, [AFilename]),
+              MB_OKCANCEL or MB_ICONWARNING)<>id_ok then Exit;
+          end;
+        2:
+          Exit;
+      end;
 
   //is file already opened? activate frame
   for i:= 0 to FrameCount-1 do
@@ -2663,12 +2679,6 @@ begin
 end;
 
 
-function TfmMain.DoOnConsole(const Str: string): boolean;
-begin
-  Result:= DoPyEvent(CurrentEditor, cEventOnConsole,
-    [SStringToPythonString(Str)]) <> cPyFalse;
-end;
-
 procedure TfmMain.DoGotoDefinition;
 begin
   if DoPyEvent(CurrentEditor, cEventOnGotoDef, [])<>cPyTrue then
@@ -2783,6 +2793,19 @@ begin
   fmCharmaps.InitialStr:= Utf8Encode(Widestring(EditorGetCurrentChar(CurrentEditor)));
   fmCharmaps.Show;
 end;
+
+function TfmMain.DoOnConsole(const Str: string): boolean;
+begin
+  Result:= DoPyEvent(CurrentEditor, cEventOnConsole,
+    [SStringToPythonString(Str)]) <> cPyFalse;
+end;
+
+function TfmMain.DoOnConsoleNav(const Str: string): boolean;
+begin
+  Result:= DoPyEvent(CurrentEditor, cEventOnConsoleNav,
+    [SStringToPythonString(Str)]) <> cPyFalse;
+end;
+
 
 //----------------------------
 {$I formmain_loadsave.inc}

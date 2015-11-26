@@ -12,8 +12,9 @@ unit proc_globdata;
 interface
 
 uses
-  Classes, SysUtils, Forms, Controls,
+  Classes, SysUtils, Forms, Controls, Menus,
   FileUtil, Dialogs, Graphics, ExtCtrls,
+  LclProc, LclType,
   jsonConf,
   Process,
   ATSynEdit,
@@ -128,6 +129,8 @@ type
     OneInstance: boolean;
     NotifEnabled: boolean;
     NotifTimeSec: integer;
+    NonTextFiles: integer; //0: prompt, 1: open, 2: don't open
+    NonTextFilesBufferKb: integer;
   end;
 var
   UiOps: TUiOps;
@@ -316,6 +319,7 @@ type
     cEventOnFuncHint,
     cEventOnGotoDef,
     cEventOnConsole,
+    cEventOnConsoleNav,
     cEventOnCompare,
     cEventOnStart
     );
@@ -338,6 +342,7 @@ const
     'on_func_hint',
     'on_goto_def',
     'on_console',
+    'on_console_nav',
     'on_compare',
     'on_start'
     );
@@ -723,6 +728,8 @@ begin
     OneInstance:= false;
     NotifEnabled:= true;
     NotifTimeSec:= 2;
+    NonTextFiles:= 0;
+    NonTextFilesBufferKb:= 64;
   end;
 end;
 
@@ -790,14 +797,17 @@ begin
     sl.clear;
     for i:= 0 to High(TATKeyArray) do
       if K.Keys1[i]<>0 then
-        sl.Add(Inttostr(K.Keys1[i]));
-    c.SetValue(path+'/k1', sl);
+        sl.Add(ShortCutToText(K.Keys1[i]));
+    c.SetValue(path+'/s1', sl);
 
     sl.clear;
     for i:= 0 to High(TATKeyArray) do
       if K.Keys2[i]<>0 then
-        sl.Add(Inttostr(K.Keys2[i]));
-    c.SetValue(path+'/k2', sl);
+        sl.Add(ShortCutToText(K.Keys2[i]));
+    c.SetValue(path+'/s2', sl);
+
+    c.DeleteValue(path+'/k1');
+    c.DeleteValue(path+'/k2');
   finally
     c.Free;
     sl.Free;

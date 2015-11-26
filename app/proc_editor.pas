@@ -16,12 +16,18 @@ uses
   ATSynEdit,
   ATSynEdit_CanvasProc,
   ATSynEdit_Carets,
+  ATSynEdit_Markers,
   ATSynEdit_Ranges,
   ATSynEdit_Commands,
   ATStringProc,
   ecSyntAnal,
   proc_globdata,
   proc_colors;
+
+procedure EditorMarkerDrop(Ed: TATSynEdit);
+procedure EditorMarkerGotoLast(Ed: TATSynEdit; AndDelete: boolean);
+procedure EditorMarkerClearAll(Ed: TATSynEdit);
+procedure EditorMarkerSwap(Ed: TATSynEdit);
 
 procedure LexerEnumSublexers(An: TecSyntAnalyzer; List: TStringList);
 procedure LexerEnumStyles(An: TecSyntAnalyzer; List: TStringList);
@@ -100,12 +106,17 @@ end;
 
 procedure EditorBmGotoNext(ed: TATSyNEdit; ANext: boolean);
 var
-  n: integer;
+  n, nFrom: integer;
 begin
   n:= ed.Carets[0].PosY;
+  nFrom:= n;
   repeat
     if ANext then Inc(n) else Dec(n);
-    if not ed.Strings.IsIndexValid(n) then exit;
+    if n=nFrom then exit;
+
+    if n>=ed.Strings.Count then n:= 0;
+    if n<0 then n:= ed.Strings.Count-1;
+
     if ed.Strings.LinesBm[n]>0 then
     begin
       ed.DoGotoPosEx(Point(0, n));
@@ -416,6 +427,7 @@ begin
   Ed.Colors.TextDisabledFont:= GetAppColor('EdDisableFont');
   Ed.Colors.TextDisabledBG:= GetAppColor('EdDisableBg');
   Ed.Colors.Caret:= GetAppColor('EdCaret');
+  Ed.Colors.Markers:= GetAppColor('EdMarkers');
   Ed.Colors.CurrentLineBG:= GetAppColor('EdCurLineBg');
   Ed.Colors.IndentVertLines:= GetAppColor('EdIndentVLine');
   Ed.Colors.UnprintedFont:= GetAppColor('EdUnprintFont');
@@ -575,6 +587,62 @@ begin
     Ed.DoRangeFold(R);
   until false;
 
+  Ed.Update;
+end;
+
+
+procedure EditorMarkerDrop(Ed: TATSynEdit);
+var
+  Caret: TATCaretItem;
+begin
+  if Ed.Carets.Count<>1 then exit;
+  Caret:= Ed.Carets[0];
+  Ed.Markers.Add(Caret.PosX, Caret.PosY);
+  Ed.Update;
+end;
+
+procedure EditorMarkerGotoLast(Ed: TATSynEdit; AndDelete: boolean);
+var
+  Caret: TATCaretItem;
+  Mark: TATMarkerItem;
+begin
+  if Ed.Carets.Count<>1 then exit;
+  if Ed.Markers.Count=0 then exit;
+  Caret:= Ed.Carets[0];
+  Mark:= Ed.Markers[Ed.Markers.Count-1];
+  Caret.PosX:= Mark.PosX;
+  Caret.PosY:= Mark.PosY;
+  if AndDelete then
+    Ed.Markers.Delete(Ed.Markers.Count-1);
+  Ed.DoGotoCaret(cEdgeTop);
+  Ed.Update;
+end;
+
+procedure EditorMarkerClearAll(Ed: TATSynEdit);
+begin
+  Ed.Markers.Clear;
+  Ed.Update;
+end;
+
+procedure EditorMarkerSwap(Ed: TATSynEdit);
+var
+  Caret: TATCaretItem;
+  Mark: TATMarkerItem;
+  PX, PY: integer;
+begin
+  if Ed.Carets.Count<>1 then exit;
+  if Ed.Markers.Count=0 then exit;
+  Caret:= Ed.Carets[0];
+  Mark:= Ed.Markers[Ed.Markers.Count-1];
+
+  PX:= Caret.PosX;
+  PY:= Caret.PosY;
+  Caret.PosX:= Mark.PosX;
+  Caret.PosY:= Mark.PosY;
+  Mark.PosX:= PX;
+  Mark.PosY:= PY;
+
+  Ed.DoGotoCaret(cEdgeTop);
   Ed.Update;
 end;
 

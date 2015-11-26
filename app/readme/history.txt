@@ -1,9 +1,17 @@
 
-1.0.5
+1.1.4:
++ commands (5x) for markers like Synwrite
++ opt ui_non_text (prompt/ open/ don't open)
++ opt ui_non_text_buffer
+- fix: ui_one_instance and non-text prompt
+
+1.1.0
+* changed format of keys.json (old fields read but not saved)
 + plugins have hotkeys like all cmds: Commands dlg allows to change plugin keys. Saved in keys.json.
-+ save/load folding (history/session)
++ history saves folded-state
 + cmd "fold range at current line"
 + cmd "unfold range at current line"
++ cmd "goto next bookmark": from last goto first
 + color for "fold mark border"
 
 1.0.2
