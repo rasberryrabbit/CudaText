@@ -77,14 +77,16 @@ var
   path: string;
 begin
   if fn_session='' then exit;
-  if ExtractFileDir(fn_session)='' then
-    fn_session:= string(utf8decode(GetAppPath(cDirSettings)))+DirectorySeparator+fn_session;
+  if (ExtractFileDir(fn_session)='') then
+    fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+fn_session
+    else if not DirectoryExistsUTF8(ExtractFileDir(fn_session)) then
+      fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+ExtractFileName(fn_session);
 
   DeleteFile(fn_session);
 
   c:= TJSONConfig.Create(nil);
   try
-    c.Filename:= fn_session;
+    c.Filename:= string(utf8decode(fn_session));
     c.Formatted:= true;
 
     DoOps_SaveHistory_GroupView(c);
@@ -119,14 +121,14 @@ var
 begin
   if fn_session='' then exit;
   if ExtractFileDir(fn_session)='' then
-    fn_session:= string(utf8decode(GetAppPath(cDirSettings)))+DirectorySeparator+fn_session;
+    fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+fn_session;
 
   DoFileCloseAll;
 
   c:= TJSONConfig.Create(nil);
   list:= TStringlist.Create;
   try
-    c.Filename:= fn_session;
+    c.Filename:= string(utf8decode(fn_session));
 
     DoOps_LoadHistory_GroupView(c);
 
