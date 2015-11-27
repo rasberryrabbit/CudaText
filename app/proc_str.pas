@@ -231,7 +231,7 @@ begin
   cfg:= TJSONConfig.Create(nil);
   try
     try
-      cfg.Filename:= fn;
+      cfg.Filename:= string(utf8decode(fn));
       Result:= cfg.GetValue(path, def_value);
     except
     end;
@@ -249,7 +249,7 @@ begin
   try
     try
       cfg.Formatted:= true;
-      cfg.Filename:= fn;
+      cfg.Filename:= string(utf8decode(fn));
       cfg.SetDeleteValue(path, value, '');
     except
     end;

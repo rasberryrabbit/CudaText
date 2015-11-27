@@ -58,7 +58,7 @@ begin
   c:= TJsonConfig.Create(nil);
   try
     try
-      c.Filename:= fn;
+      c.Filename:= string(utf8decode(fn));
     except
       Showmessage('Incorrect theme file:'#13+fn);
       Exit
@@ -188,7 +188,7 @@ begin
   try
     try
       c.Formatted:= true;
-      c.Filename:= fn;
+      c.Filename:= string(utf8decode(fn));
     except
       MsgBox('Incorrect filename: '#13+fn, MB_OK or MB_ICONERROR);
       exit;

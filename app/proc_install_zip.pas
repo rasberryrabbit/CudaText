@@ -84,7 +84,7 @@ begin
     if s_module='' then exit;
 
     try
-      cfg.Filename:= GetAppPath(cFileOptPlugins);
+      cfg.Filename:= string(utf8decode(GetAppPath(cFileOptPlugins)));
       cfg.Formatted:= true;
     except
       exit;

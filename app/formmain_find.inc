@@ -113,7 +113,7 @@ begin
 
     cfg:= TJSONConfig.Create(nil);
     try
-      cfg.Filename:= GetAppPath(cFileOptHistory);
+      cfg.Filename:= string(utf8decode(GetAppPath(cFileOptHistory)));
       SLoadStringsFromFile(cfg, '/list_find', fmFind.edFind.Items, UiOps.MaxHistoryMenu);
       SLoadStringsFromFile(cfg, '/list_replace', fmFind.edRep.Items, UiOps.MaxHistoryMenu);
     finally

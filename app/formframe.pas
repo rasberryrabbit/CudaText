@@ -891,9 +891,9 @@ begin
   try
     try
       c.Formatted:= true;
-      c.Filename:= GetAppPath(cFileHistoryList);
+      c.Filename:= string(utf8decode(GetAppPath(cFileHistoryList)));
     except
-      Showmessage(msgCannotReadConf+#13+c.Filename);
+      Showmessage(msgCannotReadConf+#13+pchar(utf8encode(unicodestring(c.Filename))));
       exit
     end;
 
@@ -982,9 +982,9 @@ begin
   try
     try
       c.Formatted:= true;
-      c.Filename:= GetAppPath(cFileHistoryList);
+      c.Filename:= string(utf8decode(GetAppPath(cFileHistoryList)));
     except
-      Showmessage(msgCannotReadConf+#13+c.Filename);
+      Showmessage(msgCannotReadConf+#13+pchar(utf8encode(unicodestring(c.Filename))));
       exit
     end;
 
