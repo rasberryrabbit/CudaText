@@ -513,7 +513,11 @@ procedure InitDirs;
 var
   S: string;
 begin
-  OpDirExe:= ExtractFileDir(ParamStrUTF8(0));
+  { 'pchar' cast for avoiding string adding different encoding problem in fpc 3.1.1
+    UTF8 string, but encoding flag is CP_ACP.
+    No problem under linux because utf-8 is default encoding.
+  }
+  OpDirExe:= pchar(ExtractFileDir(ParamStrUTF8(0)));
   OpDirPrecopy:= GetDirPrecopy;
 
   if DirectoryExistsUTF8(
@@ -524,7 +528,7 @@ begin
   else
   begin
     {$ifdef windows}
-    OpDirLocal:= GetEnvironmentVariableUTF8('appdata')+'\CudaText';
+    OpDirLocal:= pchar(GetEnvironmentVariableUTF8('appdata'))+'\CudaText';
     {$else}
     OpDirLocal:= GetEnvironmentVariableUTF8('HOME')+'/.cudatext';
     {$endif}
