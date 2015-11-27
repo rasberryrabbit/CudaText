@@ -77,6 +77,8 @@ type
     FLocked: boolean;
     FTabColor: TColor;
     FFoldTodo: string;
+    FTabKeyCollectMarkers: boolean;
+    FTagString: string;
     procedure DoOnChangeCaption;
     procedure DoOnChangeCaretPos;
     procedure DoOnUpdateStatus;
@@ -144,6 +146,8 @@ type
     property Locked: boolean read FLocked write SetLocked;
     property CommentString: string read GetCommentString;
     property TabColor: TColor read FTabColor write SetTabColor;
+    property TabKeyCollectMarkers: boolean read FTabKeyCollectMarkers write FTabKeyCollectMarkers;
+    property TagString: string read FTagString write FTagString;
     function IsEmpty: boolean;
     //
     property LineEnds: TATLineEnds read GetLineEnds write SetLineEnds;

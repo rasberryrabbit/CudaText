@@ -514,6 +514,7 @@ type
     procedure DoFileInstallZip(const fn: string);
     procedure DoFileCloseAndDelete;
     procedure DoFileNewFrom(const fn: string);
+    procedure DoPyRunLastPlugin;
     procedure DoPyResetPlugins;
     procedure DoPyStringToEvents(const AEventStr: string; var AEvents: TAppPyEvents);
     procedure DoPyUpdateEvents(const AModuleName, AEventStr, ALexerStr, AKeyStr: string);
@@ -525,8 +526,8 @@ type
     procedure DoOps_SaveHistory_GroupView(c: TJsonConfig);
     procedure DoOps_LoadHistory;
     procedure DoOps_LoadHistory_GroupView(c: TJsonConfig);
-    procedure DoOps_SaveSession(const fn_session: string);
-    procedure DoOps_LoadSession(const fn_session: string);
+    procedure DoOps_SaveSession(fn_session: string);
+    procedure DoOps_LoadSession(fn_session: string);
     procedure DoOps_LoadOptionsAndApplyAll;
     procedure DoOps_LoadOptionsOverride(F: TEditorFrame);
     procedure DoOps_OpenFile_FileTypes;

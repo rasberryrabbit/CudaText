@@ -69,7 +69,9 @@ begin
     cmd_OpsOpenFileTypes:   DoOps_OpenFile_FileTypes;
     cmd_OpsFontText:        DoOps_DlgFontText;
     cmd_OpsFontUi:          DoOps_DlgFontUi;
+
     cmd_ResetPythonPlugins: DoPyResetPlugins;
+    cmd_RunLastCommandPlugin: DoPyRunLastPlugin;
 
     cmd_Groups1:     Groups.Mode:= gmOne;
     cmd_Groups2horz: Groups.Mode:= gm2Horz;
@@ -200,11 +202,34 @@ begin
     cmd_Encoding_cp949_Reload: SetFrameEncoding(CurrentFrame, cEncNameCP949, true);
     cmd_Encoding_cp950_Reload: SetFrameEncoding(CurrentFrame, cEncNameCP950, true);
 
-    cmd_Markers_DropAtCaret: begin EditorMarkerDrop(CurrentEditor); UpdateStatus; end;
-    cmd_Markers_GotoLastAndDelete: begin EditorMarkerGotoLast(CurrentEditor, true); UpdateStatus; end;
-    cmd_Markers_GotoLastNoDelete: begin EditorMarkerGotoLast(CurrentEditor, false); UpdateStatus; end;
-    cmd_Markers_ClearAll: begin EditorMarkerClearAll(CurrentEditor); UpdateStatus; end;
-    cmd_Markers_SwapCaretAndMarker: begin EditorMarkerSwap(CurrentEditor); UpdateStatus; end;
+    cmd_Markers_DropAtCaret:
+      begin
+        EditorMarkerDrop(CurrentEditor);
+        UpdateStatus;
+      end;
+    cmd_Markers_GotoLastAndDelete:
+      begin
+        EditorMarkerGotoLast(CurrentEditor, true);
+        if CurrentEditor.Markers.Count=0 then
+          CurrentFrame.TabKeyCollectMarkers:= false;
+        UpdateStatus;
+      end;
+    cmd_Markers_GotoLastNoDelete:
+      begin
+        EditorMarkerGotoLast(CurrentEditor, false);
+        UpdateStatus;
+      end;
+    cmd_Markers_ClearAll:
+      begin
+        EditorMarkerClearAll(CurrentEditor);
+        CurrentFrame.TabKeyCollectMarkers:= false;
+        UpdateStatus;
+      end;
+    cmd_Markers_SwapCaretAndMarker:
+      begin
+        EditorMarkerSwap(CurrentEditor);
+        UpdateStatus;
+      end;
 
     cmd_HelpAbout: DoHelpAbout;
     cmd_HelpForum: DoHelpForum;
@@ -227,6 +252,9 @@ begin
 end;
 
 procedure TfmMain.FrameOnCommand(Sender: TObject; Cmd: integer; var Handled: boolean);
+var
+  Ed: TATSynEdit;
+  Frame: TEditorFrame;
 begin
   Handled:= true;
   if not Groups.Enabled then Exit;
@@ -243,6 +271,19 @@ begin
   end;
 
   case Cmd of
+    cCommand_KeyTab:
+      begin
+        Ed:= Sender as TATSynEdit;
+        Frame:= GetEditorFrame(Ed);
+        Handled:= Frame.TabKeyCollectMarkers and (Ed.Markers.Count>0);
+        if Handled then
+        begin
+          EditorMarkerGotoLast(Ed, true);
+          if Ed.Markers.Count=0 then
+            Frame.TabKeyCollectMarkers:= false;
+        end;
+      end;
+
     cmd_First..10000:
       begin
         TimerCmd.Tag:= Cmd;

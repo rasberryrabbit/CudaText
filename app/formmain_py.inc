@@ -1371,6 +1371,9 @@ begin
             Result:= PyInt_FromLong(Num2);
           end;
 
+        PROP_TAG:
+          Result:= PyString_FromString(PChar(F.TagString));
+
         PROP_UNPRINTED_SHOW:
           Result:= PyBool_FromLong(Ord(Ed.OptUnprintedVisible));
         PROP_UNPRINTED_SPACES:
@@ -1379,6 +1382,9 @@ begin
           Result:= PyBool_FromLong(Ord(Ed.OptUnprintedEnds));
         PROP_UNPRINTED_END_DETAILS:
           Result:= PyBool_FromLong(Ord(Ed.OptUnprintedEndsDetails));
+
+        PROP_TAB_COLLECT_MARKERS:
+          Result:= PyBool_FromLong(Ord(F.TabKeyCollectMarkers));
 
         else
           Result:= ReturnNone;
@@ -1432,6 +1438,8 @@ begin
           Ed.OptRulerVisible:= ValueBool;
         PROP_LEXER_FILE:
           F.Lexer:= Manager.FindAnalyzer(Str);
+        PROP_TAG:
+          F.TagString:= Str;
 
         PROP_UNPRINTED_SHOW:
           Ed.OptUnprintedVisible:= ValueBool;
@@ -1441,6 +1449,9 @@ begin
           Ed.OptUnprintedEnds:= ValueBool;
         PROP_UNPRINTED_END_DETAILS:
           Ed.OptUnprintedEndsDetails:= ValueBool;
+
+        PROP_TAB_COLLECT_MARKERS:
+          F.TabKeyCollectMarkers:= ValueBool;
       end;
 
       fmMain.UpdateFrame;
@@ -1620,6 +1631,21 @@ begin
             StrIndex:= SGetItem(Str, ';'); //keys
             fmMain.DoPyUpdateEvents(StrId, StrCmd, StrCaption, StrIndex);
             Result:= ReturnNone;
+          end;
+
+        APP_PROC_GET_LAST_PLUGIN:
+          begin
+            Result:= PyString_FromString(PChar(PyLastCommandModule+','+PyLastCommandMethod));
+          end;
+
+        APP_PROC_GET_GROUPING:
+          begin
+            Result:= PyInt_FromLong(Ord(fmMain.Groups.Mode));
+          end;
+        APP_PROC_SET_GROUPING:
+          begin
+            fmMain.Groups.Mode:= TATGroupsMode(StrToIntDef(Str, 1));
+            fmMain.UpdateStatus;
           end;
 
         else
