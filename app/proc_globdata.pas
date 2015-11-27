@@ -408,6 +408,7 @@ begin
   Result:= Application.MessageBox(PChar(Str), PChar(msgTitle), Flags);
 end;
 
+// return path encoded utf-8
 function GetAppPath(id: TAppPathId): string;
 begin
   case id of
@@ -513,18 +514,14 @@ procedure InitDirs;
 var
   S: string;
 begin
-  { 'pchar' cast for avoiding string adding different encoding problem in fpc 3.1.1
-    UTF8 string, but encoding flag is CP_ACP.
-    No problem under linux because utf-8 is default encoding.
-  }
-  OpDirExe:= pchar(ExtractFileDir(ParamStrUTF8(0)));
+  OpDirExe:= ExtractFileDir(ParamStrUTF8(0));
   OpDirPrecopy:= GetDirPrecopy;
 
   if DirectoryExistsUTF8(
-      OpDirExe+
+      pchar(OpDirExe)+
       DirectorySeparator+'data'+
       DirectorySeparator+'lexlib') then
-    OpDirLocal:= OpDirExe
+    OpDirLocal:= pchar(OpDirExe)
   else
   begin
     {$ifdef windows}
@@ -742,7 +739,7 @@ begin
   AName:= StringReplace(AName, '/', '_', [rfReplaceAll]);
   AName:= StringReplace(AName, '\', '_', [rfReplaceAll]);
   AName:= StringReplace(AName, '*', '_', [rfReplaceAll]);
-  Result:= GetAppPath(cDirSettings)+DirectorySeparator+'lexer '+AName+'.json';
+  Result:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+'lexer '+AName+'.json';
 end;
 
 function AppFindLexer(const fn: string): TecSyntAnalyzer;
@@ -755,7 +752,7 @@ begin
   begin
     c:= TJsonConfig.Create(nil);
     try
-      c.FileName:= fn_opt;
+      c.FileName:= string(utf8decode(fn_opt));
 
       //by filename
       s:= c.GetValue(ExtractFileName(fn), '');
@@ -795,7 +792,7 @@ begin
   sl:= TStringlist.create;
   try
     c.Formatted:= true;
-    c.Filename:= GetAppPath(cFileOptKeymap);
+    c.Filename:= string(utf8decode(GetAppPath(cFileOptKeymap)));
     c.SetValue(path+'/name', K.Name);
 
     sl.clear;

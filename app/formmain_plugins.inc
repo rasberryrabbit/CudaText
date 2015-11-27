@@ -33,14 +33,14 @@ var
   i, j, cnt: integer;
 begin
   fn_plugins:= GetAppPath(cFileOptPlugins);
-  if not FileExists(fn_plugins) then exit;
+  if not FileExistsUTF8(fn_plugins) then exit;
 
   cfg:= TJSONConfig.Create(nil);
   list:= TStringlist.Create;
   list2:= TStringlist.Create;
   try
     try
-      cfg.Filename:= fn_plugins;
+      cfg.Filename:= string(UTF8Decode(fn_plugins));
     except
       MsgBox(msgCannotReadConf+#13+fn_plugins, mb_ok or mb_iconerror);
       exit
@@ -233,7 +233,7 @@ begin
   cfg:= TJSONConfig.Create(nil);
   try
     try
-      cfg.Filename:= fn;
+      cfg.Filename:= string(Utf8decode(fn));
       cfg.Formatted:= true;
     except
       MsgBox(msgCannotReadConf+#13+fn, mb_ok or mb_iconerror);
@@ -297,7 +297,7 @@ var
   fn, Cmd: string;
   L: TStringList;
 begin
-  fn:= GetAppPath(cDirPy)+DirectorySeparator+'cudatext_reset_plugins.py';
+  fn:= string(utf8decode(GetAppPath(cDirPy)))+DirectorySeparator+'cudatext_reset_plugins.py';
   if not FileExists(fn) then
   begin
     MsgBox(msgCannotFindFile+#13+fn, MB_OK or MB_ICONERROR);

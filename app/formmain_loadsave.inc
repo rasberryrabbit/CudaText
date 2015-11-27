@@ -15,7 +15,7 @@ begin
   c:= TJSONConfig.Create(nil);
   try
     c.Formatted:= true; //needs last jsonConf.pp
-    c.Filename:= GetAppPath(cFileOptHistory);
+    c.Filename:= string(utf8decode(GetAppPath(cFileOptHistory)));
 
     ////form
     if not ShowFullscreen then
@@ -78,7 +78,7 @@ var
 begin
   if fn_session='' then exit;
   if ExtractFileDir(fn_session)='' then
-    fn_session:= GetAppPath(cDirSettings)+DirectorySeparator+fn_session;
+    fn_session:= string(utf8decode(GetAppPath(cDirSettings)))+DirectorySeparator+fn_session;
 
   DeleteFile(fn_session);
 
@@ -119,7 +119,7 @@ var
 begin
   if fn_session='' then exit;
   if ExtractFileDir(fn_session)='' then
-    fn_session:= GetAppPath(cDirSettings)+DirectorySeparator+fn_session;
+    fn_session:= string(utf8decode(GetAppPath(cDirSettings)))+DirectorySeparator+fn_session;
 
   DoFileCloseAll;
 
@@ -208,7 +208,7 @@ var
 begin
   c:= TJSONConfig.Create(nil);
   try
-    c.Filename:= GetAppPath(cFileOptHistory);
+    c.Filename:= string(utf8decode(GetAppPath(cFileOptHistory)));
 
     ////form size
     nPosX:= c.GetValue('/dialog/posx', 100);
@@ -301,7 +301,7 @@ begin
   skeys:= TStringList.Create;
 
   try
-    c.Filename:= GetAppPath(cFileOptKeymap);
+    c.Filename:= string(utf8decode(GetAppPath(cFileOptKeymap)));
     c.EnumSubKeys('/', slist);
     for i:= 0 to slist.count-1 do
     begin
@@ -347,7 +347,7 @@ begin
   c:= TJsonConfig.Create(nil);
   try
     try
-      c.Filename:= fn;
+      c.Filename:= string(utf8decode(fn));
     except
       on E: Exception do
       begin
@@ -600,7 +600,7 @@ begin
   cfg:= TJSONConfig.Create(nil);
   try
     cfg.Formatted:= true;
-    cfg.Filename:= fn;
+    cfg.Filename:= string(utf8decode(fn));
     cfg.SetValue(ConfStrName, UTF8Decode(OpName));
     cfg.SetValue(ConfStrSize, OpSize);
   finally

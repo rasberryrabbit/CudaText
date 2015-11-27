@@ -47,6 +47,7 @@ begin
   else
     Sign:= '=';
   Str:= Format('sys.path %s [%s]', [Sign, Str]);
+  // must utf-8 encoding
   GetPythonEngine.ExecString(Str);
 end;
 
