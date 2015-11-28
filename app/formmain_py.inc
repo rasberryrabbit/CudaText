@@ -1031,7 +1031,7 @@ begin
           if ofAllowMultiSelect in Dlg.Options then
             Result:= PyString_FromString(PChar(string(utf8decode(Dlg.Files.Text))))
           else
-            Result:= PyString_FromString(PChar(string(utf8decode((Dlg.FileName)))));
+            Result:= PyString_FromString(PChar(string(utf8decode(Dlg.FileName))));
         end
         else
           Result:= ReturnNone;
