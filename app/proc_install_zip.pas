@@ -40,7 +40,7 @@ const
   cTypeData = 'cudatext-data';
 
 procedure DoInstallData(
-  const fn_inf: string;
+  const fn_inf: string;   // maybe Ansi
   var s_report: string);
 var
   ini: TIniFile;
@@ -57,15 +57,15 @@ begin
   end;
 
   DeleteFile(fn_inf);
-  dir_from:= ExtractFileDir(fn_inf);
-  dir_target:= GetAppPath(cDirData)+DirectorySeparator+s_subdir;
-  FCopyDir(dir_from, dir_target);
+  dir_from:= utf8encode(unicodestring(ExtractFileDir(fn_inf)));
+  dir_target:= pchar(GetAppPath(cDirData))+DirectorySeparator+s_subdir;
+  FCopyDir(dir_from, dir_target); // utf-8
 
   s_report:= 'data files: '+dir_target;
 end;
 
 procedure DoInstallPlugin(
-  const fn_inf: string;
+  const fn_inf: string;  // maybe Ansi
   var s_report: string);
 var
   ini: TIniFile;
@@ -90,7 +90,7 @@ begin
       exit;
     end;
 
-    FCopyDir(ExtractFileDir(fn_inf), GetAppPath(cDirPy)+DirectorySeparator+s_module);
+    FCopyDir(ExtractFileDir(fn_inf), pchar(GetAppPath(cDirPy))+DirectorySeparator+s_module);
 
     for i:= 1 to 200 do
     begin
@@ -139,15 +139,16 @@ begin
 end;
 
 procedure DoInstallLexer(
-  const fn_inf, dir_acp: string;
+  const fn_inf, dir_acp: string;  // maybe Ansi, utf-8
   Manager: TecSyntaxManager;
   var s_report: string);
 var
   i_lexer, i_sub: integer;
-  s_lexer, fn_lexer, fn_acp: string;
+  s_lexer, fn_lexer, fn_acp, _fn_inf : string;
   an, an_sub: TecSyntAnalyzer;
 begin
   s_report:= '';
+  _fn_inf:=utf8encode(unicodestring(fn_inf));
   with TIniFile.Create(fn_inf) do
   try
     for i_lexer:= 1 to 20 do
@@ -155,23 +156,24 @@ begin
       s_lexer:= ReadString('lexer'+Inttostr(i_lexer), 'file', '');
       if s_lexer='' then Break;
 
-      //lexer file
-      fn_lexer:= ExtractFileDir(fn_inf)+DirectorySeparator+s_lexer+'.lcf';
-      if not FileExists(fn_lexer) then
+      //lexer file - utf-8
+      fn_lexer:= pchar(ExtractFileDir(_fn_inf))+DirectorySeparator+s_lexer+'.lcf';
+      if not FileExistsUTF8(fn_lexer) then
       begin
         MsgBox('Cannot find lexer file: '+fn_lexer, mb_ok or mb_iconerror);
         exit
       end;
 
-      fn_acp:= ExtractFileDir(fn_inf)+DirectorySeparator+s_lexer+'.acp';
+      fn_acp:= pchar(ExtractFileDir(_fn_inf))+DirectorySeparator+s_lexer+'.acp';
       if FileExists(fn_acp) then
         if dir_acp<>'' then
-          CopyFile(fn_acp, dir_acp+DirectorySeparator+s_lexer+'.acp');
+          // utf-8
+          CopyFile(fn_acp, pchar(dir_acp)+DirectorySeparator+s_lexer+'.acp');
 
       an:= Manager.FindAnalyzer(s_lexer);
       if an=nil then
         an:= Manager.AddAnalyzer;
-      an.LoadFromFile(fn_lexer);
+      an.LoadFromFile(fn_lexer); // utf-8 filename
       s_report:= s_report+s_lexer+#13;
 
       //links
@@ -211,9 +213,9 @@ begin
   end;
 end;
 
-function DoInstallAddonFromZip(const fn_zip: string;
+function DoInstallAddonFromZip(const fn_zip: string; // utf-8
   Manager: TecSyntaxManager;
-  const dir_acp: string;
+  const dir_acp: string;                             // utf-8
   out s_report: string): boolean;
 var
   unzip: TUnZipper;
@@ -238,7 +240,7 @@ begin
 
   unzip:= TUnZipper.Create;
   try
-    unzip.FileName:= fn_zip;
+    unzip.FileName:= string(utf8decode(fn_zip));
     unzip.OutputPath:= dir;
     unzip.Examine;
 

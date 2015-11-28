@@ -188,7 +188,7 @@ begin
   {$endif}
 end;
 
-procedure FCopyDir(const d1, d2: string);
+procedure FCopyDir(const d1, d2: string);  // utf-8
 var
   c: TCopyDir;
 begin

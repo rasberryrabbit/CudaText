@@ -97,19 +97,20 @@ function Py_app_path(Self, Args : PPyObject): PPyObject; cdecl;
 var
   Id: integer;
 begin
+  // ansi encoding
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'i:app_path', @Id)) then
       case Id of
         APP_DIR_EXE:
           Result:= PyString_FromString(PChar(ExtractFileDir(Application.ExeName)));
         APP_DIR_SETTINGS:
-          Result:= PyString_FromString(PChar(GetAppPath(cDirSettings)));
+          Result:= PyString_FromString(PChar(string(utf8decode(GetAppPath(cDirSettings)))));
         APP_DIR_DATA:
-          Result:= PyString_FromString(PChar(GetAppPath(cDirData)));
+          Result:= PyString_FromString(PChar(string(utf8decode(GetAppPath(cDirData)))));
         APP_DIR_PY:
-          Result:= PyString_FromString(PChar(GetAppPath(cDirPy)));
+          Result:= PyString_FromString(PChar(string(utf8decode(GetAppPath(cDirPy)))));
         APP_FILE_SESSION:
-          Result:= PyString_FromString(PChar(fmMain.FSessionFilename));
+          Result:= PyString_FromString(PChar(string(utf8decode(fmMain.FSessionFilename))));
         else
           Result:= ReturnNone;
       end;
@@ -127,7 +128,7 @@ begin
       StrCaption:= string(P1);
       StrVal:= string(P2);
       if InputQuery(msgTitle, StrCaption, StrVal) then
-        Result:= PyString_FromString(PChar(StrVal))
+        Result:= PyString_FromString(PChar(string(utf8decode(StrVal))))
       else
         Result:= ReturnNone;
     end;
@@ -162,8 +163,8 @@ begin
       begin
         SCaption:= '';
         for i:= 0 to Number-1 do
-          SCaption:= SCaption+Values[i]+#10;
-        Result:= PyString_FromString(PChar(SCaption))
+          SCaption:= SCaption+pchar(Values[i])+#10;
+        Result:= PyString_FromString(PChar(string(utf8decode(SCaption))))
       end
       else
         Result:= ReturnNone;
@@ -180,7 +181,7 @@ begin
     begin
       str:= DoDialogCharmapModal;
       if str<>'' then
-        Result:= PyString_FromString(PChar(str))
+        Result:= PyString_FromString(PChar(string(utf8decode(str))))
       else
         Result:= ReturnNone;
     end;
@@ -1028,9 +1029,9 @@ begin
         if Dlg.Execute then
         begin
           if ofAllowMultiSelect in Dlg.Options then
-            Result:= PyString_FromString(PChar(Dlg.Files.Text))
+            Result:= PyString_FromString(PChar(string(utf8decode(Dlg.Files.Text))))
           else
-            Result:= PyString_FromString(PChar(Dlg.FileName));
+            Result:= PyString_FromString(PChar(string(utf8decode((Dlg.FileName)))));
         end
         else
           Result:= ReturnNone;
@@ -1103,9 +1104,9 @@ begin
 
       fn:= StrFN;
       if ExtractFileDir(fn)='' then
-        fn:= GetAppPath(cDirSettings)+DirectorySeparator+fn;
+        fn:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+fn;
 
-      with TIniFile.Create(fn) do
+      with TIniFile.Create(string(utf8decode(fn))) do
       try
         if AWrite then
         begin
@@ -1288,7 +1289,7 @@ begin
       StrItems:= string(PtrItems);
 
       StrItems:= DoInputCheckList(StrCaption, StrColumns, StrItems, NSizeX, NSizeY);
-      Result:= PyString_FromString(PChar(StrItems));
+      Result:= PyString_FromString(PChar(string(utf8decode(StrItems))));
     end;
 end;
 

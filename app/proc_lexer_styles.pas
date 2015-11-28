@@ -84,7 +84,7 @@ var
 begin
   s:= f.LexerName;
   if s='' then Exit;
-  with TIniFile.Create(fn) do
+  with TIniFile.Create(string(utf8decode(fn))) do
   try
     EraseSection(s);
     WriteString(s, 'Ext', f.Extentions);
@@ -133,7 +133,7 @@ begin
   if f=nil then Exit;
   s:= f.LexerName;
   fm:= TecSyntaxFormat.Create(nil);
-  with TIniFile.Create(fn) do
+  with TIniFile.Create(string(utf8decode(fn))) do
   try
     f.Extentions:= ReadString(s, 'Ext', f.Extentions);
     for i:= 0 to ReadInteger(s, 'Num', 0)-1 do
