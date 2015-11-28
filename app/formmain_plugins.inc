@@ -159,7 +159,7 @@ begin
       if idx<0 then
       begin
         mi:= TMenuItem.Create(Self);
-        mi.Caption:= strItem;
+        mi.Caption:= utf8encode(unicodestring(strItem));
         miSub.Add(mi);
         miSub:= mi;
       end
