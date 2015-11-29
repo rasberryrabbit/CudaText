@@ -29,7 +29,7 @@ uses
   LCLIntf, LCLProc, LCLType,
   StrUtils,
   IniFiles,
-  jsonConf,
+  ujsonConf,
   Zipper,
   proc_files,
   proc_globdata;

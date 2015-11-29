@@ -37,7 +37,7 @@ uses
   proc_msg,
   proc_str,
   proc_py, ATButtons,
-  jsonConf,
+  ujsonConf,
   math;
 
 type

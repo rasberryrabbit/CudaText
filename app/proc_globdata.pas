@@ -15,7 +15,7 @@ uses
   Classes, SysUtils, Forms, Controls, Menus,
   FileUtil, Dialogs, Graphics, ExtCtrls,
   LclProc, LclType,
-  jsonConf,
+  ujsonConf,
   Process,
   ATSynEdit,
   ATSynEdit_Keymap,

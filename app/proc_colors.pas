@@ -36,7 +36,7 @@ implementation
 
 uses
   ATButtons,
-  jsonConf;
+  ujsonConf;
 
 procedure DoLoadTheme(const fn: string; var D: TAppTheme);
 var

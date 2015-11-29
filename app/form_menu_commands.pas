@@ -26,7 +26,7 @@ uses
   proc_colors,
   proc_str,
   formkeys,
-  jsonConf,
+  ujsonConf,
   math;
 
 type

@@ -15,7 +15,7 @@ uses
   SysUtils, Classes, StrUtils,
   FileUtil,
   ATStringProc,
-  jsonConf,
+  ujsonConf,
   RegExpr;
 
 //function SReadOptionFromJson(const fn, path, def_value: string): string;

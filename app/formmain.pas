@@ -17,7 +17,7 @@ uses
   StdCtrls, Buttons, ComCtrls, ExtCtrls, Menus,
   Clipbrd, StrUtils, Variants, IniFiles,
   FileUtil, LclType, LclProc, LclIntf,
-  jsonConf,
+  ujsonConf,
   PythonEngine,
   UniqueInstance,
   ecSyntAnal,
