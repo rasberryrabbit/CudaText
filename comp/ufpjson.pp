@@ -1343,8 +1343,10 @@ end;
 procedure TJSONString.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
 begin
   FValue:=UTF8Encode(AValue);
+  {$if FPC_FULLVERSION >= 20701}
   // pass string encoding problem on concation
   SetCodePage(Rawbytestring(FValue),DefaultSystemCodePage,False);
+  {$endif}
 end;
 
 constructor TJSONString.Create(const AValue: TJSONStringType);
@@ -1355,8 +1357,10 @@ end;
 constructor TJSONString.Create(const AValue: TJSONUnicodeStringType);
 begin
   FValue:=UTF8Encode(AValue);
+  {$if FPC_FULLVERSION >= 20701}
   // pass string encoding problem on concation
   SetCodePage(Rawbytestring(FValue),DefaultSystemCodePage,False);
+  {$endif}
 end;
 
 { TJSONboolean }
