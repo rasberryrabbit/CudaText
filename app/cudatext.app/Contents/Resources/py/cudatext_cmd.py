@@ -188,6 +188,7 @@ cmd_ToggleToolbar      = 2541
 cmd_ToggleStatusbar    = 2542
 cmd_ResetPythonPlugins = 2543
 cmd_DialogCharMap      = 2544
+cmd_RunLastCommandPlugin = 2545
 
 cmd_DialogGoto       = 2580
 cmd_DialogGotoBookmark = 2581
@@ -232,10 +233,12 @@ cmd_CopyLine         = 2650
 cmd_CopyFilenameFull = 2651
 cmd_CopyFilenameDir  = 2652
 cmd_CopyFilenameName = 2653
+
 cmd_SortAsc          = 2654
 cmd_SortDesc         = 2655
-cmd_SortNocaseAsc    = 2656
-cmd_SortNocaseDesc   = 2657
+
+cmd_ConvertTabsToSpaces = 2658
+cmd_ConvertSpacesToTabsLeading = 2659
 
 cmd_BookmarkToggle    = 2661
 cmd_BookmarkInvertAll = 2662
@@ -254,6 +257,9 @@ cmd_DuplicateLineEx              = 2676
 cmd_LineEndWin        = 2677
 cmd_LineEndUnix       = 2678
 cmd_LineEndMac        = 2679
+
+cmd_FoldingFoldAtCurLine   = 2680
+cmd_FoldingUnfoldAtCurLine = 2681
 
 cmd_MenuEnc           = 2691
 cmd_MenuEnds          = 2692
@@ -323,3 +329,8 @@ cmd_Encoding_cp936_Reload     = 2776
 cmd_Encoding_cp949_Reload     = 2777
 cmd_Encoding_cp950_Reload     = 2778
 
+cmd_Markers_DropAtCaret        = 2800
+cmd_Markers_GotoLastNoDelete   = 2801
+cmd_Markers_GotoLastAndDelete  = 2802
+cmd_Markers_ClearAll           = 2803
+cmd_Markers_SwapCaretAndMarker = 2804

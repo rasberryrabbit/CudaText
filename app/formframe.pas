@@ -1042,8 +1042,20 @@ begin
   Editor.OptUnprintedEnds:= c.GetValue(path+cSavUnpriEnd, Editor.OptUnprintedEnds);
   Editor.OptUnprintedEndsDetails:= c.GetValue(path+cSavUnpriEndDet, Editor.OptUnprintedEndsDetails);
 
-  FFoldTodo:= c.GetValue(path+cSavFold, '');
-  FTopLineTodo:= c.GetValue(path+cSavTop, 0);
+  if Assigned(Lexer) then
+  begin
+    //this seems ok: works even for open-file via cmdline
+    FFoldTodo:= c.GetValue(path+cSavFold, '');
+    FTopLineTodo:= c.GetValue(path+cSavTop, 0);
+  end
+  else
+  begin
+    //for open-file from app: ok
+    //for open via cmdline: not ok (maybe need to do it after form shown? how?)
+    Editor.Update(true);
+    Application.ProcessMessages;
+    Editor.LineTop:= c.GetValue(path+cSavTop, 0);
+  end;
 
   with Editor.Gutter[Editor.GutterBandNum] do
     Visible:= c.GetValue(path+cSavNums, Visible);

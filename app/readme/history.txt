@@ -1,6 +1,11 @@
 
-1.1.5:
-+ commands (5x) for markers like Synwrite
+1.2.0.2
++ cmd "convert tabs to spaces"
++ cmd "convert spaces (leading) to tabs"
+
+1.2.0:
++ commands for markers like Synwrite
++ support for Snippets plugin
 + opt ui_non_text (prompt/ open/ don't open)
 + opt ui_non_text_buffer
 + cmd "run last command plugin"
