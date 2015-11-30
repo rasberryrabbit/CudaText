@@ -1847,7 +1847,7 @@ procedure TfmMain.PythonEngineAfterInit(Sender: TObject);
 var
   dir: string;
 begin
-  dir:= pchar(ExtractFileDir(ParamStrUTF8(0)))+DirectorySeparator;
+  dir:= pchar(UTF8Encode(UnicodeString(ExtractFileDir(Application.ExeName))+DirectorySeparator));
   {$ifdef windows}
   Py_SetSysPath([dir+'dlls', dir+ ChangeFileExt(UiOps.PyLibrary, '.zip')], false);
   {$endif}

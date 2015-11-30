@@ -78,9 +78,7 @@ var
 begin
   if fn_session='' then exit;
   if (ExtractFileDir(fn_session)='') then
-    fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+fn_session
-    else if not DirectoryExistsUTF8(ExtractFileDir(fn_session)) then
-      fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+ExtractFileName(fn_session);
+    fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+pchar(fn_session);
 
   DeleteFile(fn_session);
 
@@ -253,7 +251,7 @@ begin
 
     ////theme
     FThemeName:= c.GetValue('theme', '');
-    FSessionFilename:= UTF8Encode(c.GetValue('session', FSessionFilename));
+    FSessionFilename:= c.GetValue('session', FSessionFilename);
 
     if FThemeName<>'' then
     begin
