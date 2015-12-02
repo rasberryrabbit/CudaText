@@ -716,7 +716,7 @@ begin
     Inc(I);
     Inc(P);
     end;
-  Result:=Result+string(Copy(S,J,I-1));
+  Result:=Result+Copy(S,J,I-1);
 end;
 
 function JSONStringToString(const S: TJSONStringType): TJSONStringType;
