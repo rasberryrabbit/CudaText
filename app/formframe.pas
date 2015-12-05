@@ -63,6 +63,8 @@ type
     FNotif: TATFileNotif;
     FOnChangeCaption: TNotifyEvent;
     FOnUpdateStatus: TNotifyEvent;
+    FOnEditorClickMoveCaret: TATSynEditClickMoveCaretEvent;
+    FOnEditorClickEndSelect: TATSynEditClickMoveCaretEvent;
     FOnFocusEditor: TNotifyEvent;
     FOnEditorCommand: TATSynEditCommandEvent;
     FOnEditorChangeCaretPos: TNotifyEvent;
@@ -81,15 +83,19 @@ type
     FTabKeyCollectMarkers: boolean;
     FTagString: string;
     FNotInRecents: boolean;
+    FMacroRecord: boolean;
+    FMacroString: string;
     procedure DoOnChangeCaption;
     procedure DoOnChangeCaretPos;
     procedure DoOnUpdateStatus;
+    procedure EditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
+    procedure EditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure EditorOnChangeCommon(Sender: TObject);
     procedure EditorOnChange1(Sender: TObject);
     procedure EditorOnChange2(Sender: TObject);
     procedure EditorOnClick(Sender: TObject);
     procedure EditorOnClickGutter(Sender: TObject; ABand, ALine: integer);
-    procedure EditorOnCommand(Sender: TObject; ACmd: integer; var AHandled: boolean);
+    procedure EditorOnCommand(Sender: TObject; ACmd: integer; const AText: string; var AHandled: boolean);
     procedure EditorOnDrawBookmarkIcon(Sender: TObject; C: TCanvas; ALineNum: integer; const ARect: TRect);
     procedure EditorOnEnter(Sender: TObject);
     procedure EditorOnDrawLine(Sender: TObject; C: TCanvas; AX, AY: integer;
@@ -172,11 +178,18 @@ type
     procedure DoLoadHistoryEx(c: TJsonConfig; const path: string);
     function DoPyEvent(AEd: TATSynEdit; AEvent: TAppPyEvent; const AParams: array of string): string;
     procedure DoRestoreFolding;
+    //macro
+    procedure DoMacroStart;
+    procedure DoMacroStop(ACancel: boolean);
+    property MacroRecord: boolean read FMacroRecord;
+    property MacroString: string read FMacroString write FMacroString;
 
     //event
     property OnFocusEditor: TNotifyEvent read FOnFocusEditor write FOnFocusEditor;
     property OnChangeCaption: TNotifyEvent read FOnChangeCaption write FOnChangeCaption;
     property OnUpdateStatus: TNotifyEvent read FOnUpdateStatus write FOnUpdateStatus;
+    property OnEditorClickMoveCaret: TATSynEditClickMoveCaretEvent read FOnEditorClickMoveCaret write FOnEditorClickMoveCaret;
+    property OnEditorClickEndSelect: TATSynEditClickMoveCaretEvent read FOnEditorClickEndSelect write FOnEditorClickEndSelect;
     property OnEditorCommand: TATSynEditCommandEvent read FOnEditorCommand write FOnEditorCommand;
     property OnEditorChangeCaretPos: TNotifyEvent read FOnEditorChangeCaretPos write FOnEditorChangeCaretPos;
     property OnSaveFile: TNotifyEvent read FOnSaveFile write FOnSaveFile;
@@ -545,10 +558,10 @@ begin
 end;
 
 procedure TEditorFrame.EditorOnCommand(Sender: TObject; ACmd: integer;
-  var AHandled: boolean);
+  const AText: string; var AHandled: boolean);
 begin
   if Assigned(FOnEditorCommand) then
-    FOnEditorCommand(Sender, ACmd, AHandled);
+    FOnEditorCommand(Sender, ACmd, AText, AHandled);
 end;
 
 procedure TEditorFrame.DoOnResize;
@@ -572,12 +585,14 @@ begin
   ed.OptRulerVisible:= false;
 
   ed.OnClick:= @EditorOnClick;
+  ed.OnClickMoveCaret:= @EditorClickMoveCaret;
+  ed.OnClickEndSelect:= @EditorClickEndSelect;
   ed.OnEnter:= @EditorOnEnter;
   ed.OnChangeState:= @EditorOnChangeCommon;
   ed.OnChangeCaretPos:= @EditorOnChangeCaretPos;
   ed.OnCommand:= @EditorOnCommand;
   ed.OnClickGutter:= @EditorOnClickGutter;
-  ed.OnCalcBookmarkColor:=@EditorOnCalcBookmarkColor;
+  ed.OnCalcBookmarkColor:= @EditorOnCalcBookmarkColor;
   ed.OnDrawBookmarkIcon:= @EditorOnDrawBookmarkIcon;
   ed.OnDrawLine:= @EditorOnDrawLine;
   ed.OnKeyDown:= @EditorOnKeyDown;
@@ -875,11 +890,39 @@ begin
   end;
 end;
 
+procedure TEditorFrame.DoMacroStart;
+begin
+  FMacroRecord:= true;
+  FMacroString:= '';
+end;
+
+procedure TEditorFrame.DoMacroStop(ACancel: boolean);
+begin
+  FMacroRecord:= false;
+  if ACancel then
+    FMacroString:= '';
+end;
+
 procedure TEditorFrame.DoOnUpdateStatus;
 begin
   if Assigned(FOnUpdateStatus) then
     FOnUpdateStatus(Self);
 end;
+
+procedure TEditorFrame.EditorClickMoveCaret(Sender: TObject; APrevPnt,
+  ANewPnt: TPoint);
+begin
+  if Assigned(FOnEditorClickMoveCaret) then
+    FOnEditorClickMoveCaret(Self, APrevPnt, ANewPnt);
+end;
+
+procedure TEditorFrame.EditorClickEndSelect(Sender: TObject; APrevPnt,
+  ANewPnt: TPoint);
+begin
+  if Assigned(FOnEditorClickEndSelect) then
+    FOnEditorClickEndSelect(Self, APrevPnt, ANewPnt);
+end;
+
 
 procedure TEditorFrame.DoOnChangeCaretPos;
 begin

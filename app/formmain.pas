@@ -55,6 +55,7 @@ uses
   proc_msg,
   proc_install_zip,
   proc_lexer_styles,
+  proc_keysdialog,
   formconsole,
   formframe,
   form_menu_commands,
@@ -496,10 +497,14 @@ type
     FPyComplete_CharsLeft: integer;
     FPyComplete_CharsRight: integer;
     FPyComplete_CaretPos: TPoint;
+
     procedure CharmapOnInsert(const AStr: string);
     procedure DoAutoComplete;
     procedure DoCudaLibAction(const AMethod: string);
     procedure DoDialogCharMap;
+    procedure DoFindActionFromString(AStr: string);
+    procedure DoFindOptionsFromString(const S: string);
+    function DoFindOptionsToString: string;
     procedure DoGotoDefinition;
     procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps;
       AForceApply: boolean);
@@ -510,6 +515,7 @@ type
     procedure DoClearRecentFileHistory;
     function DoOnConsole(const Str: string): boolean;
     function DoOnConsoleNav(const Str: string): boolean;
+    function DoOnMacro(const Str: string): boolean;
     procedure DoOps_ShowEventPlugins;
     function DoDialogConfColors(var AColors: TAppTheme): boolean;
     function DoDialogMenuApi(const AText: string; AMultiline: boolean): integer;
@@ -521,6 +527,8 @@ type
     procedure DoPyResetPlugins;
     procedure DoPyStringToEvents(const AEventStr: string; var AEvents: TAppPyEvents);
     procedure DoPyUpdateEvents(const AModuleName, AEventStr, ALexerStr, AKeyStr: string);
+    procedure FrameOnEditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
+    procedure FrameOnEditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure MenuEncWithReloadClick(Sender: TObject);
     procedure UpdateMenuPlugins;
     procedure DoOps_LoadLexlib;
@@ -565,8 +573,8 @@ type
     procedure DoShowValidate;
     procedure DoTreeCollapseLevel(ALevel: integer);
     function FrameOfPopup: TEditorFrame;
-    procedure FrameOnCommand(Sender: TObject; Cmd: integer;
-      var Handled: boolean);
+    procedure FrameOnCommand(Sender: TObject; ACommand: integer; const AText: string;
+      var AHandled: boolean);
     function DoFileCloseAll: boolean;
     procedure DoDialogFind(AReplaceMode: boolean);
     procedure DoFindResult(ok: boolean);
@@ -660,7 +668,6 @@ type
     procedure UpdateStatus;
     procedure UpdateMenuRecent(F: TEditorFrame);
     procedure InitStatusButton;
-    function DoPyEvent(AEd: TATSynEdit; AEvent: TAppPyEvent; const AParams: array of string): string;
   public
     { public declarations }
     function FrameCount: integer;
@@ -674,6 +681,8 @@ type
     property ShowToolbar: boolean read GetShowToolbar write SetShowToolbar;
     property ShowStatus: boolean read GetShowStatus write SetShowStatus;
     property ShowBottom: boolean read GetShowBottom write SetShowBottom;
+    function DoPyEvent(AEd: TATSynEdit; AEvent: TAppPyEvent; const AParams: array of string): string;
+    procedure DoPyCommand(const AModule, AMethod: string; const AParam: string='');
   end;
 
 var
@@ -1994,6 +2003,8 @@ begin
   msg:= s;
   if CurrentFrame.ReadOnly then
     msg:= msgStatusReadonly + ' ' +msg;
+  if CurrentFrame.MacroRecord then
+    msg:= msgStatusMacroRec + ' ' +msg;
 
   Status[cStatusMsg]:= msg;
 
@@ -2036,6 +2047,7 @@ begin
       Format(msgConfirmReopenModifiedTab, [F.FileName]),
       MB_OKCANCEL or MB_ICONQUESTION)<>id_ok then exit;
 
+  F.DoSaveHistory; //save hist to reopen at same scrollpos
   F.DoFileOpen(F.FileName);
   MsgStatus('Re-opened: '+ExtractFileName(F.Filename));
 end;
@@ -2127,7 +2139,7 @@ begin
   Ed:= CurrentEditor;
   Ed.Strings.BeginUndoGroup;
   try
-    Py_RunPlugin_Command('cudax_lib', AMethod);
+    DoPyCommand('cudax_lib', AMethod);
   finally
     Ed.Strings.EndUndoGroup;
   end;
@@ -2261,7 +2273,7 @@ var
   F: TEditorFrame;
   EdFocus: boolean;
   Cmd: integer;
-  SHint, SModule, SMethod: string;
+  SHint, SModule, SMethod, SParam: string;
 begin
   Cmd:= (Sender as TComponent).Tag;
   SHint:= (Sender as TMenuItem).Hint;
@@ -2276,12 +2288,13 @@ begin
   if not EdFocus then
     if (Cmd>0) and (Cmd<cmd_First) then exit;
 
-  //-1 means run plugin: Hint='module,method'
+  //-1 means run plugin: Hint='module,method,param'
   if (Cmd=-1) then
   begin
     SModule:= SGetItem(SHint);
     SMethod:= SGetItem(SHint);
-    Py_RunPlugin_Command(SModule, SMethod);
+    SParam:= SHint; //not SGetItem, allows to use ","
+    DoPyCommand(SModule, SMethod, SParam);
   end
   else
     CurrentEditor.DoCommand(Cmd);
@@ -2765,6 +2778,7 @@ begin
 end;
 
 
+
 procedure TfmMain.CharmapOnInsert(const AStr: string);
 var
   Ed: TATSynEdit;
@@ -2808,6 +2822,30 @@ function TfmMain.DoOnConsoleNav(const Str: string): boolean;
 begin
   Result:= DoPyEvent(CurrentEditor, cEventOnConsoleNav,
     [SStringToPythonString(Str)]) <> cPyFalse;
+end;
+
+function TfmMain.DoOnMacro(const Str: string): boolean;
+begin
+  Result:= DoPyEvent(CurrentEditor, cEventOnMacro,
+    [SStringToPythonString(Str)]) <> cPyFalse;
+end;
+
+procedure TfmMain.DoPyCommand(const AModule, AMethod: string; const AParam: string='');
+begin
+  PyLastCommandModule:= AModule;
+  PyLastCommandMethod:= AMethod;
+  PyLastCommandParam:= AParam;
+
+  with CurrentFrame do
+    if MacroRecord then
+      MacroString:= MacroString+ ('py:'+AModule+','+AMethod+','+AParam+#10);
+
+  PyCommandRunning:= true;
+  try
+    Py_RunPlugin_Command(AModule, AMethod, AParam);
+  finally
+    PyCommandRunning:= false;
+  end;
 end;
 
 

@@ -167,3 +167,45 @@ begin
 end;
 
 
+function ConvertTwoPointsToDiffPoint(APrevPnt, ANewPnt: TPoint): TPoint;
+begin
+  if APrevPnt.Y=ANewPnt.Y then
+  begin
+    Result.Y:= 0;
+    Result.X:= ANewPnt.X-APrevPnt.X;
+  end
+  else
+  begin
+    Result.Y:= ANewPnt.Y-APrevPnt.Y;
+    Result.X:= ANewPnt.X;
+  end;
+end;
+
+procedure TfmMain.FrameOnEditorClickMoveCaret(Sender: TObject; APrevPnt,
+  ANewPnt: TPoint);
+var
+  F: TEditorFrame;
+  Pnt: TPoint;
+begin
+  F:= Sender as TEditorFrame;
+  if F.MacroRecord then
+  begin
+    Pnt:= ConvertTwoPointsToDiffPoint(APrevPnt, ANewPnt);
+    F.MacroString:= F.MacroString+(Format('%d,%d,%d', [cmd_MouseClick, Pnt.X, Pnt.Y])+#10);
+  end;
+end;
+
+procedure TfmMain.FrameOnEditorClickEndSelect(Sender: TObject; APrevPnt,
+  ANewPnt: TPoint);
+var
+  F: TEditorFrame;
+  Pnt: TPoint;
+begin
+  F:= Sender as TEditorFrame;
+  if F.MacroRecord then
+  begin
+    Pnt:= ConvertTwoPointsToDiffPoint(APrevPnt, ANewPnt);
+    F.MacroString:= F.MacroString+(Format('%d,%d,%d', [cmd_MouseSelect, Pnt.X, Pnt.Y])+#10);
+  end;
+end;
+

@@ -15,8 +15,8 @@ uses
   Classes, SysUtils;
 
 const
-  cAppExeVersion = '1.2.1.0';
-  cAppApiVersion = '1.0.111';
+  cAppExeVersion = '1.2.2.0';
+  cAppApiVersion = '1.0.112';
 
 
 const
@@ -42,6 +42,7 @@ const
   msgStatusReadOps = 'Reading options';
   msgStatusSavedFile = 'Saved:';
   msgStatusReadonly = '[Read Only]';
+  msgStatusMacroRec = '[Macro Rec]';
   msgStatusCancel = 'Cancelled';
   msgStatusBadNum = 'Incorrect number entered';
   msgStatusEndsChanged = 'Line ends changed';

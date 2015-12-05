@@ -63,6 +63,7 @@ begin
         FPluginsCmd[cnt].ItemModule:= list[i];
         strPath:= '/commands/'+list[i]+'/'+list2[j]+'/';
         FPluginsCmd[cnt].ItemProc:= cfg.GetValue(strPath+'proc', '');
+        FPluginsCmd[cnt].ItemProcParam:= cfg.GetValue(strPath+'proc_par', '');
         FPluginsCmd[cnt].ItemCaption:= cfg.GetValue(strPath+'caption', '');
         FPluginsCmd[cnt].ItemLexers:= cfg.GetValue(strPath+'lexers', '');
         FPluginsCmd[cnt].ItemInMenu:= cfg.GetValue(strPath+'menu', true);
@@ -195,9 +196,10 @@ begin
     Exit
   end;
 
-  Py_RunPlugin_Command(
+  DoPyCommand(
     FPluginsCmd[Num].ItemModule,
-    FPluginsCmd[Num].ItemProc
+    FPluginsCmd[Num].ItemProc,
+    FPluginsCmd[Num].ItemProcParam
     );
 end;
 
@@ -279,7 +281,12 @@ begin
                 Continue;
 
           //call Python
-          Result:= Py_RunPlugin_Event(ItemModule, cAppPyEvent[AEvent], AEd, AParams);
+          PyCommandRunning:= true;
+          try
+            Result:= Py_RunPlugin_Event(ItemModule, cAppPyEvent[AEvent], AEd, AParams);
+          finally
+            PyCommandRunning:= false;
+          end;
 
           //True for some events means "stop"
           if Result=cPyTrue then
@@ -318,6 +325,6 @@ end;
 procedure TfmMain.DoPyRunLastPlugin;
 begin
   if PyLastCommandModule<>'' then
-    Py_RunPlugin_Command(PyLastCommandModule, PyLastCommandMethod);
+    DoPyCommand(PyLastCommandModule, PyLastCommandMethod, PyLastCommandParam);
 end;
 

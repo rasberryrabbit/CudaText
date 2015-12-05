@@ -19,24 +19,26 @@ begin
   end;
 end;
 
+
 procedure TfmMain.FindDialogDone(Sender: TObject; const Res: string);
 var
   ok, bChanged: boolean;
-  cnt, NTop: integer;
+  cnt, NTop, NCaretX, NCaretY: integer;
 begin
+  if Res=cOpFindClose then
+  begin
+    if IsFocusedFind then
+      CurrentEditor.SetFocus; //must for Win
+    fmFind.Hide;
+    UpdateAppForSearch(false);
+    Exit;
+  end;
+
+  //Sender=nil allows to not use dialog
+  if Assigned(Sender) then
   with fmFind do
   begin
-    if Res=cOpFindClose then
-    begin
-      if IsFocusedFind then
-        CurrentEditor.SetFocus; //must for Win
-      fmFind.Hide;
-      UpdateAppForSearch(false);
-      Exit;
-    end;
-
     if edFind.Text='' then Exit;
-
     FFinder.StrFind:= edFind.Text;
     FFinder.StrReplace:= edRep.Text;
     FFinder.OptBack:= false;
@@ -47,6 +49,12 @@ begin
     FFinder.OptFromCaret:= (Res=cOpFindNext) or (Res=cOpFindPrev) or (Res=cOpFindRep);
     FFinder.OptConfirmReplace:= chkConfirm.Checked;
   end;
+
+  with CurrentFrame do
+    if MacroRecord then
+      MacroString:= MacroString+(Format('%d,%s'#1'%s'#1'%s'#1'%s',
+        [cmd_FinderAction, Res, FFinder.StrFind, FFinder.StrReplace, DoFindOptionsToString])+#10);
+
 
   UpdateAppForSearch(true);
   FFinder.UpdateBuffer;
@@ -73,8 +81,17 @@ begin
   if Res=cOpFindRepAll then
   begin
     NTop:= FFinder.Editor.LineTop;
+    with FFinder.Editor do
+      if Carets.Count>0 then
+      begin
+        NCaretX:= Carets[0].PosX;
+        NCaretY:= Carets[0].PosY;
+      end;
+
     cnt:= FFinder.DoReplaceAll;
     FinderUpdateEditor(true);
+
+    FFinder.Editor.DoCaretSingle(NCaretX, NCaretY);
     FFinder.Editor.LineTop:= NTop;
     MsgStatus(msgStatusReplaceCount+Inttostr(cnt));
   end;
@@ -317,5 +334,45 @@ begin
   ok:= FFinder.DoFindOrReplace(false, false, false, bFlag);
   FinderUpdateEditor(false);
   DoFindResult(ok);
+end;
+
+
+function TfmMain.DoFindOptionsToString: string;
+begin
+  Result:=
+    IfThen(FFinder.OptBack, 'b')+
+    IfThen(FFinder.OptCase, 'c')+
+    IfThen(FFinder.OptRegex, 'r')+
+    IfThen(FFinder.OptWords, 'w')+
+    IfThen(FFinder.OptFromCaret, 'f')+
+    IfThen(FFinder.OptConfirmReplace, 'o')+
+    IfThen(FFinder.OptWrapped, 'a')
+end;
+
+procedure TfmMain.DoFindOptionsFromString(const S: string);
+begin
+  FFinder.OptBack:= Pos('b', S)>0;
+  FFinder.OptCase:= Pos('c', S)>0;
+  FFinder.OptRegex:= Pos('r', S)>0;
+  FFinder.OptWords:= Pos('w', S)>0;
+  FFinder.OptFromCaret:= Pos('f', S)>0;
+  FFinder.OptConfirmReplace:= Pos('o', S)>0;
+  FFinder.OptWrapped:= Pos('a', S)>0;
+end;
+
+
+procedure TfmMain.DoFindActionFromString(AStr: string);
+var
+  SRes, SFind, SRep, SOpt: string;
+begin
+  SRes:= SGetItem(AStr, #1);
+  SFind:= SGetItem(AStr, #1);
+  SRep:= SGetItem(AStr, #1);
+  SOpt:= SGetItem(AStr, #1);
+
+  FFinder.StrFind:= SFind;
+  FFinder.StrReplace:= SRep;
+  DoFindOptionsFromString(SOpt);
+  FindDialogDone(nil{skip dialog}, SRes);
 end;
 

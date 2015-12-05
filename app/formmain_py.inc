@@ -11,6 +11,12 @@ const
   cPyEditorHandleMin = 10;
   cPyEditorHandleMax = 10000;
 
+var
+  PyLastCommandModule: string = '';
+  PyLastCommandMethod: string = '';
+  PyLastCommandParam: string = '';
+  PyCommandRunning: boolean = false;
+
 //func at begin
 function PyEditor(Handle: PtrInt): TATSynEdit;
 var
@@ -767,14 +773,16 @@ end;
 function Py_ed_cmd(Self, Args: PPyObject): PPyObject; cdecl;
 var
   H: PtrInt;
-  Val: integer;
   Ed: TATSynEdit;
+  NCode: integer;
+  Ptr: PChar;
 begin
   with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'Li:cmd', @H, @Val)) then
+    if Bool(PyArg_ParseTuple(Args, 'Lis:cmd', @H, @NCode, @Ptr)) then
     begin
       Ed:= PyEditor(H);
-      Ed.DoCommand(Val);
+      Ed.DoCommand(NCode, string(Ptr));
+      Ed.Update();
       fmMain.UpdateStatus;
       Result:= ReturnNone;
     end;
@@ -1294,6 +1302,26 @@ begin
 end;
 
 
+function Py_dlg_hotkeys(Self, Args : PPyObject): PPyObject; cdecl;
+var
+  Ptr: PChar;
+  Str: string;
+  Cmd: integer;
+  Ok: boolean;
+begin
+  with GetPythonEngine do
+    if Bool(PyArg_ParseTuple(Args, 's:dlg_hotkeys', @Ptr)) then
+    begin
+      Str:= string(Ptr);
+      Cmd:= StrToIntDef(Str, 0);
+      if Cmd>0 then
+        Ok:= DoDialogHotkeys(Cmd)
+      else
+        Ok:= DoDialogHotkeys(Str);
+      Result:= PyBool_FromLong(Ord(Ok));
+    end;
+end;
+
 function Py_ed_get_prop(Self, Args: PPyObject): PPyObject; cdecl;
 var
   H: PtrInt;
@@ -1386,6 +1414,9 @@ begin
         PROP_TAB_COLLECT_MARKERS:
           Result:= PyBool_FromLong(Ord(F.TabKeyCollectMarkers));
 
+        PROP_MACRO_REC:
+          Result:= PyBool_FromLong(Ord(F.MacroRecord));
+
         else
           Result:= ReturnNone;
       end;
@@ -1464,7 +1495,7 @@ function Py_app_proc(Self, Args: PPyObject): PPyObject; cdecl;
 var
   Id, Num: integer;
   Ptr: PChar;
-  Str: string;
+  Str, Str1, Str2, Str3: string;
   StrCaption, StrId, StrCmd, StrIndex: string;
   mi, miMain: TMenuItem;
 begin
@@ -1633,9 +1664,20 @@ begin
             Result:= ReturnNone;
           end;
 
+        APP_PROC_SET_SUBCOMMANDS:
+          begin
+            CommandPlugins_UpdateSubcommands(Str);
+            fmMain.UpdateKeymapDynamicItems;
+            fmMain.DoOps_LoadKeymap;
+            Result:= ReturnNone;
+          end;
+
         APP_PROC_GET_LAST_PLUGIN:
           begin
-            Result:= PyString_FromString(PChar(PyLastCommandModule+','+PyLastCommandMethod));
+            Result:= PyString_FromString(PChar(
+              PyLastCommandModule+','+PyLastCommandMethod+
+                IfThen(PyLastCommandParam<>'', ','+PyLastCommandParam)
+              ));
           end;
 
         APP_PROC_GET_GROUPING:
@@ -1651,7 +1693,16 @@ begin
 
         APP_PROC_EXEC_PYTHON:
           begin
-            GetPythonEngine.ExecString(Str);
+            Str:= GetPythonEngine.EvalStringAsStr(Str);
+            Result:= PyString_FromString(PChar(Str));
+          end;
+
+        APP_PROC_EXEC_PLUGIN:
+          begin
+            Str1:= SGetItem(Str);
+            Str2:= SGetItem(Str);
+            Str3:= Str;
+            fmMain.DoPyCommand(Str1, Str2, Str3);
             Result:= ReturnNone;
           end;
 
@@ -1938,6 +1989,7 @@ begin
     AddMethod('dlg_menu', @Py_dlg_menu, '');
     AddMethod('dlg_color', @Py_dlg_color, '');
     AddMethod('dlg_checklist', @Py_dlg_checklist, '');
+    AddMethod('dlg_hotkeys', @Py_dlg_hotkeys, '');
     //AddMethod('dlg_charmap', @Py_dlg_charmap, '');
 
     AddMethod('ed_get_carets', @Py_ed_get_carets, '');

@@ -22,7 +22,8 @@ uses
   ATStringProc,
   ecSyntAnal,
   proc_globdata,
-  proc_colors;
+  proc_colors,
+  math;
 
 procedure EditorMarkerDrop(Ed: TATSynEdit);
 procedure EditorMarkerGotoLast(Ed: TATSynEdit; AndDelete: boolean);
@@ -43,6 +44,8 @@ procedure EditorBmGotoNext(ed: TATSyNEdit; ANext: boolean);
 
 procedure EditorConvertTabsToSpaces(ed: TATSynEdit);
 procedure EditorConvertSpacesToTabsLeading(Ed: TATSynEdit);
+
+procedure EditorMouseClickFromString(Ed: TATSynEdit; S: string; AAndSelect: boolean);
 
 function EditorGetCurrentChar(Ed: TATSynEdit): Widechar;
 procedure EditorApplyOps(Ed: TATSynEdit; const Op: TEditorOps; ForceApply: boolean);
@@ -721,6 +724,38 @@ begin
     Ed.Strings.EndUndoGroup;
     Ed.Update(true);
   end;
+end;
+
+
+procedure EditorMouseClickFromString(Ed: TATSynEdit; S: string; AAndSelect: boolean);
+var
+  X, Y: integer;
+  Caret: TATCaretItem;
+begin
+  X:= StrToIntDef(SGetItem(S), MaxInt);
+  Y:= StrToIntDef(SGetItem(S), MaxInt);
+  if X=MaxInt then exit;
+  if Y=MaxInt then exit;
+
+  if Ed.Carets.Count=0 then exit;
+  Caret:= Ed.Carets[0];
+
+  if Y=0 then
+    Ed.DoCaretSingle(
+      Caret.PosX+X,
+      Caret.PosY,
+      IfThen(AAndSelect, Caret.PosX, -1),
+      IfThen(AAndSelect, Caret.PosY, -1),
+      true)
+  else
+    Ed.DoCaretSingle(
+      X,
+      Caret.PosY+Y,
+      IfThen(AAndSelect, Caret.PosX, -1),
+      IfThen(AAndSelect, Caret.PosY, -1),
+      true);
+
+  Ed.Update;
 end;
 
 end.
