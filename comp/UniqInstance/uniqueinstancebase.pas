@@ -42,7 +42,7 @@ var
 begin
   Result := '';
   for i := 1 to ParamCount do
-    Result := Result + ParamStrUTF8(i) + ParamsSeparator; //AT fix (utf8)
+    Result := Result + pchar(ParamStrUTF8(i)) + ParamsSeparator; //AT fix (utf8)
 end;
 
 function GetServerId(const Identifier: String): String;
@@ -50,7 +50,7 @@ begin
   if Identifier <> '' then
     Result := BaseServerId + Identifier
   else
-    Result := BaseServerId + ExtractFileName(ParamStrUTF8(0)); //AT fix
+    Result := BaseServerId + pchar(ExtractFileName(ParamStrUTF8(0))); //AT fix
 end;
 
 finalization
