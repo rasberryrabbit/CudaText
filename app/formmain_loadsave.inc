@@ -78,7 +78,7 @@ var
 begin
   if fn_session='' then exit;
   if (ExtractFileDir(fn_session)='') then
-    fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+pchar(fn_session);
+    fn_session:= GetAppPath(cDirSettings)+DirectorySeparator+pchar(fn_session);
 
   DeleteFile(fn_session);
 
@@ -119,7 +119,7 @@ var
 begin
   if fn_session='' then exit;
   if ExtractFileDir(fn_session)='' then
-    fn_session:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+fn_session;
+    fn_session:= GetAppPath(cDirSettings)+DirectorySeparator+fn_session;
 
   DoFileCloseAll;
 

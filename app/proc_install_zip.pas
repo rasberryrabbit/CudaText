@@ -58,7 +58,7 @@ begin
 
   DeleteFile(fn_inf);
   dir_from:= utf8encode(unicodestring(ExtractFileDir(fn_inf)));
-  dir_target:= pchar(GetAppPath(cDirData))+DirectorySeparator+s_subdir;
+  dir_target:= GetAppPath(cDirData)+DirectorySeparator+s_subdir;
   FCopyDir(dir_from, dir_target); // utf-8
 
   s_report:= 'data files: '+dir_target;
@@ -90,7 +90,7 @@ begin
       exit;
     end;
 
-    FCopyDir(ExtractFileDir(fn_inf), pchar(GetAppPath(cDirPy))+DirectorySeparator+s_module);
+    FCopyDir(ExtractFileDir(fn_inf), GetAppPath(cDirPy)+DirectorySeparator+s_module);
 
     for i:= 1 to 200 do
     begin

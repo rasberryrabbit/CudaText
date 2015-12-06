@@ -742,7 +742,7 @@ begin
   AName:= StringReplace(AName, '/', '_', [rfReplaceAll]);
   AName:= StringReplace(AName, '\', '_', [rfReplaceAll]);
   AName:= StringReplace(AName, '*', '_', [rfReplaceAll]);
-  Result:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+'lexer '+AName+'.json';
+  Result:= GetAppPath(cDirSettings)+DirectorySeparator+'lexer '+AName+'.json';
 end;
 
 function AppFindLexer(const fn: string): TecSyntAnalyzer;

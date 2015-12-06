@@ -1112,7 +1112,7 @@ begin
 
       fn:= StrFN;
       if ExtractFileDir(fn)='' then
-        fn:= pchar(GetAppPath(cDirSettings))+DirectorySeparator+fn;
+        fn:= GetAppPath(cDirSettings)+DirectorySeparator+pchar(fn);
 
       with TIniFile.Create(string(utf8decode(fn))) do
       try

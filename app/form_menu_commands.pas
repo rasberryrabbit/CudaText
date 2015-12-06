@@ -207,7 +207,7 @@ begin
   c:= TJSONConfig.Create(Self);
   try
     c.Formatted:= true;
-    c.Filename:= GetAppPath(cFileOptKeymap);
+    c.Filename:= string(utf8decode(GetAppPath(cFileOptKeymap)));
     c.DeletePath(path);
   finally
     c.Free;

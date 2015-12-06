@@ -141,7 +141,7 @@ begin
 end;
 
 
-procedure FFindFilesInDir(const dir, mask: string; L: TStrings);
+procedure FFindFilesInDir(const dir, mask: string; L: TStrings); // utf-8
 const
   attr = faAnyFile and not faDirectory;
 var
@@ -150,9 +150,9 @@ begin
   L.Clear;
   if FindFirstUTF8(dir+DirectorySeparator+mask, attr, rec)=0 then
   begin
-    L.Add(dir+DirectorySeparator+rec.Name);
+    L.Add(dir+DirectorySeparator+pchar(rec.Name));
     while FindNextUTF8(rec)=0 do
-      L.Add(dir+DirectorySeparator+rec.Name);
+      L.Add(dir+DirectorySeparator+pchar(rec.Name));
   end;
   FindCloseUTF8(rec);
 end;
