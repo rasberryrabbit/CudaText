@@ -100,7 +100,6 @@ begin
     FreeAndNil(cfg);
   end;
 
-  UpdateMenuPlugins;
   UpdateKeymapDynamicItems;
 end;
 
@@ -172,6 +171,10 @@ begin
     begin
       mi.OnClick:= @MenuPluginClick;
       mi.Tag:= i;
+
+      //disabled yet: this gives side problem: after chg of hotkey in Commands,
+      //need call UpdateMenuPlugins(not done)
+      //UpKey(mi, cmdFirstPluginCommand+i);
     end;
   end;
 end;

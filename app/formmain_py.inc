@@ -1791,10 +1791,11 @@ begin
             Result:= ReturnNone;
           end;
 
+
         APP_PROC_EXEC_PYTHON:
           begin
-            Str:= GetPythonEngine.EvalStringAsStr(Str);
-            Result:= PyString_FromString(PChar(Str));
+            GetPythonEngine.ExecString(Str);
+            Result:= ReturnNone;
           end;
 
         APP_PROC_EXEC_PLUGIN:
