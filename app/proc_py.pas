@@ -68,8 +68,15 @@ begin
 end;
 
 
+//simple api--testing it
+function Py_EvalStringAsString(const command: string): string;
+begin
+  Result:= GetPythonEngine.EvalStringAsStr(command);
+end;
 
 //no such method on PythonEngine code
+//got this code from forum
+(*
 function Py_EvalStringAsString(const command: string): string;
 var
   obj: PPyObject;
@@ -98,6 +105,7 @@ begin
     end;
   end;
 end;
+*)
 
 
 function Py_RunPlugin_Event(const SModule, SCmd: string;
@@ -124,7 +132,6 @@ begin
 
   try
     GetPythonEngine.ExecString(SCmd1);
-    //Result:= GetPythonEngine.EvalStringAsStr(SCmd2);
     Result:= Py_EvalStringAsString(SCmd2);
   except
   end;
