@@ -24,6 +24,7 @@ uses
 
 type
   TAppConsoleEvent = function(const Str: string): boolean of object;
+  TAppConsoleCommandEvent = procedure(ACommand: integer; const AText: string; var AHandled: boolean) of object;
 
 type
   { TfmConsole }
@@ -37,9 +38,9 @@ type
     FOnConsole: TAppConsoleEvent;
     FOnNavigate: TAppConsoleEvent;
     procedure ComboCommand(Sender: TObject; ACmd: integer; const AText: string; var AHandled: boolean);
+    procedure MemoCommand(Sender: TObject; ACmd: integer; const AText: string; var AHandled: boolean);
     procedure DoClearMemo(Sender: TObject);
     procedure DoNavigate(Sender: TObject);
-    procedure MemoCommand(Sender: TObject; ACmd: integer; const AText: string; var AHandled: boolean);
   public
     { public declarations }
     ed: TATComboEdit;
@@ -57,6 +58,8 @@ const
   cPyConsoleMaxLines = 1000;
   cPyConsoleMaxComboItems: integer = 20;
   cPyConsolePrompt = '>>> ';
+  cPyCharNoLog = ';';
+  cPyCharPrint = '=';
 
 implementation
 
@@ -83,13 +86,23 @@ begin
 end;
 
 procedure TfmConsole.DoExecuteConsoleLine(Str: string);
+var
+  bNoLog: boolean;
 begin
-  DoLogConsoleLine(cPyConsolePrompt+Str);
+  bNoLog:= SEndsWith(Str, cPyCharNoLog);
+  if bNoLog then
+    Delete(Str, Length(Str), 1);
+
+  DoLogConsoleLine(cPyConsolePrompt+Str); //log always?
+  if not bNoLog then
+  begin
+    ed.DoAddLineToHistory(Utf8Decode(Str), cPyConsoleMaxComboItems);
+  end;
 
   if Assigned(FOnConsole) then
     if not FOnConsole(Str) then exit;
 
-  if (Str<>'') and (Str[1]='=') then
+  if SBeginsWith(Str, cPyCharPrint) then
     Str:= 'print('+Copy(Str, 2, MaxInt) + ')';
 
   try
@@ -132,12 +145,12 @@ begin
 
   ed.WantTabs:= false;
   ed.TabStop:= true;
+  ed.OptTabSize:= 4;
   memo.WantTabs:= false;
   memo.TabStop:= true;
-
-  ed.OptTabSize:= 4;
   memo.OptTabSize:= 4;
 
+  //menu items
   mi:= TMenuItem.Create(Self);
   mi.Caption:= 'Clear';
   mi.OnClick:= @DoClearMemo;
@@ -159,12 +172,15 @@ begin
     s:= UTF8Encode(ed.Text);
     DoExecuteConsoleLine(s);
 
-    ed.DoAddLineToHistory(Utf8Decode(s), cPyConsoleMaxComboItems);
     ed.Text:= '';
     ed.DoCaretSingle(0, 0);
 
     AHandled:= true;
+    Exit
   end;
+
+  //if Assigned(FOnEditCommand) then
+  //  FOnEditCommand(ACmd, AText, AHandled);
 end;
 
 procedure TfmConsole.DoClearMemo(Sender: TObject);

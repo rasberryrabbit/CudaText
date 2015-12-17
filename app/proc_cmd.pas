@@ -15,7 +15,7 @@ uses
   Classes, SysUtils,
   ATSynEdit_Keymap;
 
-procedure InitKeymapApp(M: TATKeymap);
+procedure InitKeymapForApplication(M: TATKeymap);
 
 const
   cmdFirstLexerCommand = 6000;
@@ -73,7 +73,6 @@ const
   cmd_DialogGoto       = 2580;
   cmd_DialogGotoBookmark = 2581;
   cmd_DialogCommands   = 2582;
-  cmd_DialogTabs       = 2583;
   cmd_DialogFind       = 2584;
   cmd_DialogReplace    = 2585;
 
@@ -225,7 +224,7 @@ implementation
 const
   cXControl = {$ifdef darwin} 'Meta' {$else} 'Ctrl' {$endif};
 
-procedure InitKeymapApp(M: TATKeymap);
+procedure InitKeymapForApplication(M: TATKeymap);
 begin
   M.Add(cmd_FileNew, 'file: new file', [cXControl+'+N'], []);
   M.Add(cmd_FileOpen, 'file: open file', [cXControl+'+O'], []);
@@ -266,7 +265,6 @@ begin
 
   M.Add(cmd_DialogSaveTabs, 'dialog: save tabs', [], []);
   M.Add(cmd_DialogCommands, 'dialog: command list', ['F1'], []);
-  M.Add(cmd_DialogTabs, 'dialog: go to tab', [cXControl+'+T'], []);
   M.Add(cmd_DialogGoto, 'dialog: go to line', [cXControl+'+G'], []);
   M.Add(cmd_DialogGotoBookmark, 'dialog: go to bookmark', [cXControl+'+B'], []);
   M.Add(cmd_DialogLexerProp, 'dialog: lexer properties', [], []);
@@ -442,7 +440,6 @@ begin
     cmd_DialogLexerProp,
     cmd_DialogLoadLexerStyles,
     cmd_DialogSaveTabs,
-    cmd_DialogTabs,
     cmd_FileNew,
     cmd_FileOpen,
     cmd_FileSaveAs,

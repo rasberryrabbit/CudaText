@@ -113,20 +113,24 @@ object fmMain: TfmMain
         Height = 150
         Top = 18
         Width = 180
+        CanGetFocus = True
         Color = clSilver
         ItemHeight = 28
         OnClick = ListboxOutClick
         OnDrawItem = ListboxOutDrawItem
+        OnKeyDown = ListboxOutKeyDown
       end
       object ListboxVal: TATListbox
         Left = 368
         Height = 150
         Top = 18
         Width = 180
+        CanGetFocus = True
         Color = clSilver
         ItemHeight = 28
         OnClick = ListboxOutClick
         OnDrawItem = ListboxOutDrawItem
+        OnKeyDown = ListboxOutKeyDown
       end
     end
     object SplitterHorz: TSplitter
@@ -642,9 +646,6 @@ object fmMain: TfmMain
       object mnuGotoLine: TMenuItem
         Caption = 'Go to line...'
       end
-      object mnuGotoTab: TMenuItem
-        Caption = 'Go to tab...'
-      end
       object mnuGotoBm: TMenuItem
         Caption = 'Go to bookmark...'
       end
@@ -783,13 +784,13 @@ object fmMain: TfmMain
       object mnuOpMore: TMenuItem
         Caption = 'Settings - more'
         object mnuOpLexer: TMenuItem
-          Caption = 'Settings - lexer override'
+          Caption = 'Settings - lexer'
         end
         object mnuOpFileTypes: TMenuItem
           Caption = 'Settings - file types'
         end
         object mnuOpColors: TMenuItem
-          Caption = 'Settings - color theme'
+          Caption = 'Settings - colors'
         end
         object mnuOpKeys: TMenuItem
           Caption = 'Settings - keys'

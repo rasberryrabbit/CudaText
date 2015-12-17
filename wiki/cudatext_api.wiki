@@ -126,11 +126,14 @@ Possible values of id:
 * LOG_SET_NAME_ID: Sets index of regex group for file-name.
 * LOG_SET_FILENAME: Sets default file-name, which will be used when regex cannot find file-name in a string. 
 * LOG_SET_ZEROBASE: Sets flag: line and column numbers are zero-based, not 1-based. text is one-char string "0" or "1".
-* LOG_CONSOLE_CLEAR: Clears "Python console" panel. text is ignored.
-* LOG_CONSOLE_ADD: Adds line text to "Python console" panel.  
-* LOG_CONSOLE_GET: Returns list of "Python console" panel combobox lines. text is ignored. 
 
-'''Example'''
+For "Python console" panel:
+
+* LOG_CONSOLE_CLEAR: Clears console (combobox and memo).
+* LOG_CONSOLE_ADD: Adds line to console (combobox and memo).
+* LOG_CONSOLE_GET: Gets list of lines in console combobox.
+
+Example for regex:
 
 For line "line 10 column 20: text message here" the following regex and indexes can be used:
 
@@ -215,10 +218,10 @@ To disable check "filename exists" in open dialog, start init_filename with "!".
 
 ===dlg_menu===
 
- dlg_menu(id, text)
+ dlg_menu(id, text, focused=0)
 
-Shows modal menu. 
-Gets index of item selected (0-base), or None of cancelled.
+Shows menu dialog.
+Gets index of selected item (0-base), or None of cancelled. Param focused is index of initial item.
 
 Possible values of id:
 
@@ -258,6 +261,63 @@ Text can be:
 * str(int_command): for internal command codes (module cudatext_cmd).
 * "module_name,method_name" or "module_name,method_name,method_param": for command plugin.
 
+===dlg_custom===
+
+ dlg_custom(title, size_x, size_y, text, focused=-1)
+
+Shows dialog with controls of many types.
+
+Parameter text is "\n"-separated items, one item per control. Each item is chr(1)-separated props. Each prop is s_name+"="+s_value. Possible names (and names' values):
+
+* "type": type of control, values:
+** "label"
+** "check"
+** "radio" (radiobutton, only one is checked)
+** "edit" (one-line edit)
+** "combo" (combobox editable, value is text)
+** "combo_ro" (combobox read-only, value is index)
+** "listbox"
+** "button"
+** "memo" (multi-line edit)
+** "checkgroup" (group of checks)
+** "radiogroup" (group of radiobuttons)
+** "checklistbox" (listbox with checks)
+** "spinedit" (edit for numbers, has min-value, max-value, increment)
+
+* "en": enabled-state of control, "1"/"0" for on/off
+* "pos": position of control, ","-separated values: left, top, right, bottom (e.g. "10,10,200,30")
+* "cap": caption of control (not for all)
+
+* "items": 
+** for combo, combo_ro, listbox, checkgroup, radiogroup, checklistbox: "\t"-separated lines
+
+* "props": control-specific properties:
+** for button: default_for_enter (bool value, "1"/"0")
+** for memo: read_only+","+font_monospaced+","+border (bool values, "1"/"0")
+** for spinedit: str(min_value)+","+str(max_value)+","+str(increment)
+
+* "val": value of control (not for all):
+** for check, radio: "1"/"0" for on/off
+** for edit: text
+** for memo: "\t"-separated lines (in lines "\t" must be replaced to chr(2))
+** for combo: text
+** for combo_ro, listbox, radiogroup: index of selected item (as str)
+** for checkgroup, checklistbox: ","-separated check-flags for items ("0"/"1")
+** for spinedit: text
+
+Parameter focused is index of control (0-base) which is focused on showing.
+
+Dialog is closed by any button. Gets 2-tuple: (button_index, state_text), gets None if cancelled by "x".
+
+* button_index: index of control (in text) for pressed button
+* state_text: "\n"-separated values of controls (same count of items as in text)
+
+Note:
+
+* Controls sizes differ on Linux/Win32, picture shows controls auto-aligned, not in CudaText, only example:
+
+[[File:controls_autosizes.png]]
+
 ===file_open===
 
  file_open(filename, group=-1)
@@ -274,7 +334,7 @@ Note: "ed" is always the current editor, after file_open() current editor change
 
  file_save()
 
-Saves current tab to disk. Shows save-as dialog for untitled tab.
+Saves current tab to disk. Shows save-as dialog for untitled tab. Gets bool: file was saved.
 
 ===ed_handles===
 
@@ -609,7 +669,7 @@ Controls markers (used e.g. in Snippets plugin). Possible values of id:
 
 ===attr===
 
- attr(id, x=0, y=0, len=0,
+ attr(id, tag=0, x=0, y=0, len=0,
       color_font=0, color_bg=0, color_border=0,
       font_bold=0, font_italic=0, font_strikeout=0,
       border_left=0, border_right=0, border_down=0, border_up=0 )
@@ -617,6 +677,7 @@ Controls markers (used e.g. in Snippets plugin). Possible values of id:
 Controls additional color attributes. Possible values of id:
 
 * MARKERS_ADD: Adds fragment with specified properties. Also gets number of fragments. Props:
+** tag: any int value attached to fragment (several plugins must add fragments with different tags, to be able to remove only fragments for them)
 ** x, y: position of fragment start (like caret).
 ** len: length of fragment.
 ** color_nnnn: RGB color values for font, background, borders. E.g. 0x0000FF is red, 0x00FF00 is green.
@@ -625,6 +686,7 @@ Controls additional color attributes. Possible values of id:
 * MARKERS_GET: Gets list of fragments, each item is list, int fields, same as function params.
 * MARKERS_DELETE_ALL: Deletes all fragments.
 * MARKERS_DELETE_LAST: Deletes last added fragment.
+* MARKERS_DELETE_BY_TAG: Deletes all fragments for specified tag value.
 
 ==Misc==
 
@@ -632,7 +694,7 @@ Controls additional color attributes. Possible values of id:
 
  save()
 
-Saves editor's tab to disk. Shows save-as dialog for untitled tab.
+Saves editor's tab to disk. Shows save-as dialog for untitled tab. Gets bool: file was saved.
 
 ===cmd===
 
@@ -696,9 +758,17 @@ Text is chr(1) separated items:
 
 =History=
 
+1.0.114
+
+* change: attr() has param "tag"
+* small addons for dlg_custom
+
 1.0.113
 
+* add: dlg_custom
+* add: dlg_menu(.., focused)
 * add: set_prop PROP_INDEX_GROUP, PROP_INDEX_TAB
+* add: result for ed.save(), file_save()
 
 1.0.112
 

@@ -57,6 +57,7 @@ uses
   proc_install_zip,
   proc_lexer_styles,
   proc_keysdialog,
+  proc_customdialog,
   formconsole,
   formframe,
   form_menu_commands,
@@ -199,7 +200,6 @@ type
     mnuSortSub: TMenuItem;
     mnuSortAsc: TMenuItem;
     mnuSortDesc: TMenuItem;
-    mnuGotoTab: TMenuItem;
     mnuBmPrev: TMenuItem;
     mnuBmNext: TMenuItem;
     mnuGotoBm: TMenuItem;
@@ -385,6 +385,8 @@ type
     procedure ListboxOutDrawItem(Sender: TObject; C: TCanvas; AIndex: integer;
       const ARect: TRect);
     procedure DoHelpWiki;
+    procedure ListboxOutKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
     procedure MenuThemesClick(Sender: TObject);
     procedure DoHelpLexers;
     procedure mnuOpKeysClick(Sender: TObject);
@@ -519,7 +521,7 @@ type
     function DoOnMacro(const Str: string): boolean;
     procedure DoOps_ShowEventPlugins;
     function DoDialogConfColors(var AColors: TAppTheme): boolean;
-    function DoDialogMenuApi(const AText: string; AMultiline: boolean): integer;
+    function DoDialogMenuApi(const AText: string; AMultiline: boolean; AInitIndex: integer): integer;
     procedure DoFileExportHtml;
     procedure DoFileInstallZip(const fn: string);
     procedure DoFileCloseAndDelete;
@@ -567,7 +569,6 @@ type
     procedure DoDialogLexerProp(an: TecSyntAnalyzer);
     procedure DoDialogLexerLib;
     procedure DoDialogLoadLexerStyles;
-    procedure DoDialogGotoTab;
     procedure DoDialogColors;
     procedure DoShowConsole;
     procedure DoShowOutput;
@@ -1720,51 +1721,6 @@ begin
   MsgStatus(Format(msgStatusGotoLine, [Num+1]));
 end;
 
-procedure TfmMain.DoDialogGotoTab;
-var
-  Form: TfmGotoList;
-  Num: integer;
-  items: TStringlist;
-  str, fn: string;
-  i: integer;
-begin
-  items:= TStringlist.Create;
-  try
-    for i:= 0 to FrameCount-1 do
-    begin
-      str:= Frames[i].TabCaption;
-      fn:= Frames[i].FileName;
-      if fn<>'' then
-        str:= str+'  ('+fn+')';
-      items.AddObject(str, TObject(ptrint(i)));
-    end;
-
-    Num:= -1;
-    Form:= TfmGotoList.Create(Self);
-    try
-      UpdateInputForm(Form,
-        Form.list.ItemHeight*UiOps.ListboxItemCountTabs +
-        Form.List.BorderSpacing.Around*2);
-      Form.Items:= items;
-      Form.ShowModal;
-      if Form.ResultIndex>=0 then
-        Num:= ptrint(items.Objects[Form.ResultIndex]);
-    finally
-      FreeAndNil(Form);
-    end;
-  finally
-    FreeAndNil(items);
-  end;
-
-  if Num<0 then
-  begin
-    MsgStatus(msgStatusCancel);
-    Exit
-  end;
-
-  SetFrame(Frames[Num]);
-  MsgStatus(Format(msgStatusGotoTab, [CurrentFrame.TabCaption]));
-end;
 
 procedure TfmMain.DoDialogColors;
 const
@@ -2467,7 +2423,8 @@ begin
 end;
 
 
-function TfmMain.DoDialogMenuApi(const AText: string; AMultiline: boolean): integer;
+function TfmMain.DoDialogMenuApi(const AText: string; AMultiline: boolean;
+  AInitIndex: integer): integer;
 var
   Form: TfmMenuApi;
   S, SItem: string;
@@ -2487,6 +2444,7 @@ begin
       Form.list.ItemHeight*UiOps.ListboxItemCountCmd);
 
     Form.Multiline:= AMultiline;
+    Form.InitItemIndex:= AInitIndex;
     Form.ShowModal;
     Result:= Form.ResultCode;
   finally
@@ -2536,6 +2494,67 @@ end;
 procedure TfmMain.DoHelpWiki;
 begin
   OpenURL('http://wiki.freepascal.org/CudaText');
+end;
+
+procedure TfmMain.ListboxOutKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+var
+  Prop: ^TAppPanelProps;
+  List: TATListbox;
+begin
+  //Esc
+  if (Key=VK_ESCAPE) then
+  begin
+    if CurrentEditor.CanSetFocus then
+      CurrentEditor.SetFocus;
+    Key:= 0;
+    exit
+  end;
+
+  List:= Sender as TATListbox;
+  if Sender=ListboxOut then
+    Prop:= @AppPanelProp_Out
+  else
+    Prop:= @AppPanelProp_Val;
+
+  if not ((List.ItemIndex>=0) and
+          (List.ItemIndex<Prop^.Items.Count)) then exit;
+
+  //Ctrl+C
+  if (Key=Ord('C')) and (Shift=[ssCtrl]) then
+  begin
+    Clipboard.AsText:= Prop^.Items.Text;
+    Key:= 0;
+    exit
+  end;
+
+  //Ctrl+D
+  if (Key=Ord('D')) and (Shift=[ssCtrl]) then
+  begin
+    Clipboard.AsText:= Prop^.Items[List.ItemIndex];
+    Key:= 0;
+    exit
+  end;
+
+  //Ctrl+Del
+  if Key=VK_DELETE then
+  begin
+    ////don't enable Del for Output panel
+    //if Shift=[] then
+    //  Prop^.Items.Delete(List.ItemIndex);
+
+    if Shift=[ssCtrl] then
+      Prop^.Items.Clear;
+
+    List.ItemCount:= Prop^.Items.Count;
+    if List.ItemCount=0 then
+      List.ItemIndex:= -1
+    else
+    if List.ItemIndex>=List.ItemCount then
+      List.ItemIndex:= List.ItemCount-1;
+
+    List.Invalidate;
+  end;
 end;
 
 procedure TfmMain.MenuThemesClick(Sender: TObject);
@@ -2690,12 +2709,12 @@ begin
     C.Font.Color:= GetAppColor('ListFont');
     C.Brush.Color:= GetAppColor('ListBg');
   end;
-  C.Pen.Color:= GetAppColor('ListSelBg');
 
   if AIndex=Prop^.Listbox.ItemIndex then
-    C.Rectangle(ARect)
-  else
+  begin
+    C.Brush.Color:= GetAppColor('ListSelBg');
     C.FillRect(ARect);
+  end;
 
   C.TextOut(ARect.Left+cDx, ARect.Top+cDy, Prop^.Items[AIndex]);
 end;
