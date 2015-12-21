@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Graphics, Controls, StdCtrls, ExtCtrls, Forms,
-  CheckLst, Spin,
+  CheckLst, Spin, ComCtrls,
   LclProc, LclType,
   ATStringProc;
 
@@ -44,8 +44,8 @@ begin
     (C is TSpinEdit);
 end;
 
-
-function DoGetControlResult(C: TControl): string;
+function DoGetListviewState(C: TListView): string; forward;
+function DoGetControlState(C: TControl): string;
 var
   i: integer;
 begin
@@ -88,11 +88,17 @@ begin
       Result:= Result+IntToStr(Ord((C as TCheckGroup).Checked[i]))+',';
 
   if C is TCheckListBox then
+  begin
+    Result:= IntToStr((C as TCheckListBox).ItemIndex)+';';
     for i:= 0 to (C as TCheckListBox).Items.Count-1 do
       Result:= Result+IntToStr(Ord((C as TCheckListBox).Checked[i]))+',';
+  end;
 
   if C is TSpinEdit then
     Result:= IntToStr((C as TSpinEdit).Value);
+
+  if C is TListView then
+    Result:= DoGetListviewState(C as TListView);
 end;
 
 
@@ -104,9 +110,8 @@ begin
   Result:= '';
   for i:= 0 to AForm.ControlCount-1 do
   begin
-    Str:= DoGetControlResult(AForm.Controls[i]);
-    if Result<>'' then Result:= Result+#10;
-    Result:= Result+Str;
+    Str:= DoGetControlState(AForm.Controls[i]);
+    Result:= Result+Str+#10;
   end;
 end;
 
@@ -123,34 +128,115 @@ begin
   until false;
 end;
 
-procedure DoSetChecklistState(C: TControl; AValue: string);
+procedure DoSetCheckgroupState(C: TCheckGroup; AValue: string);
 var
   SItem: string;
-  NCount, N: integer;
+  N: integer;
 begin
-  if C is TCheckGroup then NCount:= (C as TCheckGroup).Items.Count else
-   if C is TCheckListBox then NCount:= (C as TCheckListBox).Items.Count else
-    exit;
+  N:= 0;
+  repeat
+    if N>=C.Items.Count then exit;
+    SItem:= SGetItem(AValue);
+    if SItem='' then break;
+    C.Checked[N]:= StrToBool(SItem);
+    Inc(N);
+  until false;
+end;
+
+procedure DoSetChecklistboxState(C: TCheckListBox; AValue: string);
+var
+  SItem: string;
+  N: integer;
+begin
+  C.ItemIndex:= StrToIntDef(SGetItem(AValue, ';'), 0);
 
   N:= 0;
   repeat
-    if N>=NCount then exit;
+    if N>=C.Items.Count then exit;
     SItem:= SGetItem(AValue);
     if SItem='' then break;
-
-    if C is TCheckGroup then (C as TCheckGroup).Checked[N]:= StrToBool(SItem);
-    if C is TCheckListBox then (C as TCheckListBox).Checked[N]:= StrToBool(SItem);
-
+    C.Checked[N]:= StrToBool(SItem);
     Inc(N);
   until false;
 end;
 
 
-procedure DoAddControl(AForm: TForm; ATextItems: string; AControlIndex: integer);
+procedure DoSetListviewItem(C: TListView; SListItem: string);
+var
+  SItem: string;
+begin
+  if C.Columns.Count=0 then
+  begin
+    repeat
+      SItem:= SGetItem(SListItem, #13);
+      if SItem='' then break;
+      with C.Columns.Add do
+      begin
+        Caption:= SGetItem(SItem, '=');
+        Width:= StrToIntDef(SItem, 50);
+      end;
+    until false;
+  end
+  else
+  begin
+    SItem:= SGetItem(SListItem, #13);
+    C.Items.Add.Caption:= SItem;
+    repeat
+      SItem:= SGetItem(SListItem, #13);
+      if SItem='' then break;
+      C.Items[C.Items.Count-1].SubItems.Add(SItem);
+    until false;
+  end;
+end;
+
+
+procedure DoSetListviewState(C: TListView; SValue: string);
+// index;check0,check1,
+var
+  N: integer;
+  SItem: string;
+begin
+  SItem:= SGetItem(SValue, ';');
+  N:= StrToIntDef(SItem, 0);
+  if (N>=0) and (N<C.Items.Count) then
+    C.ItemFocused:= C.Items[N];
+
+  if C.Checkboxes then
+  begin
+    N:= 0;
+    repeat
+      if N>=C.Items.Count then break;
+      SItem:= SGetItem(SValue);
+      if SItem='' then break;
+      C.Items[N].Checked:= StrToBool(SItem);
+      Inc(N);
+    until false;
+  end;
+end;
+
+
+function DoGetListviewState(C: TListView): string;
+// index;check0,check1,
+var
+  i: integer;
+begin
+  if Assigned(C.ItemFocused) then
+    Result:= IntToStr(C.ItemFocused.Index);
+
+  if C.Checkboxes then
+  begin
+    Result:= Result+';';
+    for i:= 0 to C.Items.Count-1 do
+      Result:= Result+IntToStr(Ord(C.Items[i].Checked))+',';
+  end;
+end;
+
+
+procedure DoAddControl(AForm: TForm; ATextItems: string);
 var
   SNameValue, SName, SValue, SListItem: string;
   NX1, NX2, NY1, NY2: integer;
-  Ctl: TControl;
+  Ctl, CtlPrev: TControl;
 begin
   Ctl:= nil;
 
@@ -191,7 +277,7 @@ begin
       if SValue='button' then
         begin
           Ctl:= TButton.Create(AForm);
-          (Ctl as TButton).ModalResult:= cButtonResultStart+AControlIndex;
+          (Ctl as TButton).ModalResult:= cButtonResultStart+ AForm.ControlCount;
           {$ifdef darwin}
           Ctl.Height:= 21; //set smaller size
           {$endif}
@@ -203,6 +289,18 @@ begin
       if SValue='checklistbox' then
         Ctl:= TCheckListBox.Create(AForm);
 
+      if (SValue='listview') or
+         (SValue='checklistview') then
+      begin
+        Ctl:= TListView.Create(AForm);
+        (Ctl as TListView).ReadOnly:= true;
+        (Ctl as TListView).ColumnClick:= false;
+        (Ctl as TListView).ViewStyle:= vsReport;
+        (Ctl as TListView).RowSelect:= true;
+        (Ctl as TListView).Checkboxes:= (SValue='checklistview');
+      end;
+
+      //set parent
       if Assigned(Ctl) then
         Ctl.Parent:= AForm;
       Continue;
@@ -210,6 +308,15 @@ begin
 
     //first name must be "type"
     if not Assigned(Ctl) then exit;
+
+    //adjust previous label's FocusControl
+    if Ctl is TWinControl then
+      if AForm.ControlCount>=2 then
+      begin
+        CtlPrev:= AForm.Controls[AForm.ControlCount-2];
+        if CtlPrev is TLabel then
+          (CtlPrev as TLabel).FocusControl:= Ctl as TWinControl;
+      end;
 
     //-------en
     if SName='en' then
@@ -295,6 +402,7 @@ begin
         if Ctl is TCheckGroup then (Ctl as TCheckGroup).Items.Add(SListItem);
         if Ctl is TRadioGroup then (Ctl as TRadioGroup).Items.Add(SListItem);
         if Ctl is TCheckListBox then (Ctl as TCheckListBox).Items.Add(SListItem);
+        if Ctl is TListView then DoSetListviewItem(Ctl as TListView, SListItem);
       until false;
       Continue;
     end;
@@ -314,10 +422,12 @@ begin
       end;
       if Ctl is TListBox then (Ctl as TListBox).ItemIndex:= StrToIntDef(SValue, 0);
       if Ctl is TRadioGroup then (Ctl as TRadioGroup).ItemIndex:= StrToIntDef(SValue, 0);
-      if Ctl is TCheckGroup then DoSetChecklistState(Ctl, SValue);
-      if Ctl is TCheckListBox then DoSetChecklistState(Ctl, SValue);
+      if Ctl is TCheckGroup then DoSetCheckgroupState(Ctl as TCheckGroup, SValue);
+      if Ctl is TCheckListBox then DoSetChecklistboxState(Ctl as TCheckListBox, SValue);
       if Ctl is TMemo then DoSetMemoState(Ctl as TMemo, SValue);
       if Ctl is TSpinEdit then (Ctl as TSpinEdit).Value:= StrToIntDef(SValue, 0);
+      if Ctl is TListView then DoSetListviewState(Ctl as TListView, SValue);
+
       Continue;
     end;
 
@@ -330,7 +440,7 @@ procedure DoDialogCustom(const ATitle: string; ASizeX, ASizeY: integer;
   AText: string; AFocusedIndex: integer; out AButtonIndex: integer; out AStateText: string);
 var
   F: TForm;
-  Res, NIndex: integer;
+  Res: integer;
   SItem: string;
   Dummy: TDummyClass;
 begin
@@ -346,12 +456,10 @@ begin
     F.Height:= ASizeY;
     F.Caption:= ATitle;
 
-    NIndex:= 0;
     repeat
       SItem:= SGetItem(AText, #10);
       if SItem='' then break;
-      DoAddControl(F, SItem, NIndex);
-      Inc(NIndex);
+      DoAddControl(F, SItem);
     until false;
 
     if (AFocusedIndex>=0) and (AFocusedIndex<F.ControlCount) then

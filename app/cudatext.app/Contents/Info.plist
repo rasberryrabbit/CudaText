@@ -11,7 +11,7 @@
   <key>CFBundleName</key>
   <string>CudaText</string>
   <key>CFBundleIdentifier</key>
-  <string>com.company.cudatext</string>
+  <string>com.uvviewsoft.cudatext</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -19,7 +19,7 @@
   <key>CFBundleSignature</key>
   <string>cudatext</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.2.8</string>
+  <string>1.2.9</string>
   <key>CFBundleVersion</key>
   <string>1</string>
   <key>CSResourcesFileMapped</key>
