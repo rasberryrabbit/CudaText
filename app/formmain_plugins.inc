@@ -249,6 +249,7 @@ begin
     DoAdd(cModuleAddonman, 'do_install_lexer', cCaptionAddonman+'\Install lexer...', 1);
     DoAdd(cModuleAddonman, 'do_edit', cCaptionAddonman+'\Edit plugin...', 2);
     DoAdd(cModuleAddonman, 'do_remove', cCaptionAddonman+'\Remove plugin...', 3);
+    DoAdd(cModuleAddonman, 'do_download_all', cCaptionAddonman+'\Download all...', 4);
 
     DoAdd(cModuleMake, 'run', cCaptionMake, 0);
     DoAdd(cModuleInsTime, 'run', cCaptionInsTime, 0);
@@ -285,11 +286,13 @@ begin
                 Continue;
 
           //call Python
+          AEd.Strings.BeginUndoGroup;
           PyCommandRunning:= true;
           try
             Result:= Py_RunPlugin_Event(ItemModule, cAppPyEvent[AEvent], AEd, AParams);
           finally
             PyCommandRunning:= false;
+            AEd.Strings.EndUndoGroup;
           end;
 
           //True for some events means "stop"

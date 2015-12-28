@@ -1,3 +1,10 @@
+(*
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+Copyright (c) Alexey Torgashin
+*)
 unit proc_customdialog;
 
 {$mode objfpc}{$H+}
@@ -18,6 +25,9 @@ implementation
 
 const
   cButtonResultStart=100;
+
+type
+  TCustomEditHack = class(TCustomEdit);
 
 type
   { TDummyClass }
@@ -164,16 +174,22 @@ end;
 procedure DoSetListviewItem(C: TListView; SListItem: string);
 var
   SItem: string;
+  Col: TListColumn;
+  i: integer;
 begin
   if C.Columns.Count=0 then
   begin
     repeat
       SItem:= SGetItem(SListItem, #13);
       if SItem='' then break;
-      with C.Columns.Add do
+      Col:= C.Columns.Add;
+      Col.Caption:= SGetItem(SItem, '=');
+      if SItem<>'' then
       begin
-        Caption:= SGetItem(SItem, '=');
-        Width:= StrToIntDef(SItem, 50);
+        if SItem[1]='L' then begin Delete(SItem, 1, 1); Col.Alignment:= taLeftJustify; end;
+        if SItem[1]='R' then begin Delete(SItem, 1, 1); Col.Alignment:= taRightJustify; end;
+        if SItem[1]='C' then begin Delete(SItem, 1, 1); Col.Alignment:= taCenter; end;
+        Col.Width:= StrToIntDef(SItem, 80);
       end;
     until false;
   end
@@ -181,11 +197,11 @@ begin
   begin
     SItem:= SGetItem(SListItem, #13);
     C.Items.Add.Caption:= SItem;
-    repeat
+    for i:= 1 to C.ColumnCount do
+    begin
       SItem:= SGetItem(SListItem, #13);
-      if SItem='' then break;
       C.Items[C.Items.Count-1].SubItems.Add(SItem);
-    until false;
+    end;
   end;
 end;
 
@@ -289,6 +305,10 @@ begin
       if SValue='checklistbox' then
         Ctl:= TCheckListBox.Create(AForm);
 
+      //disabled: label paints bad onto groupbox, Linux
+      //if SValue='group' then
+      //  Ctl:= TGroupBox.Create(AForm);
+
       if (SValue='listview') or
          (SValue='checklistview') then
       begin
@@ -366,13 +386,13 @@ begin
         (Ctl as TSpinEdit).Increment:= StrToIntDef(SGetItem(SValue), 1);
       end;
 
-      if Ctl is TMemo then
+      if (Ctl is TEdit) or (Ctl is TMemo) then
       begin
         //RO
         if StrToBool(SGetItem(SValue)) then
         begin
-          (Ctl as TMemo).ReadOnly:= true;
-          (Ctl as TMemo).ParentColor:= true;
+          (Ctl as TCustomEdit).ReadOnly:= true;
+          TCustomEditHack(Ctl).ParentColor:= true;
         end;
         //Monospaced
         if StrToBool(SGetItem(SValue)) then
@@ -384,9 +404,9 @@ begin
         end;
         //Border
         if StrToBool(SGetItem(SValue)) then
-          (Ctl as TMemo).BorderStyle:= bsSingle
+          (Ctl as TCustomEdit).BorderStyle:= bsSingle
         else
-          (Ctl as TMemo).BorderStyle:= bsNone;
+          (Ctl as TCustomEdit).BorderStyle:= bsNone;
       end;
       Continue;
     end;

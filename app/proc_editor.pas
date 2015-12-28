@@ -12,7 +12,7 @@ unit proc_editor;
 interface
 
 uses
-  Classes, SysUtils, Dialogs,
+  Classes, SysUtils,
   ATSynEdit,
   ATSynEdit_CanvasProc,
   ATSynEdit_Carets,
@@ -20,7 +20,6 @@ uses
   ATSynEdit_Ranges,
   ATSynEdit_Commands,
   ATStringProc,
-  ecSyntAnal,
   proc_globdata,
   proc_colors,
   math;
@@ -29,10 +28,6 @@ procedure EditorMarkerDrop(Ed: TATSynEdit);
 procedure EditorMarkerGotoLast(Ed: TATSynEdit; AndDelete: boolean);
 procedure EditorMarkerClearAll(Ed: TATSynEdit);
 procedure EditorMarkerSwap(Ed: TATSynEdit);
-
-procedure LexerEnumSublexers(An: TecSyntAnalyzer; List: TStringList);
-procedure LexerEnumStyles(An: TecSyntAnalyzer; List: TStringList);
-procedure LexerSetSublexers(SyntaxManager: TecSyntaxManager; An: TecSyntAnalyzer; const Links: string);
 
 type
   TAppBookmarkOp = (bmOpClear, bmOpSet, bmOpToggle);
@@ -59,6 +54,7 @@ type
 function EditorGetStatusType(ed: TATSynEdit): TEdSelType;
 function EditorFormatStatus(ed: TATSynEdit; const str: string): string;
 procedure EditorApplyTheme(Ed: TATSynedit);
+
 
 implementation
 
@@ -125,7 +121,10 @@ begin
 
     if ed.Strings.LinesBm[n]>0 then
     begin
-      ed.DoGotoPosEx(Point(0, n));
+      ed.DoGotoPos_AndUnfold(
+        Point(0, n),
+        UiOps.FindIndentHorz,
+        UiOps.FindIndentVert);
       exit;
     end;
   until false;
@@ -473,46 +472,6 @@ begin
 end;
 
 
-procedure LexerEnumSublexers(An: TecSyntAnalyzer; List: TStringList);
-var
-  i: Integer;
-  AnLink: TecSyntAnalyzer;
-begin
-  List.Clear;
-  for i:= 0 to An.SubAnalyzers.Count-1 do
-  begin
-    AnLink:= An.SubAnalyzers[i].SyntAnalyzer;
-    if AnLink<>nil then
-      List.Add(AnLink.LexerName)
-    else
-      List.Add('');
-  end;
-end;
-
-procedure LexerEnumStyles(An: TecSyntAnalyzer; List: TStringList);
-var
-  i: Integer;
-begin
-  List.Clear;
-  for i:= 0 to An.Formats.Count-1 do
-    List.Add(An.Formats[i].DisplayName);
-end;
-
-procedure LexerSetSublexers(SyntaxManager: TecSyntaxManager; An: TecSyntAnalyzer; const Links: string);
-var
-  S, SItem: string;
-  Cnt: Integer;
-begin
-  S:= Links;
-  Cnt:= 0;
-  repeat
-    SItem:= SGetItem(S, '|');
-    if Cnt>=An.SubAnalyzers.Count then Break;
-    An.SubAnalyzers[Cnt].SyntAnalyzer:= SyntaxManager.FindAnalyzer(SItem);
-    Inc(Cnt);
-  until false;
-end;
-
 function EditorGetCurrentChar(Ed: TATSynEdit): Widechar;
 var
   Caret: TATCaretItem;
@@ -757,6 +716,7 @@ begin
 
   Ed.Update;
 end;
+
 
 end.
 

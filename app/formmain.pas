@@ -53,6 +53,7 @@ uses
   proc_colors,
   proc_cmd,
   proc_editor,
+  proc_miscutils,
   proc_msg,
   proc_install_zip,
   proc_lexer_styles,
@@ -76,7 +77,6 @@ uses
   formchecklist,
   formcharmaps,
   math;
-
 
 type
   { TfmMain }
@@ -656,7 +656,7 @@ type
     procedure SetShowToolbar(AValue: boolean);
     procedure UpdateMenuThemes(sub: TMenuItem);
     procedure UpdateTabsActiveColor(F: TEditorFrame);
-    procedure UpdateTree(AFill: boolean);
+    procedure UpdateTree(AFill: boolean; AConsiderTreeVisible: boolean=true);
     procedure UpKey(mi: TMenuItem; cmd: integer);
     procedure UpdateCaption;
     procedure UpdateEnabledAll(b: boolean);
@@ -861,7 +861,7 @@ begin
   R:= TecTextRange(Tree.Selected.Data);
   P:= CurrentFrame.Adapter.TreeGetPositionOfRange(R);
   FTreeClick:= true;
-  CurrentEditor.DoGotoPosEx(P);
+  CurrentEditor.DoGotoPos_AndUnfold(P, UiOps.FindIndentHorz, UiOps.FindIndentVert);
   CurrentEditor.SetFocus;
   FTreeClick:= false;
 end;
@@ -1075,6 +1075,13 @@ begin
 
   if (Key=VK_ESCAPE) and (Shift=[]) then
   begin
+    PyEscapeFlag:= true;
+    if PyCommandRunning then
+    begin
+      Key:= 0;
+      exit
+    end;
+
     if fmConsole.ed.Focused or fmConsole.memo.Focused then
     begin
       if UiOps.EscapeCloseConsole then
@@ -1084,10 +1091,12 @@ begin
       Key:= 0;
       exit
     end;
+
     if UiOps.EscapeClose then
     begin
       Close;
       Key:= 0;
+      exit
     end;
     exit
   end;
@@ -1717,7 +1726,10 @@ begin
   NumMax:= CurrentEditor.Strings.Count-1;
   if Num>NumMax then Num:= NumMax;
 
-  CurrentEditor.DoGotoPosEx(Point(0, Num));
+  CurrentEditor.DoGotoPos_AndUnfold(
+    Point(0, Num),
+    UiOps.FindIndentHorz,
+    UiOps.FindIndentVert);
   MsgStatus(Format(msgStatusGotoLine, [Num+1]));
 end;
 
@@ -1911,6 +1923,8 @@ var
   ch0: char;
 begin
   UpdateKeymapDynamicItems;
+  DoOps_LoadKeymap;
+
   PopupLex.Items.Clear;
 
   ch0:= '?';
@@ -1923,6 +1937,7 @@ begin
 
   sl:= tstringlist.create;
   try
+    //make stringlist of all lexers
     for i:= 0 to Manager.AnalyzerCount-1 do
     begin
       an:= Manager.Analyzers[i];
@@ -1931,6 +1946,21 @@ begin
     end;
     sl.sort;
 
+    //put stringlist to menu
+    if not UiOps.LexerMenuGrouped then
+    begin
+      for i:= 0 to sl.count-1 do
+      begin
+        if sl[i]='' then Continue;
+        mi:= TMenuItem.create(self);
+        mi.caption:= sl[i];
+        mi.tag:= ptrint(sl.Objects[i]);
+        mi.OnClick:= @MenuLexClick;
+        PopupLex.Items.Add(mi);
+      end;
+    end
+    else
+    //grouped view
     for i:= 0 to sl.count-1 do
     begin
       if sl[i]='' then Continue;
@@ -2009,7 +2039,8 @@ begin
       MB_OKCANCEL or MB_ICONQUESTION)<>id_ok then exit;
 
   F.DoSaveHistory; //save hist to reopen at same scrollpos
-  F.DoFileOpen(F.FileName);
+  F.DoFileOpen(F.FileName, true);
+
   MsgStatus('Re-opened: '+ExtractFileName(F.Filename));
 end;
 
@@ -2864,11 +2895,13 @@ begin
     if MacroRecord then
       MacroString:= MacroString+ ('py:'+AModule+','+AMethod+','+AParam+#10);
 
+  CurrentEditor.Strings.BeginUndoGroup;
   PyCommandRunning:= true;
   try
     Py_RunPlugin_Command(AModule, AMethod, AParam);
   finally
     PyCommandRunning:= false;
+    CurrentEditor.Strings.EndUndoGroup;
   end;
 end;
 

@@ -65,7 +65,7 @@ type
     VarFontSize: integer;
 
     PyLibrary: string;
-    LexlibFilename: string;
+    LexerLibFilename: string;
 
     ListboxWidth: integer;
     ListboxItemCountCmd: integer;
@@ -131,6 +131,8 @@ type
     NotifTimeSec: integer;
     NonTextFiles: integer; //0: prompt, 1: open, 2: don't open
     NonTextFilesBufferKb: integer;
+    LexerMenuGrouped: boolean;
+    ReloadFollowTail: boolean;
   end;
 var
   UiOps: TUiOps;
@@ -455,7 +457,7 @@ begin
       end;
     cFileLexlib:
       begin
-        Result:= GetAppPath(cDirDataLexlib)+DirectorySeparator+UiOps.LexlibFilename;
+        Result:= GetAppPath(cDirDataLexlib)+DirectorySeparator+UiOps.LexerLibFilename;
       end;
 
     cFileOptDefault:
@@ -667,7 +669,7 @@ begin
     VarFontName:= 'default';
     VarFontSize:= {$ifdef windows} 9 {$else} 10 {$endif};
 
-    LexlibFilename:= 'lib.lxl';
+    LexerLibFilename:= 'lib.lxl';
     PyLibrary:= InitPyLibraryPath;
 
     ListboxWidth:= 450;
@@ -734,6 +736,8 @@ begin
     NotifTimeSec:= 2;
     NonTextFiles:= 0;
     NonTextFilesBufferKb:= 64;
+    LexerMenuGrouped:= true;
+    ReloadFollowTail:= true;
   end;
 end;
 
