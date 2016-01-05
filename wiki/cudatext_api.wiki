@@ -19,18 +19,29 @@ Supported events:
 * on_key(self, ed_self, key, state): Called when user presses a key. key is int key code. state is few chars string: "a" if Alt pressed, "c" if Ctrl pressed, "s" if Shift pressed, "m" if Meta (Windows-key) pressed. Method can return False do disable key processing, other return value is ignored.
 * on_focus(self, ed_self): Called after editor is focused.
 * on_start(self, ed_self): Called once on program start (ignore ed_self).
+
+Code parsing
+
 * on_complete(self, ed_self): Called by auto-completion command (default hotkey: Ctrl+Space). Method should call Editor.complete API. Method must return True if it handled command, otherwise None.  
 * on_goto_def(self, ed_self): Called by go-to-definition command (in editor context menu). Method must return True if it handled command, otherwise None.
+
+Panels
+
 * on_console(self, ed_self, text): Called on entering text command in Python Console panel. Method can return False to disable internal command processing, other value is ignored. Ignore ed_self.
-* on_console_nav(self, ed_self, text): Called on dbl-clicking line, or calling context menu item "Navigate", in Python Console panel. Ignore ed_self, text is line with caret.
+* on_console_nav(self, ed_self, text): Called on dbl-clicking line, or calling context menu item "Navigate", in Python Console panel. Ignore ed_self. Text is line with caret.
+* on_output_nav(self, ed_self, text, tag): Called on clicking line, or pressing Enter, in Output or Validate panel. Ignore ed_self. Text is clicked line, tag is int value associated with line. Event is called only if app cannot parse output line by itself using given regex (or regex isn't set at all).
+
+Macros
+
 * on_macro(self, ed_self, text): Called when command "macros: stop recording" runs. In text the "\n"-separated list of macro items is passed. These items were run after command "macros: start recording" and before command "macros: stop recording".
 ** if item is "number" then it's simple command.
 ** if item is "number,string" then it's command with str parameter (usually it's command cCommand_TextInsert).
 ** if item is "py:string_module,string_method,string_param" then it's call of Python plugin (usually string_param is empty).
 ** to run each item in log, call ed.cmd(): number is command code, all after comma is parameter text.
 
+Notes
 
-Config "plugins.json": Command plugins need registering in section "commands", event plugins need registering in section "events". Event plugins have optional key "lexers" - e.g. "CSS,HTML"; need key "events" - e.g. "on_key,on_open,on_save".
+Config plugins.json: Command plugins need registering in section "commands", event plugins need registering in section "events". Event plugins have optional key "lexers" - e.g. "CSS,HTML"; need key "events" - e.g. "on_key,on_open,on_save".
 
 =Global funcs=
 
@@ -77,6 +88,7 @@ Performs application-wide action. Possible values of id:
 * PROC_SET_EVENTS: Subscribe plugin to events. Param text must be 4 values ";"-separated: "module_name;event_list;lexer_list;keycode_list". Event_list is what can be written in plugins.json, e.g. "on_open,on_save" or empty str to unsubscribe from all. Lexer_list, keycode_list is what can be written in plugins.json too.
 * PROC_GET_LAST_PLUGIN: Gets info about last plugin which run from program. It is str "module_name,method_name", values are empty if no plugins run yet.
 * PROC_SET_SUBCOMMANDS: Adds command items for plugin (for fixed module/method). Param text must be ";"-separated: "module_name;method_name;param_list". Param_list is "\n"-separated items. Each item is s_caption+"\t"+s_param_value. s_caption is caption for Commands dialog item, s_param_value is parameter for Python method (it can be any primitive type: 20, None, False, 'Test here', or expression).
+* PROC_GET_COMMAND_PLUGIN: Allows to enumerate all command plugins (and items from PROC_SET_SUBCOMMANDS). Call it with str(N) from N=0 until you get None. Gets 5-tuple about N-th item (caption, module, method, param, lexers).
 
 ====Python====
 * PROC_EXEC_PYTHON: Runs Python string in the context of Console (it is not the same as exec() call). Also gets string: result of command.
@@ -112,22 +124,39 @@ Performs application-wide action. Possible values of id:
 ** menu_caption is caption, or "-" for menu separator.
 ** menu_index is str(index) for 0-based index at which to insert item; empty param or -1: add item at end.
 
+====Splitters====
+
+* PROC_GET_SPLIT: Gets info about splitter position, 3-tuple: (is_vertical_0_1, splitter_size, parent_size). Text must be splitter id (incorrect value gives parent_size=0).
+* PROC_SET_SPLIT: Sets position of splitter. Text must be "splitter_id;splitter_size".
+
+Splitter id can be:
+* "L": left splitter (near Side panel)
+* "B": bottom splitter (near Bottom panel)
+* "G1"..."G5": splitters between groups, their positions are determined also by grouping view
+
 ===app_log===
 
- app_log(id, text)
+ app_log(id, text, tag=0)
 
-Controls panels in the bottom panel: Console, Output, Validate.
+Controls panels in the bottom panel: Console, Output, Validate, user-defined.
+
 Possible values of id:
 
 * LOG_CLEAR: Clears active log panel, text is ignored.
-* LOG_ADD: Adds single line to active log panel.
-* LOG_SET_PANEL: Sets active log panel, text must be one of values: LOG_PANEL_OUTPUT, LOG_PANEL_VALIDATE.
+* LOG_ADD: Adds line to active log panel. Param tag is used here: it's int value associated with line, it's passed in on_output_nav.
+* LOG_SET_PANEL: Sets active log panel. Text must be LOG_PANEL_OUTPUT, LOG_PANEL_VALIDATE, or caption of additional panel (see LOG_PANEL_ADD). Incorrect text will stop next operations with panels, until correct value set.
 * LOG_SET_REGEX: Sets parsing regex for active log panel. Regex must have some groups in round brackets, indexes of these groups must be passed in separate API calls. All lines in log panel, which can be parsed by this regex, will allow navigation to source code by click or double-click.
 * LOG_SET_LINE_ID: Sets index of regex group for line-number. text is one-char string from "1" to "8", and "0" means "not used".
 * LOG_SET_COL_ID: Sets index of regex group for column-number.
 * LOG_SET_NAME_ID: Sets index of regex group for file-name.
 * LOG_SET_FILENAME: Sets default file-name, which will be used when regex cannot find file-name in a string. 
 * LOG_SET_ZEROBASE: Sets flag: line and column numbers are zero-based, not 1-based. text is one-char string "0" or "1".
+* LOG_GET_LINES: Gets str: "\n"-separated lines in listbox.
+* LOG_GET_LINEINDEX: Gets index of selected line in listbox.
+* LOG_SET_LINEINDEX: Sets index of selected line in listbox.
+* LOG_PANEL_ADD: Adds new panel next to Output/Validate. Text is caption of panel. Gets True if panel was added.
+* LOG_PANEL_DELETE: Deletes panel added with LOG_PANEL_ADD. Text is caption of panel. Gets True if panel was deleted.
+* LOG_PANEL_FOCUS: Focuses tab with newly added panel. Text is caption of panel. Gets True if panel found and focused.
 
 For "Python console" panel:
 
@@ -628,6 +657,7 @@ Possible values of id:
 * PROP_UNPRINTED_END_DETAILS: bool: unprinted chars: show line end details.
 * PROP_TAB_COLLECT_MARKERS: bool: tab-keys collects (jumps to and deletes) markers.
 * PROP_TAG: str: just a string attached to editor's tab (you can put here any value).
+* PROP_EXPORT_HTML: this is not property, this is action to export text with hiliting to HTML. Value is ";"-separated parameters: "file_path;page_title;font_name;font_size;bool_show_numbers;int_color_background;int_color_numbers".
 
 ===bookmark===
 
@@ -765,6 +795,19 @@ Text is chr(1) separated items:
 * item 3: several chars, each char is find-option: 'b' for back, 'c' for case-sens, 'r' for regex, 'w' for whole-words, 'f' for from-caret, 'o' for confirm-replaces, 'a' for wrapped-search
 
 =History=
+
+1.0.117
+
+* add: app_log: LOG_PANEL_ADD, LOG_PANEL_DELETE, LOG_PANEL_FOCUS
+* add: app_log: LOG_GET_LINES, LOG_GET_LINEINDEX, LOG_SET_LINEINDEX
+* add: ed.set_prop: PROP_EXPORT_HTML
+* add: app_proc: PROC_SET_SPLIT, PROC_GET_SPLIT
+
+1.0.116
+
+* add: on_output_nav
+* add: app_log: param tag for LOG_ADD
+* add: app_proc: PROC_GET_COMMAND_PLUGIN
 
 1.0.115
 

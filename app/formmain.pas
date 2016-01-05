@@ -78,6 +78,7 @@ uses
   formcharmaps,
   math;
 
+
 type
   { TfmMain }
   TfmMain = class(TForm)
@@ -508,6 +509,8 @@ type
     procedure DoFindActionFromString(AStr: string);
     procedure DoFindOptionsFromString(const S: string);
     function DoFindOptionsToString: string;
+    procedure DoGetSplitInfo(const Id: string; out IsVert: boolean; out
+      NPos, NTotal: integer);
     procedure DoGotoDefinition;
     procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps;
       AForceApply: boolean);
@@ -526,10 +529,14 @@ type
     procedure DoFileInstallZip(const fn: string);
     procedure DoFileCloseAndDelete;
     procedure DoFileNewFrom(const fn: string);
+    function DoPyPanelAdd(AParams: string): boolean;
+    function DoPyPanelDelete(const ACaption: string): boolean;
+    function DoPyPanelFocus(const ACaption: string): boolean;
     procedure DoPyRunLastPlugin;
     procedure DoPyResetPlugins;
     procedure DoPyStringToEvents(const AEventStr: string; var AEvents: TAppPyEvents);
     procedure DoPyUpdateEvents(const AModuleName, AEventStr, ALexerStr, AKeyStr: string);
+    procedure DoSetSplitInfo(const Id: string; NPos: integer);
     procedure FrameOnEditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure FrameOnEditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure MenuEncWithReloadClick(Sender: TObject);
@@ -672,6 +679,7 @@ type
     procedure InitStatusButton;
   public
     { public declarations }
+    FPanelCaptions: TStringlist;
     function FrameCount: integer;
     property Frames[N: integer]: TEditorFrame read GetFrame;
     function CurrentFrame: TEditorFrame;
@@ -913,6 +921,7 @@ begin
   Manager:= TecSyntaxManager.Create(Self);
   FSessionFilename:= GetAppPath(cFileHistorySession);
 
+  FPanelCaptions:= TStringList.Create;
   FListRecents:= TStringList.Create;
   FListNewdoc:= TStringList.Create;
   FListThemes:= TStringlist.Create;
@@ -995,15 +1004,42 @@ end;
 procedure TfmMain.DoOnTabsBottomClick(Sender: TObject);
 var
   N: integer;
+  Data: TATTabData;
+  Ctl: TWinControl;
 begin
-  N:= TabsBottom.TabIndex;
-  fmConsole.Visible:= N=0;
-  ListboxOut.Visible:= N=1;
-  ListboxVal.Visible:= N=2;
-  case N of
-    0: fmConsole.Ed.SetFocus;
-    1: ListboxOut.SetFocus;
-    2: ListboxVal.SetFocus;
+  fmConsole.Hide;
+  ListboxOut.Hide;
+  ListboxVal.Hide;
+  for N:= 0 to FPanelCaptions.Count-1 do
+    (FPanelCaptions.Objects[N] as TAppPanelPropsClass).Data.Listbox.Hide;
+
+  case TabsBottom.TabIndex of
+    0:
+      begin
+        fmConsole.Show;
+        fmConsole.Ed.SetFocus;
+      end;
+    1:
+      begin
+        ListboxOut.Show;
+        ListboxOut.SetFocus;
+      end;
+    2:
+      begin
+        ListboxVal.Show;
+        ListboxVal.SetFocus;
+      end;
+    else
+      begin
+        Data:= TabsBottom.GetTabData(TabsBottom.TabIndex);
+        if Data=nil then exit;
+        N:= FPanelCaptions.IndexOf(Data.TabCaption);
+        if N<0 then exit;
+        Ctl:= (FPanelCaptions.Objects[N] as TAppPanelPropsClass).Data.Listbox;
+        Ctl.Show;
+        if Ctl.CanFocus and Ctl.CanSetFocus then
+          Ctl.SetFocus;
+      end;
   end;
 end;
 
@@ -1048,6 +1084,7 @@ begin
   FreeAndNil(FListThemes);
   FreeAndNil(FListOut);
   FreeAndNil(FListVal);
+  FreeAndNil(FPanelCaptions);
 end;
 
 procedure TfmMain.FormDropFiles(Sender: TObject;
@@ -2688,7 +2725,8 @@ var
   Prop: ^TAppPanelProps;
   ResFilename: string;
   ResLine, ResCol: integer;
-  NIndex: integer;
+  NIndex, NTag: integer;
+  SText: string;
 begin
   if Sender=ListboxOut then
     Prop:= @AppPanelProp_Out
@@ -2699,7 +2737,10 @@ begin
   if NIndex<0 then exit;
   if NIndex>=Prop^.Items.Count then exit;
 
-  DoParseOutputLine(Prop^, Prop^.Items[NIndex], ResFilename, ResLine, ResCol);
+  SText:= Prop^.Items[NIndex];
+  NTag:= PtrInt(Prop^.Items.Objects[NIndex]);
+
+  DoParseOutputLine(Prop^, SText, ResFilename, ResLine, ResCol);
   if (ResFilename<>'') and (ResLine>=0) then
   begin
     MsgStatus(Format('file "%s", line %d, col %d', [ResFilename, ResLine, ResCol]));
@@ -2711,6 +2752,11 @@ begin
       CurrentFrame.Editor.Update;
       UpdateStatus;
     end;
+  end
+  else
+  begin
+    DoPyEvent(CurrentEditor, cEventOnOutputNav,
+      [SStringToPythonString(SText), IntToStr(NTag)] );
   end;
 end;
 
@@ -2720,14 +2766,12 @@ procedure TfmMain.ListboxOutDrawItem(Sender: TObject; C: TCanvas;
 const
   cDx=4; cDy=1;
 var
-  Prop: ^TAppPanelProps;
+  Prop: PAppPanelProps;
   ResFilename: string;
   ResLine, ResCol: integer;
 begin
-  if Sender=ListboxOut then
-    Prop:= @AppPanelProp_Out
-  else
-    Prop:= @AppPanelProp_Val;
+  Prop:= GetAppPanelProps_ByListbox(Sender as TATListbox);
+  if Prop=nil then exit;
 
   DoParseOutputLine(Prop^, Prop^.Items[AIndex], ResFilename, ResLine, ResCol);
   if (ResFilename<>'') and (ResLine>=0) then
@@ -2905,6 +2949,132 @@ begin
   end;
 end;
 
+
+function TfmMain.DoPyPanelAdd(AParams: string): boolean;
+var
+  SCaption: string;
+  Listbox: TATListbox;
+  Props: TAppPanelPropsClass;
+begin
+  Result:= false;
+  SCaption:= SGetItem(AParams, ';');
+
+  if (SCaption='Console') or
+     (SCaption='Output') or
+     (SCaption='Validate') then exit;
+  if FPanelCaptions.IndexOf(SCaption)>=0 then exit;
+
+  Listbox:= TATListbox.Create(Self);
+  Listbox.Hide;
+  Listbox.Parent:= PanelBottom;
+  Listbox.Align:= alClient;
+  Listbox.OnClick:= @ListboxOutClick;
+  Listbox.OnDrawItem:= @ListboxOutDrawItem;
+  Listbox.OnKeyDown:= @ListboxOutKeyDown;
+  Listbox.Color:= GetAppColor('ListBg');
+  Listbox.ItemHeight:= ListboxOut.ItemHeight;
+  Listbox.CanGetFocus:= true;
+
+  Props:= TAppPanelPropsClass.Create;
+  Props.Data.Listbox:= Listbox;
+  Props.Data.Items:= TStringList.Create;
+
+  FPanelCaptions.AddObject(SCaption, Props);
+  TabsBottom.AddTab(-1, SCaption, nil);
+  Result:= true;
+end;
+
+
+function TfmMain.DoPyPanelDelete(const ACaption: string): boolean;
+var
+  PropObject: TAppPanelPropsClass;
+  Data: TATTabData;
+  N: integer;
+begin
+  Result:= false;
+
+  N:= FPanelCaptions.IndexOf(ACaption);
+  if N<0 then exit;
+  PropObject:= fmMain.FPanelCaptions.Objects[N] as TAppPanelPropsClass;
+  PropObject.Data.Listbox.Free;
+  PropObject.Data.Items.Free;
+  PropObject.Free;
+  FPanelCaptions.Delete(N);
+
+  for N:= TabsBottom.TabCount-1 downto 0 do
+  begin
+    Data:= TabsBottom.GetTabData(N);
+    if Assigned(Data) and (Data.TabCaption=ACaption) then
+    begin
+      TabsBottom.DeleteTab(N, false, false);
+      break
+    end;
+  end;
+
+  Result:= true;
+end;
+
+
+function TfmMain.DoPyPanelFocus(const ACaption: string): boolean;
+var
+  Data: TATTabData;
+  i: integer;
+begin
+  Result:= false;
+  for i:= 0 to TabsBottom.TabCount-1 do
+  begin
+    Data:= TabsBottom.GetTabData(i);
+    if Assigned(Data) and (Data.TabCaption=ACaption) then
+    begin
+      TabsBottom.TabIndex:= i;
+      exit(true);
+    end;
+  end;
+end;
+
+
+procedure TfmMain.DoGetSplitInfo(const Id: string; out IsVert: boolean;
+  out NPos, NTotal: integer);
+  //----
+  procedure GetSp(Sp: TSplitter);
+  begin
+    IsVert:= (Sp.Align=alLeft) or (Sp.Align=alRight);
+    NPos:= Sp.GetSplitterPosition;
+    if IsVert then NTotal:= Sp.Parent.Width else NTotal:= Sp.Parent.Height;
+  end;
+  //----
+begin
+  IsVert:= false;
+  NPos:= 0;
+  NTotal:= 0;
+
+  if Id='L' then GetSp(SplitterVert) else
+  if Id='B' then GetSp(SplitterHorz) else
+  if Id='G1' then GetSp(Groups.Splitter1) else
+  if Id='G2' then GetSp(Groups.Splitter2) else
+  if Id='G3' then GetSp(Groups.Splitter3) else
+  if Id='G4' then GetSp(Groups.Splitter4) else
+  if Id='G5' then GetSp(Groups.Splitter5) else
+  ;
+end;
+
+
+procedure TfmMain.DoSetSplitInfo(const Id: string; NPos: integer);
+  procedure SetSp(Sp: TSplitter);
+  begin
+    Sp.SetSplitterPosition(NPos);
+  end;
+begin
+  if NPos<0 then exit;
+  if Id='L' then SetSp(SplitterVert) else
+  if Id='B' then SetSp(SplitterHorz) else
+  if Id='G1' then SetSp(Groups.Splitter1) else
+  if Id='G2' then SetSp(Groups.Splitter2) else
+  if Id='G3' then SetSp(Groups.Splitter3) else
+  if Id='G4' then SetSp(Groups.Splitter4) else
+  if Id='G5' then SetSp(Groups.Splitter5) else
+  ;
+end;
 
 //----------------------------
 {$I formmain_loadsave.inc}

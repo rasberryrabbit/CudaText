@@ -12,7 +12,9 @@ unit proc_miscutils;
 interface
 
 uses
-  Classes, SysUtils, ComCtrls,
+  Classes, SysUtils, ComCtrls, Graphics,
+  ATSynEdit,
+  ATSynEdit_Export_HTML,
   ATStringProc,
   ecSyntAnal;
 
@@ -24,6 +26,10 @@ type
   TAppTreeGoto = (treeGoNext, treeGoPrev, treeGoParent, treeGoNextBro, treeGoPrevBro);
 
 procedure DoTreeviewJump(ATree: TTreeView; AMode: TAppTreeGoto);
+
+function ConvertTwoPointsToDiffPoint(APrevPnt, ANewPnt: TPoint): TPoint;
+
+procedure DoEditorExportToHTML_WithParams(Ed: TATSynEdit; AParams: string);
 
 
 implementation
@@ -108,6 +114,40 @@ begin
         ATree.OnDblClick(nil);
       end;
     end;
+end;
+
+
+function ConvertTwoPointsToDiffPoint(APrevPnt, ANewPnt: TPoint): TPoint;
+begin
+  if APrevPnt.Y=ANewPnt.Y then
+  begin
+    Result.Y:= 0;
+    Result.X:= ANewPnt.X-APrevPnt.X;
+  end
+  else
+  begin
+    Result.Y:= ANewPnt.Y-APrevPnt.Y;
+    Result.X:= ANewPnt.X;
+  end;
+end;
+
+procedure DoEditorExportToHTML_WithParams(Ed: TATSynEdit; AParams: string);
+var
+  SFileName, STitle, SFontName: string;
+  NFontSize: integer;
+  bWithNums: boolean;
+  NColorBg, NColorNums: TColor;
+begin
+  SFileName:= SGetItem(AParams, ';');
+  STitle:= SGetItem(AParams, ';');
+  SFontName:= SGetItem(AParams, ';');
+  NFontSize:= StrToIntDef(SGetItem(AParams, ';'), 10);
+  bWithNums:= StrToBoolDef(SGetItem(AParams, ';'), false);
+  NColorBg:= StrToIntDef(SGetItem(AParams, ';'), clWhite);
+  NColorNums:= StrToIntDef(SGetItem(AParams, ';'), clGray);
+
+  DoEditorExportToHTML(Ed, SFileName, STitle, SFontName, NFontSize, bWithNums,
+    NColorBg, NColorNums);
 end;
 
 

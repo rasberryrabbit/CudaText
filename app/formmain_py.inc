@@ -1307,6 +1307,7 @@ begin
 end;
 
 type
+  PAppPanelProps = ^TAppPanelProps;
   TAppPanelProps = record
     Listbox: TATListbox;
     Items: TStringList;
@@ -1319,27 +1320,84 @@ type
     Encoding: string;
   end;
 
+type
+  TAppPanelPropsClass = class
+    Data: TAppPanelProps;
+  end;
+
 var
   AppPanelProp_Out: TAppPanelProps;
   AppPanelProp_Val: TAppPanelProps;
   AppPanelActive: string = '0';
 
+
+function GetAppPanelProps_ByCaption(const ACaption: string): PAppPanelProps;
+var
+  N: integer;
+  PropObject: TAppPanelPropsClass;
+begin
+  Result:= nil;
+  if ACaption='0' then
+    Result:= @AppPanelProp_Out
+  else
+  if ACaption='1' then
+    Result:= @AppPanelProp_Val
+  else
+  begin
+    N:= fmMain.FPanelCaptions.IndexOf(ACaption);
+    if N<0 then exit;
+    PropObject:= fmMain.FPanelCaptions.Objects[N] as TAppPanelPropsClass;
+    Result:= @PropObject.Data;
+  end;
+end;
+
+function GetAppPanelProps_ByListbox(AListbox: TATListbox): PAppPanelProps;
+var
+  PropObject: TAppPanelPropsClass;
+  i: integer;
+begin
+  Result:= nil;
+
+  if AListbox=fmMain.ListboxOut then
+    exit(@AppPanelProp_Out);
+  if AListbox=fmMain.ListboxVal then
+    exit(@AppPanelProp_Val);
+
+  for i:= 0 to fmMain.FPanelCaptions.Count-1 do
+  begin
+    PropObject:= fmMain.FPanelCaptions.Objects[i] as TAppPanelPropsClass;
+    if PropObject.Data.Listbox=AListbox then
+      exit(@PropObject.Data);
+  end;
+end;
+
+
 function Py_app_log(Self, Args: PPyObject): PPyObject; cdecl;
 var
   Ptr: PChar;
   Str: string;
-  Id: integer;
-  Prop: ^TAppPanelProps;
+  Id, NTag: integer;
+  Prop: PAppPanelProps;
 begin
   with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'is:app_log', @Id, @Ptr)) then
+    if Bool(PyArg_ParseTuple(Args, 'isi:app_log', @Id, @Ptr, @NTag)) then
     begin
       Str:= string(Ptr);
 
-      if AppPanelActive='0' then
-        Prop:= @AppPanelProp_Out
-      else
-        Prop:= @AppPanelProp_Val;
+      //this action don't need Prop
+      if Id=LOG_SET_PANEL then
+      begin
+        AppPanelActive:= Str;
+        Result:= ReturnNone;
+        exit
+      end;
+
+      Prop:= GetAppPanelProps_ByCaption(AppPanelActive);
+      if Prop=nil then
+      begin
+        Result:= ReturnNone;
+        exit
+      end;
 
       case Id of
         LOG_CLEAR:
@@ -1350,12 +1408,10 @@ begin
           end;
         LOG_ADD:
           begin
-            Prop^.Items.Add(Str);
+            Prop^.Items.AddObject(Str, TObject(PtrInt(NTag)));
             Prop^.Listbox.ItemCount:= Prop^.Items.Count;
             Prop^.Listbox.Invalidate;
           end;
-        LOG_SET_PANEL:
-          AppPanelActive:= Str;
         LOG_SET_REGEX:
           Prop^.RegexStr:= Str;
         LOG_SET_LINE_ID:
@@ -1368,6 +1424,37 @@ begin
           Prop^.DefFilename:= Str;
         LOG_SET_ZEROBASE:
           Prop^.ZeroBase:= Bool(StrToIntDef(Str, 0));
+
+        LOG_GET_LINES:
+          begin
+            Result:= PyString_FromString(PChar(Prop^.Items.Text));
+            exit; //skip ReturnNone
+          end;
+        LOG_GET_LINEINDEX:
+          begin
+            Result:= PyInt_FromLong(Prop^.Listbox.ItemIndex);
+            exit; //skip ReturnNone
+          end;
+        LOG_SET_LINEINDEX:
+          begin
+            Prop^.Listbox.ItemIndex:= StrToIntDef(Str, 0);
+          end;
+
+        LOG_PANEL_ADD:
+          begin
+            Result:= PyBool_FromLong(Ord(fmMain.DoPyPanelAdd(Str)));
+            Exit; //skip ReturnNone
+          end;
+        LOG_PANEL_DELETE:
+          begin
+            Result:= PyBool_FromLong(Ord(fmMain.DoPyPanelDelete(Str)));
+            Exit; //skip ReturnNone
+          end;
+        LOG_PANEL_FOCUS:
+          begin
+            Result:= PyBool_FromLong(Ord(fmMain.DoPyPanelFocus(Str)));
+            Exit; //skip ReturnNone
+          end;
 
         LOG_CONSOLE_CLEAR:
           with fmMain do
@@ -1641,6 +1728,11 @@ begin
             if NTab>=0 then
               fmMain.Groups.Pages[NGroup].Tabs.MoveTab(NTab, NIndexNew, true);
           end;
+
+        PROP_EXPORT_HTML:
+          begin
+            DoEditorExportToHTML_WithParams(Ed, Str);
+          end;
       end;
 
       fmMain.UpdateFrame;
@@ -1656,6 +1748,8 @@ var
   Str, Str1, Str2, Str3: string;
   StrCaption, StrId, StrCmd, StrIndex: string;
   mi, miMain: TMenuItem;
+  SplitVert: boolean;
+  SplitPos, SplitTotal: integer;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'is:app_proc', @Id, @Ptr)) then
@@ -1686,6 +1780,23 @@ begin
                   )
             else
               Result:= ReturnNone;
+          end;
+
+        APP_PROC_GET_COMMAND_PLUGIN:
+          begin
+            Num:= StrToIntDef(Str, -1);
+            if (Num>=Low(FPluginsCmd)) and
+               (Num<=High(FPluginsCmd)) and
+               (FPluginsCmd[Num].ItemModule<>'') then
+              Result:= Py_BuildValue('(sssss)',
+                PChar(FPluginsCmd[Num].ItemCaption),
+                PChar(FPluginsCmd[Num].ItemModule),
+                PChar(FPluginsCmd[Num].ItemProc),
+                PChar(FPluginsCmd[Num].ItemProcParam),
+                PChar(FPluginsCmd[Num].ItemLexers)
+                )
+            else
+               Result:= ReturnNone;
           end;
 
         APP_PROC_SAVE_SESSION:
@@ -1867,13 +1978,26 @@ begin
 
         APP_PROC_GET_ESCAPE:
           begin
-            Result:= PyBool_FromLong(Ord(PyEscapeFlag));
+            Result:= PyBool_FromLong(Ord(PyEscapeFlag or Application.Terminated));
           end;
         APP_PROC_SET_ESCAPE:
           begin
             PyEscapeFlag:= Str='1';
             Result:= ReturnNone;
           end;
+
+        APP_PROC_GET_SPLIT:
+          begin
+            fmMain.DoGetSplitInfo(Str, SplitVert, SplitPos, SplitTotal);
+            Result:= Py_BuildValue('(iii)', Ord(SplitVert), SplitPos, SplitTotal);
+          end;
+        APP_PROC_SET_SPLIT:
+          begin
+            Str1:= SGetItem(Str, ';');
+            Str2:= SGetItem(Str, ';');
+            fmMain.DoSetSplitInfo(Str1, StrToIntDef(Str2, -1));
+            Result:= ReturnNone;
+          end
 
         else
           Result:= ReturnNone;
