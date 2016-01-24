@@ -15,8 +15,8 @@ uses
   Classes, SysUtils;
 
 const
-  cAppExeVersion = '1.2.12.0';
-  cAppApiVersion = '1.0.117';
+  cAppExeVersion = '1.2.16.3';
+  cAppApiVersion = '1.0.121';
 
 
 const
@@ -35,10 +35,8 @@ const
   msgThemeName = 'Theme name:';
 
   msgStatusNoCmtStr = 'No line comment defined for lexer';
-  msgStatusCannotFindText = 'Cannot find: ';
   msgStatusReplaceCount = 'Replaces made: ';
   msgStatusFindCount = 'Count of "%s": ';
-  msgStatusFoundText = 'Found next match';
   msgStatusReadOps = 'Reading options';
   msgStatusSavedFile = 'Saved:';
   msgStatusReadonly = '[Read Only]';
@@ -69,6 +67,7 @@ const
       'Lazarus IDE'+sLineBreak+
       'ATSynEdit, ATTabs: at github'+sLineBreak+
       'EControl parser: http://www.econtrol.ru, at github'+sLineBreak+
+      'Helper Python code: Andrey Kvichanskiy'+sLineBreak+
       'Toolbar icons: Silk icons, http://www.famfamfam.com'+sLineBreak+
       '    License: CC BY 2.5, http://creativecommons.org/licenses/by/2.5/'+sLineBreak+
       'App icon: Snipicons, http://www.snipicons.com/'+sLineBreak+

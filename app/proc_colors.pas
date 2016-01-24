@@ -123,6 +123,7 @@ begin
   Add(clYellow, 'EdMarginUser', 'editor, margins, user defined');
   Add(clMoneyGreen, 'EdBookmarkBg', 'editor, bookmark, line BG');
   Add(clMedGray, 'EdBookmarkIcon', 'editor, bookmark, gutter mark');
+  Add($f0e0b0, 'EdMarkedRangeBg', 'editor, marked range BG');
 
   Add($f0f0f0, 'TabBg', 'tabs, toolbar, statusbar BG');
   Add(clBlack, 'TabFont', 'tabs, font');
@@ -170,6 +171,7 @@ begin
   Add($d0d0d0, 'ButtonBorderOver', 'buttons, border, mouse-over');
   Add(clNavy, 'ButtonBorderFocused', 'buttons, border, focused');
 
+  Add(clCream, 'StatusAltBg', 'statusbar alt, BG');
   Add($e0e0e0, 'SplitMain', 'splitters, main');
   Add($e0e0e0, 'SplitGroups', 'splitters, groups');
 

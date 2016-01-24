@@ -91,7 +91,7 @@ begin
     Anchors:= [akRight, akBottom];
     BorderSpacing.Right:= 5;
   end;
-  with btnStop do
+  with ButtonCancel do
   begin
     Parent:= Status;
     AnchorSideRight.Control:= Gauge;
@@ -102,7 +102,7 @@ begin
     BorderSpacing.Right:= 5;
   end;
   Gauge.Hide;
-  btnStop.Hide;
+  ButtonCancel.Hide;
 end;
 
 procedure TfmMain.UpdateFrame(AUpdatedText: boolean = false);
@@ -153,7 +153,7 @@ begin
     FFinder.Editor:= Ed;
     FFindStop:= false;
     FFindConfirmAll:= mrNone;
-    btnStop.Show;
+    ButtonCancel.Show;
     Gauge.Show;
     Gauge.Progress:= 0;
     Ed.BeginUpdate;
@@ -162,7 +162,7 @@ begin
   end
   else
   begin
-    btnStop.Hide;
+    ButtonCancel.Hide;
     Gauge.Hide;
     UpdateEnabledAll(true);
     Ed.Enabled:= true;
@@ -173,6 +173,8 @@ begin
     else
       Ed.SetFocus;
   end;
+
+  Ed.DoEventCarets;
 end;
 
 
@@ -210,7 +212,9 @@ begin
 
   Groups.SetTabFont(Self.Font);
   TabsBottom.Font:= Self.Font;
+  TabsLeft.Font:= Self.Font;
   Status.Font:= Self.Font;
+  StatusAlt.Font:= Self.Font;
   Gauge.Font:= Self.Font;
   Tree.Font:= Self.Font;
 
@@ -588,6 +592,30 @@ begin
   end;
 end;
 
+procedure TfmMain.DoApplyThemeToTreeview(C: TTreeview);
+begin
+  C.Font.Color:= GetAppColor('TreeFont');
+  C.BackgroundColor:= GetAppColor('TreeBg');
+  C.SelectionFontColor:= GetAppColor('TreeSelFont'); //lew Laz
+  C.SelectionFontColorUsed:= true; //new Laz
+  C.SelectionColor:= GetAppColor('TreeSelBg');
+  C.TreeLineColor:= GetAppColor('TreeLines');
+  C.ExpandSignColor:= GetAppColor('TreeSign');
+  C.TreeLineColor:= Tree.TreeLineColor;
+  C.TreeLinePenStyle:= Tree.TreeLinePenStyle;
+
+  C.BorderStyle:= bsNone;
+  C.ExpandSignType:= tvestArrowFill;
+  C.HideSelection:= false;
+  C.Options:= Tree.Options;
+  C.ScrollBars:= ssVertical;
+  C.RowSelect:= true;
+  C.RightClickSelect:= true;
+  C.ReadOnly:= true;
+
+  C.Invalidate;
+end;
+
 procedure TfmMain.DoApplyTheme;
 var
   F: TEditorFrame;
@@ -608,7 +636,6 @@ begin
     PropObject.Data.Listbox.Invalidate;
   end;
 
-
   for i:= 0 to 9 do
     AppBookmarkSetup[240+i].Color:= GetAppColor('EdBookmarkBg');
 
@@ -627,11 +654,18 @@ begin
   fmConsole.memo.Update;
 
   ToolbarMain.Color:= GetAppColor('TabBg');
+
   Status.Font.Color:= GetAppColor('TabFont');
   Status.Color:= GetAppColor('TabBg');
   Status.ColorBorderTop:= GetAppColor('TabBorderPassive');
   Status.ColorBorderR:= GetAppColor('TabBorderPassive');
-  Gauge.Font.Color:= GetAppColor('TabFont');
+
+  StatusAlt.Font.Color:= Status.Font.Color;
+  StatusAlt.Color:= GetAppColor('StatusAltBg');
+  StatusAlt.ColorBorderTop:= Status.ColorBorderTop;
+  StatusAlt.ColorBorderR:= Status.ColorBorderR;
+
+  Gauge.Font.Color:= Status.Font.Color;
   Gauge.ForeColor:= GetAppColor('GaugeFill');
   Gauge.BackColor:= GetAppColor('GaugeBg');
   Gauge.BorderColor:= GetAppColor('ButtonBorderPassive');
@@ -672,6 +706,15 @@ begin
   TabsBottom.ColorBorderPassive:= GetAppColor('TabBorderPassive');
   TabsBottom.Invalidate;
 
+  TabsLeft.Font.Color:= TabsBottom.Font.Color;
+  TabsLeft.ColorBg:= TabsBottom.ColorBg;
+  TabsLeft.ColorTabActive:= TabsBottom.ColorTabActive;
+  TabsLeft.ColorTabPassive:= TabsBottom.ColorTabPassive;
+  TabsLeft.ColorTabOver:= TabsBottom.ColorTabOver;
+  TabsLeft.ColorBorderActive:= TabsBottom.ColorBorderActive;
+  TabsLeft.ColorBorderPassive:= TabsBottom.ColorBorderPassive;
+  TabsLeft.Invalidate;
+
   if assigned(fmGoto) then
   begin
     fmGoto.Color:= GetAppColor('TabBg');
@@ -707,14 +750,14 @@ begin
     fmFind.Invalidate;
   end;
 
-  Tree.Font.Color:=GetAppColor('TreeFont');
-  Tree.BackgroundColor:= GetAppColor('TreeBg');
-  Tree.SelectionFontColor:= GetAppColor('TreeSelFont'); //lew Laz
-  Tree.SelectionFontColorUsed:= true; //new Laz
-  Tree.SelectionColor:= GetAppColor('TreeSelBg');
-  Tree.TreeLineColor:= GetAppColor('TreeLines');
-  Tree.ExpandSignColor:= GetAppColor('TreeSign');
-  Tree.Invalidate;
+  DoApplyThemeToTreeview(Tree);
+  for i:= Low(FAppSidePanels) to High(FAppSidePanels) do
+    with FAppSidePanels[i] do
+    begin
+      if ItemCaption='' then break;
+      if Assigned(ItemTreeview) then
+        DoApplyThemeToTreeview(ItemTreeview);
+    end;
 
   for i:= 0 to FrameCount-1 do
   begin

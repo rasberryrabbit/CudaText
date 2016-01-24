@@ -131,6 +131,7 @@ begin
 
     cmd_AutoComplete: DoAutoComplete;
     cmd_GotoDefinition: DoGotoDefinition;
+    cmd_ShowFunctionHint: DoShowFuncHint;
 
     cmd_FoldingFoldAtCurLine: EditorFoldUnfoldRangeAtCurLine(CurrentEditor, true);
     cmd_FoldingUnfoldAtCurLine: EditorFoldUnfoldRangeAtCurLine(CurrentEditor, false);
@@ -276,6 +277,12 @@ begin
   end;
 
   UpdateStatus;
+end;
+
+procedure TfmMain.TimerStatusAltTimer(Sender: TObject);
+begin
+  TimerStatusAlt.Enabled:= false;
+  StatusAlt.Hide;
 end;
 
 procedure TfmMain.FrameOnCommand(Sender: TObject; ACommand: integer;

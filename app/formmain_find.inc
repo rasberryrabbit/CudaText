@@ -11,11 +11,15 @@ procedure TfmMain.FinderFound(Sender: TObject; APos1, APos2: TPoint);
 var
   Ed: TATSynEdit;
 begin
+  Ed:= FFinder.Editor;
   if FFindMark then
   begin
-    Ed:= FFinder.Editor;
     Ed.Carets.Add(APos1.X, APos1.Y, APos2.X, APos2.Y);
     Ed.Carets.Sort;
+  end
+  else
+  begin
+    Ed.DoGotoPos_AndUnfold(APos1, UiOps.FindIndentHorz, UiOps.FindIndentVert);
   end;
 end;
 
@@ -67,13 +71,14 @@ begin
     DoFindResult(ok);
   end;
 
-  if Res=cOpFindRep then
+  if (Res=cOpFindRep) or (Res=cOpFindRepAndStop) then
   begin
     //replace match
     ok:= FFinder.DoReplaceSelectedMatch;
     //after match is replaced, do find-next
-    if ok then
-      ok:= FFinder.DoFindOrReplace(false, false, false, bChanged);
+    if Res=cOpFindRep then
+      if ok then
+        ok:= FFinder.DoFindOrReplace(false, false, false, bChanged);
     FinderUpdateEditor(true);
     DoFindResult(ok);
   end;
@@ -211,12 +216,25 @@ begin
   if FFindStop then AContinue:= false;
 end;
 
+function TfmMain.SFindOptionsToTextHint: string;
+begin
+  Result:= '';
+  if FFinder.OptRegex then Result:= Result+'regex, ';
+  if FFinder.OptCase then Result:= Result+'case, ';
+  if FFinder.OptWords then Result:= Result+'words, ';
+  if FFinder.OptBack then Result:= Result+'back, ';
+  if FFinder.OptWrapped then Result:= Result+'wrapped, ';
+  if FFinder.OptFromCaret then Result:= Result+'from-caret, ';
+  if SEndsWith(Result, ', ') then
+    SetLength(Result, Length(Result)-2);
+end;
+
 procedure TfmMain.DoFindResult(ok: boolean);
 begin
   if ok then
-    MsgStatus(msgStatusFoundText)
+    MsgStatus('Found next match')
   else
-    MsgStatus(msgStatusCannotFindText+Utf8Encode(FFinder.StrFind));
+    MsgStatus('Cannot find ('+SFindOptionsToTextHint+'): '+Utf8Encode(FFinder.StrFind));
 end;
 
 procedure TfmMain.FinderConfirmReplace(Sender: TObject; APos1, APos2: TPoint;
@@ -300,6 +318,7 @@ var
   Str: atString;
   Ed: TATSynEdit;
   ok, bFlag: boolean;
+  bSavedWords, bSavedRegex: boolean;
 begin
   Ed:= CurrentEditor;
 
@@ -317,6 +336,8 @@ begin
   FFinder.StrReplace:= '';
   FFinder.Editor:= Ed;
 
+  bSavedWords:= FFinder.OptWords;
+  bSavedRegex:= FFinder.OptRegex;
   FFinder.OptRegex:= false;
   FFinder.OptWords:= AWordOrSel;
   FFinder.OptFromCaret:= true;
@@ -336,6 +357,9 @@ begin
   ok:= FFinder.DoFindOrReplace(false, false, false, bFlag);
   FinderUpdateEditor(false);
   DoFindResult(ok);
+
+  FFinder.OptWords:= bSavedWords;
+  FFinder.OptRegex:= bSavedRegex;
 end;
 
 

@@ -23,8 +23,9 @@ begin
 
   F.Groups:= Groups;
 
-  F.Adapter.OnParseBegin:=@FrameParseBegin;
-  F.Adapter.OnParseDone:=@FrameParseDone;
+  F.Adapter.OnParseBegin:= @FrameParseBegin;
+  F.Adapter.OnParseDone:= @FrameParseDone;
+  F.Adapter.OnLexerChange:= @FrameLexerChange;
 
   F.Editor.PopupText:= PopupText;
   F.Editor2.PopupText:= PopupText;
@@ -272,4 +273,29 @@ begin
   MsgStatus(F.FileName);
 end;
 
+procedure TfmMain.DoOnTabsLeftClick(Sender: TObject);
+var
+  NTab, i: integer;
+  SCaption: string;
+begin
+  NTab:= TabsLeft.TabIndex;
+  if NTab<0 then exit;
+  SCaption:= TabsLeft.GetTabData(NTab).TabCaption;
+  for i:= Low(FAppSidePanels) to High(FAppSidePanels) do
+    with FAppSidePanels[i] do
+    begin
+      if ItemCaption='' then break;
+      if Assigned(ItemTreeview) then ItemTreeview.Visible:= ItemCaption=SCaption;
+      if Assigned(ItemListbox) then ItemListbox.Visible:= ItemCaption=SCaption;
+    end;
+end;
 
+function TfmMain.DoGetTabsLeftIndexOfCaption(const Str: string): integer;
+var
+  i: integer;
+begin
+  Result:= -1;
+  for i:= 0 to TabsLeft.TabCount-1 do
+    if TabsLeft.GetTabData(i).TabCaption=Str then
+      exit(i);
+end;

@@ -99,12 +99,16 @@ PROP_INSERT         = 11
 PROP_MODIFIED       = 12
 PROP_RULER          = 13
 PROP_LINE_STATE     = 14
+PROP_COLOR          = 15
 PROP_LEXER_FILE     = 20
 PROP_LEXER_POS      = 21
 PROP_LEXER_CARET    = 22
 PROP_INDEX_GROUP    = 23
 PROP_INDEX_TAB      = 24
 PROP_TAG            = 25
+PROP_CARET_SHAPE     = 26
+PROP_CARET_SHAPE_OVR = 27
+PROP_CARET_SHAPE_RO  = 28
 PROP_UNPRINTED_SHOW        = 30
 PROP_UNPRINTED_SPACES      = 31
 PROP_UNPRINTED_ENDS        = 32
@@ -112,6 +116,7 @@ PROP_UNPRINTED_END_DETAILS = 33
 PROP_TAB_COLLECT_MARKERS = 35
 PROP_MACRO_REC = 36
 PROP_EXPORT_HTML = 37
+PROP_MARKED_RANGE = 38
 
 PROC_GET_CLIP = 0
 PROC_SET_CLIP = 1
@@ -134,6 +139,11 @@ PROC_SET_ESCAPE = 18
 PROC_GET_COMMAND_PLUGIN = 19
 PROC_GET_SPLIT = 20
 PROC_SET_SPLIT = 21
+PROC_GET_FIND_OPTIONS = 22
+PROC_SET_FIND_OPTIONS = 23
+PROC_SIDEPANEL_ADD = 24
+PROC_SIDEPANEL_ACTIVATE = 25
+PROC_SIDEPANEL_ENUM = 26
 
 LEXER_GET_LIST    = 0
 LEXER_GET_ENABLED = 1
@@ -182,6 +192,8 @@ def msg_box(text, flags):
     return ct.msg_box(text, flags)
 def msg_status(text):
     return ct.msg_status(text)
+def msg_status_alt(text, seconds):
+    return ct.msg_status_alt(text, seconds)
     
 def dlg_input(label, defvalue):
     return ct.dlg_input(label, defvalue)
@@ -215,11 +227,6 @@ def dlg_file(is_open, init_filename, init_dir, filters):
         res=res[0]
     return res
 
-def dlg_checklist(caption, columns, items, size_x, size_y):
-    items = ct.dlg_checklist(caption, columns, items, size_x, size_y)
-    if not items:
-        return None
-    return [(s=='1') for s in items]
 
 def dlg_hotkeys(text):
     return ct.dlg_hotkeys(text)

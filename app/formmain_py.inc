@@ -211,6 +211,25 @@ begin
   end;
 end;
 
+function Py_msg_status_alt(Self, Args: PPyObject): PPyObject; cdecl;
+var
+  Ptr: PChar;
+  Str: string;
+  Num: integer;
+begin
+  with GetPythonEngine do
+  begin
+    if Bool(PyArg_ParseTuple(Args, 'si:msg_status_alt', @Ptr, @Num)) then
+    begin
+      Str:= string(Ptr);
+      fmMain.MsgStatusAlt(Str, Num);
+      Application.ProcessMessages; //PluginManager calls loop with msg_status
+    end;
+    Result:= ReturnNone;
+  end;
+end;
+
+
 function Py_msg_box(Self, Args: PPyObject): PPyObject; cdecl;
 var
   Ptr: PChar;
@@ -876,13 +895,18 @@ var
   H: PtrInt;
   Val: integer;
   Ed: TATSynEdit;
+  F: TEditorFrame;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'Li:set_top', @H, @Val)) then
     begin
       Ed:= PyEditor(H);
-      Ed.LineTop:= Val;
-      fmMain.UpdateFrame();
+      F:= fmMain.GetEditorFrame(Ed);
+
+      //more correct than Ed.LineTop:= -that don't work if parsing not done
+      F.TopLineTodo:= Val;
+
+      fmMain.UpdateFrame;
       fmMain.UpdateStatus;
       Result:= ReturnNone;
     end;
@@ -1170,17 +1194,38 @@ end;
 
 procedure TfmMain.PyCompletionOnGetProp(Sender: TObject;
   out AText, ASuffix: string; out ACharsLeft, ACharsRight: integer);
+var
+  Caret: TATCaretItem;
+  PrevCharsLeft: integer;
 begin
   AText:= '';
   ASuffix:= '';
   ACharsLeft:= 0;
   ACharsRight:= 0;
 
+  Caret:= CurrentEditor.Carets[0];
+
+  //if caret moved by 1 char: repeat auto-complete
+  if (Abs(Caret.PosX-FPyComplete_CaretPos.X)=1) and
+     (Caret.PosY=FPyComplete_CaretPos.Y) then
+  begin
+    PrevCharsLeft:= FPyComplete_CharsLeft;
+    DoPyEvent(CurrentEditor, cEventOnComplete, []);
+
+    //this check- to close listbox when no more matches after typing too much
+    //MsgStatus(Format('prev %d now %d', [PrevCharsLeft, FPyComplete_CharsLeft]));
+    if Abs(PrevCharsLeft-FPyComplete_CharsLeft)<>1 then exit;
+
+    AText:= FPyComplete_Text;
+    ACharsLeft:= FPyComplete_CharsLeft;
+    ACharsRight:= FPyComplete_CharsRight;
+    exit
+  end;
+
   //stop doing, if caret moved
-  //(cannot recalc AText here)
-  with CurrentEditor.Carets[0] do
-    if (PosX<>FPyComplete_CaretPos.X) or (PosY<>FPyComplete_CaretPos.Y) then
-      exit;
+  if (Caret.PosX<>FPyComplete_CaretPos.X) or
+     (Caret.PosY<>FPyComplete_CaretPos.Y) then
+    exit;
 
   AText:= FPyComplete_Text;
   ACharsLeft:= FPyComplete_CharsLeft;
@@ -1376,7 +1421,7 @@ function Py_app_log(Self, Args: PPyObject): PPyObject; cdecl;
 var
   Ptr: PChar;
   Str: string;
-  Id, NTag: integer;
+  Id, NTag, i: integer;
   Prop: PAppPanelProps;
 begin
   with GetPythonEngine do
@@ -1427,9 +1472,14 @@ begin
 
         LOG_GET_LINES:
           begin
-            Result:= PyString_FromString(PChar(Prop^.Items.Text));
+            Str:= '';
+            for i:= 0 to Prop^.Items.Count-1 do
+              Str:= Str + Prop^.Items[i] + #13 + IntToStr(PtrInt(Prop^.Items.Objects[i]))
+                    + IfThen(i<Prop^.Items.Count-1, #10);
+            Result:= PyString_FromString(PChar(Str));
             exit; //skip ReturnNone
           end;
+
         LOG_GET_LINEINDEX:
           begin
             Result:= PyInt_FromLong(Prop^.Listbox.ItemIndex);
@@ -1459,11 +1509,22 @@ begin
         LOG_CONSOLE_CLEAR:
           with fmMain do
           begin
-            fmConsole.memo.Strings.Clear;
-            fmConsole.memo.Update(true);
-            fmConsole.ed.Text:= '';
-            fmConsole.ed.Items.Clear;
-            fmConsole.ed.Update(true);
+            if (Str='') or (Pos('m', Str)>0) then
+            begin
+              fmConsole.memo.ModeReadOnly:= false;
+              fmConsole.memo.DoCommand(cCommand_GotoTextBegin);
+              fmConsole.memo.DoCommand(cCommand_TextDeleteToTextEnd);
+              fmConsole.memo.ModeReadOnly:= true;
+            end;
+            if (Str='') or (Pos('e', Str)>0) then
+            begin
+              fmConsole.ed.DoCommand(cCommand_GotoTextBegin);
+              fmConsole.ed.DoCommand(cCommand_TextDeleteToTextEnd);
+            end;
+            if (Str='') or (Pos('h', Str)>0) then
+            begin
+              fmConsole.ed.Items.Clear;
+            end;
           end;
 
         LOG_CONSOLE_ADD:
@@ -1486,7 +1547,6 @@ begin
     end;
 end;
 
-
 function Py_dlg_checklist(Self, Args: PPyObject): PPyObject; cdecl;
 var
   PtrCaption, PtrColumns, PtrItems: PChar;
@@ -1505,7 +1565,6 @@ begin
       Result:= PyString_FromString(PChar(string(utf8decode(StrItems))));
     end;
 end;
-
 
 function Py_dlg_hotkeys(Self, Args : PPyObject): PPyObject; cdecl;
 var
@@ -1599,6 +1658,16 @@ begin
             else
               Result:= ReturnNone;
           end;
+
+        PROP_COLOR:
+          begin
+            Num1:= EditorGetColorById(Ed, Str);
+            if Num1<>-1 then
+              Result:= PyInt_FromLong(Num1)
+            else
+              Result:= ReturnNone;
+          end;
+
         PROP_LEXER_FILE:
           Result:= PyString_FromString(PChar(F.LexerName));
         PROP_LEXER_POS:
@@ -1613,6 +1682,7 @@ begin
             Pnt.Y:= Ed.Carets[0].PosY;
             Result:= PyString_FromString(PChar(F.LexerNameAtPos(Pnt)));
           end;
+
         PROP_INDEX_GROUP:
           begin
             fmMain.GetEditorIndexes(Ed, Num1, Num2);
@@ -1642,6 +1712,19 @@ begin
         PROP_MACRO_REC:
           Result:= PyBool_FromLong(Ord(F.MacroRecord));
 
+        PROP_MARKED_RANGE:
+          begin
+            Ed.DoGetMarkedLines(Num1, Num2);
+            Result:= Py_BuildValue('(ii)', Num1, Num2);
+          end;
+
+        PROP_CARET_SHAPE:
+          Result:= PyInt_FromLong(Ord(Ed.OptCaretShape));
+        PROP_CARET_SHAPE_OVR:
+          Result:= PyInt_FromLong(Ord(Ed.OptCaretShapeOvr));
+        PROP_CARET_SHAPE_RO:
+          Result:= PyInt_FromLong(Ord(Ed.OptCaretShapeRO));
+
         else
           Result:= ReturnNone;
       end;
@@ -1653,11 +1736,11 @@ var
   H: PtrInt;
   Id: integer;
   Ptr: PChar;
-  Str: string;
+  Str, Str1, Str2: string;
   Ed: TATSynEdit;
   F: TEditorFrame;
   ValueBool: boolean;
-  ValueInt, NGroup, NTab, NIndexNew: integer;
+  ValueInt, NGroup, NTab, NIndexNew, N1, N2: integer;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'Lis:set_prop', @H, @Id, @Ptr)) then
@@ -1694,6 +1777,16 @@ begin
           Ed.OptRulerVisible:= ValueBool;
         PROP_LEXER_FILE:
           F.Lexer:= Manager.FindAnalyzer(Str);
+
+        PROP_COLOR:
+          begin
+            Str1:= SGetItem(Str);
+            Str2:= SGetItem(Str);
+            N1:= StrToIntDef(Str2, -1);
+            if N1<>-1 then
+              EditorSetColorById(Ed, Str1, N1);
+          end;
+
         PROP_TAG:
           F.TagString:= Str;
 
@@ -1729,9 +1822,23 @@ begin
               fmMain.Groups.Pages[NGroup].Tabs.MoveTab(NTab, NIndexNew, true);
           end;
 
+        PROP_CARET_SHAPE:
+          Ed.OptCaretShape:= TATSynCaretShape(StrToIntDef(Str, 0));
+        PROP_CARET_SHAPE_OVR:
+          Ed.OptCaretShapeOvr:= TATSynCaretShape(StrToIntDef(Str, 0));
+        PROP_CARET_SHAPE_RO:
+          Ed.OptCaretShapeRO:= TATSynCaretShape(StrToIntDef(Str, 0));
+
         PROP_EXPORT_HTML:
           begin
             DoEditorExportToHTML_WithParams(Ed, Str);
+          end;
+
+        PROP_MARKED_RANGE:
+          begin
+            N1:= StrToIntDef(SGetItem(Str), -1);
+            N2:= StrToIntDef(SGetItem(Str), -1);
+            Ed.DoSetMarkedLines(N1, N2);
           end;
       end;
 
@@ -1748,7 +1855,7 @@ var
   Str, Str1, Str2, Str3: string;
   StrCaption, StrId, StrCmd, StrIndex: string;
   mi, miMain: TMenuItem;
-  SplitVert: boolean;
+  SplitVert, SplitVisible, ok: boolean;
   SplitPos, SplitTotal: integer;
 begin
   with GetPythonEngine do
@@ -1988,8 +2095,8 @@ begin
 
         APP_PROC_GET_SPLIT:
           begin
-            fmMain.DoGetSplitInfo(Str, SplitVert, SplitPos, SplitTotal);
-            Result:= Py_BuildValue('(iii)', Ord(SplitVert), SplitPos, SplitTotal);
+            fmMain.DoGetSplitInfo(Str, SplitVert, SplitVisible, SplitPos, SplitTotal);
+            Result:= Py_BuildValue('(iiii)', Ord(SplitVert), Ord(SplitVisible), SplitPos, SplitTotal);
           end;
         APP_PROC_SET_SPLIT:
           begin
@@ -1997,7 +2104,66 @@ begin
             Str2:= SGetItem(Str, ';');
             fmMain.DoSetSplitInfo(Str1, StrToIntDef(Str2, -1));
             Result:= ReturnNone;
-          end
+          end;
+
+        APP_PROC_GET_FIND_OPTIONS:
+          begin
+            Result:= PyString_FromString(PChar(fmMain.DoFindOptionsToString));
+          end;
+        APP_PROC_SET_FIND_OPTIONS:
+          begin
+            fmMain.DoFindOptionsFromString(Str);
+            Result:= ReturnNone;
+          end;
+
+        APP_PROC_SIDEPANEL_ADD:
+          begin
+            StrCaption:= SGetItem(Str); //caption
+            StrIndex:= SGetItem(Str); //tab index
+            StrId:= SGetItem(Str); //type of control
+            ok:= fmMain.DoGetTabsLeftIndexOfCaption(Str1)<0;
+            if ok then
+            begin
+              Num:= 0;
+              while FAppSidePanels[Num].ItemCaption<>'' do Inc(Num);
+              if Num>High(FAppSidePanels) then
+                ok:= false
+              else
+              begin
+                FAppSidePanels[Num].ItemCaption:= StrCaption;
+                if StrId='tree' then
+                  with FAppSidePanels[Num] do
+                  begin
+                    ItemTreeview:= TTreeView.Create(fmMain);
+                    ItemTreeview.Hide;
+                    ItemTreeview.Parent:= fmMain.PanelLeft;
+                    ItemTreeview.Align:= alClient;
+                    fmMain.DoApplyThemeToTreeview(ItemTreeview);
+                    ItemTreeview.Items.Add(nil, StrCaption);
+                  end;
+
+                fmMain.TabsLeft.AddTab(StrToIntDef(StrIndex, -1), StrCaption);
+              end;
+            end;
+            Result:= PyBool_FromLong(Ord(ok));
+          end;
+
+        APP_PROC_SIDEPANEL_ACTIVATE:
+          begin
+            Num:= fmMain.DoGetTabsLeftIndexOfCaption(Str);
+            ok:= Num>=0;
+            if ok then
+              fmMain.TabsLeft.TabIndex:= Num;
+            Result:= PyBool_FromLong(Ord(ok));
+          end;
+
+        APP_PROC_SIDEPANEL_ENUM:
+          begin
+            Str:= '';
+            for Num:= 0 to fmMain.TabsLeft.TabCount-1 do
+              Str:= Str + IfThen(Num>0, #10) + fmMain.TabsLeft.GetTabData(Num).TabCaption;
+            Result:= PyString_FromString(PChar(Str));
+          end;
 
         else
           Result:= ReturnNone;
@@ -2275,13 +2441,13 @@ begin
     AddMethod('app_log', @Py_app_log, '');
 
     AddMethod('msg_status', @Py_msg_status, '');
+    AddMethod('msg_status_alt', @Py_msg_status_alt, '');
     AddMethod('msg_box', @Py_msg_box, '');
     AddMethod('dlg_input', @Py_dlg_input, '');
     AddMethod('dlg_input_ex', @Py_dlg_input_ex, '');
     AddMethod('dlg_file', @Py_dlg_file, '');
     AddMethod('dlg_menu', @Py_dlg_menu, '');
     AddMethod('dlg_color', @Py_dlg_color, '');
-    AddMethod('dlg_checklist', @Py_dlg_checklist, '');
     AddMethod('dlg_hotkeys', @Py_dlg_hotkeys, '');
     AddMethod('dlg_custom', @Py_dlg_custom, '');
 

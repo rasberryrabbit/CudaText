@@ -407,6 +407,7 @@ begin
     UiOps.NonTextFilesBufferKb:= Max(1, Min(1024, c.GetValue('ui_non_text_buffer', UiOps.NonTextFilesBufferKb)));
     UiOps.LexerMenuGrouped:= c.GetValue('ui_lexers_grouped', UiOps.LexerMenuGrouped);
     UiOps.ReloadFollowTail:= c.GetValue('ui_reload_tail', UiOps.ReloadFollowTail);
+    UiOps.BackupMode:= c.GetValue('backup', UiOps.BackupMode);
 
     Op.OpSpaceX:= c.GetValue('spacing_x', Op.OpSpaceX);
     Op.OpSpaceY:= c.GetValue('spacing_y', Op.OpSpaceY);
@@ -416,8 +417,9 @@ begin
 
     Op.OpOvrSel:= c.GetValue('ovr_sel', Op.OpOvrSel);
     Op.OpOvrOnPaste:= c.GetValue('ovr_on_paste', Op.OpOvrOnPaste);
-    Op.OpUnderlineColor:= c.GetValue('under_color', Op.OpUnderlineColor);
-    Op.OpUnderlineColorSize:= c.GetValue('under_color_size', Op.OpUnderlineColorSize);
+
+    Op.OpUnderlineColorFiles:= c.GetValue('underline_color_files', Op.OpUnderlineColorFiles);
+    Op.OpUnderlineColorSize:= c.GetValue('underline_color_size', Op.OpUnderlineColorSize);
 
     Op.OpGutterShow:= c.GetValue('gutter_show', Op.OpGutterShow);
     Op.OpGutterFold:= c.GetValue('gutter_fold', Op.OpGutterFold);
@@ -489,6 +491,9 @@ begin
 
     UiOps.LexerLibFilename:= c.GetValue('lexlib', UiOps.LexerLibFilename);
     UiOps.PyLibrary:= c.GetValue('pylib', UiOps.PyLibrary);
+
+    UiOps.AutocompleteHtml:= c.GetValue('autocomplete_html', UiOps.AutocompleteHtml);
+    UiOps.AutocompleteCss:= c.GetValue('autocomplete_css', UiOps.AutocompleteCss);
 
     UiOps.FindSuggestSel:= c.GetValue('find_suggest_sel', UiOps.FindSuggestSel);
     UiOps.FindSuggestWord:= c.GetValue('find_suggest_cur_word', UiOps.FindSuggestWord);

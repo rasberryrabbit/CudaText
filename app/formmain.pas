@@ -74,7 +74,6 @@ uses
   formpalette,
   formcolorsetup,
   formabout,
-  formchecklist,
   formcharmaps,
   math;
 
@@ -85,7 +84,7 @@ type
     AppProps: TApplicationProperties;
     ListboxOut: TATListbox;
     ListboxVal: TATListbox;
-    btnStop: TATButton;
+    ButtonCancel: TATButton;
     FontDlg: TFontDialog;
     Gauge: TGauge;
     ImageListBm: TImageList;
@@ -339,6 +338,7 @@ type
     SaveDlg: TSaveDialog;
     SplitterVert: TSplitter;
     SplitterHorz: TSplitter;
+    TimerStatusAlt: TTimer;
     TimerTreeFill: TTimer;
     TimerCmd: TTimer;
     TimerStatus: TTimer;
@@ -365,8 +365,9 @@ type
     ToolButton9: TToolButton;
     Tree: TTreeView;
     UniqInstance: TUniqueInstance;
-    procedure btnStopClick(Sender: TObject);
+    procedure ButtonCancelClick(Sender: TObject);
     procedure DoOnTabOver(Sender: TObject; ATabIndex: Integer);
+    procedure DoOnTabsLeftClick(Sender: TObject);
     procedure DoOnTabsBottomClick(Sender: TObject);
     procedure FinderFound(Sender: TObject; APos1, APos2: TPoint);
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
@@ -465,6 +466,7 @@ type
     procedure tbUndoClick(Sender: TObject);
     procedure tbUnpriClick(Sender: TObject);
     procedure TimerCmdTimer(Sender: TObject);
+    procedure TimerStatusAltTimer(Sender: TObject);
     procedure TimerStatusTimer(Sender: TObject);
     procedure TimerTreeFillTimer(Sender: TObject);
     procedure TimerTreeFocusTimer(Sender: TObject);
@@ -483,7 +485,9 @@ type
     FSessionFilename: string;
     FColorDialog: TColorDialog;
     Status: TATStatus;
+    StatusAlt: TATStatus;
     Groups: TATGroups;
+    TabsLeft: TATTabs;
     TabsBottom: TATTabs;
     FFinder: TATEditorFinder;
     FFindStop: boolean;
@@ -503,15 +507,18 @@ type
     FPyComplete_CaretPos: TPoint;
 
     procedure CharmapOnInsert(const AStr: string);
+    procedure DoApplyThemeToTreeview(C: TTreeview);
     procedure DoAutoComplete;
     procedure DoCudaLibAction(const AMethod: string);
     procedure DoDialogCharMap;
     procedure DoFindActionFromString(AStr: string);
     procedure DoFindOptionsFromString(const S: string);
     function DoFindOptionsToString: string;
-    procedure DoGetSplitInfo(const Id: string; out IsVert: boolean; out
-      NPos, NTotal: integer);
+    procedure DoGetSplitInfo(const Id: string; out BoolVert, BoolVisible: boolean;
+      out NPos, NTotal: integer);
+    function DoGetTabsLeftIndexOfCaption(const Str: string): integer;
     procedure DoGotoDefinition;
+    procedure DoShowFuncHint;
     procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps;
       AForceApply: boolean);
     procedure DoApplyFontFixed;
@@ -537,9 +544,12 @@ type
     procedure DoPyStringToEvents(const AEventStr: string; var AEvents: TAppPyEvents);
     procedure DoPyUpdateEvents(const AModuleName, AEventStr, ALexerStr, AKeyStr: string);
     procedure DoSetSplitInfo(const Id: string; NPos: integer);
+    procedure FrameLexerChange(Sender: TObject);
     procedure FrameOnEditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure FrameOnEditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure MenuEncWithReloadClick(Sender: TObject);
+    procedure MsgStatusAlt(const S: string; const NSeconds: integer);
+    function SFindOptionsToTextHint: string;
     procedure UpdateMenuPlugins;
     procedure DoOps_LoadLexlib;
     procedure DoOps_SaveLexlib(Cfm: boolean);
@@ -950,6 +960,15 @@ begin
   Status.AddPanel(80, saMiddle, '?');
   Status.AddPanel(1600, saLeft, '');
 
+  StatusAlt:= TATStatus.Create(Self);
+  StatusAlt.Parent:= Self;
+  StatusAlt.Align:= alBottom;
+  StatusAlt.Top:= Status.Top-4;
+  StatusAlt.Height:= Status.Height;
+  StatusAlt.IndentTop:= Status.IndentTop;
+  StatusAlt.AddPanel(5000, saLeft, '?');
+  StatusAlt.Hide;
+
   fmConsole:= TfmConsole.Create(Self);
   fmConsole.Parent:= PanelBottom;
   fmConsole.Align:= alClient;
@@ -973,10 +992,23 @@ begin
   TabsBottom.Parent:= PanelBottom;
   TabsBottom.Align:= alBottom;
 
-  TabsBottom.AddTab(0, 'Console', nil);
-  TabsBottom.AddTab(1, 'Output', nil);
-  TabsBottom.AddTab(2, 'Validate', nil);
+  TabsBottom.AddTab(-1, 'Console', nil);
+  TabsBottom.AddTab(-1, 'Output', nil);
+  TabsBottom.AddTab(-1, 'Validate', nil);
   TabsBottom.OnTabClick:= @DoOnTabsBottomClick;
+
+  TabsLeft:= TATTabs.Create(Self);
+  TabsLeft.Parent:= PanelLeft;
+  TabsLeft.Align:= alTop;
+
+  TabsLeft.AddTab(-1, 'Tree', nil);
+  TabsLeft.OnTabClick:= @DoOnTabsLeftClick;
+
+  with FAppSidePanels[0] do
+  begin
+    ItemCaption:= 'Tree';
+    ItemTreeview:= Tree;
+  end;
 
   FFinder:= TATEditorFinder.Create;
   FFinder.OptRegex:= true;
@@ -1053,7 +1085,7 @@ begin
   DoOps_SaveHistory;
 end;
 
-procedure TfmMain.btnStopClick(Sender: TObject);
+procedure TfmMain.ButtonCancelClick(Sender: TObject);
 begin
   FFindStop:= true;
 end;
@@ -1467,6 +1499,24 @@ begin
   TabsBottom.TabHeight:= UiOps.TabSizeY-1;
   TabsBottom.TabWidthMax:= UiOps.TabSizeX;
 
+  TabsLeft.TabBottom:= UiOps.TabBottom;
+  TabsLeft.TabShowPlus:= false;
+  TabsLeft.TabShowMenu:= false;
+  TabsLeft.TabShowClose:= tbShowNone;
+  TabsLeft.TabDoubleClickClose:= false;
+  TabsLeft.TabMiddleClickClose:= false;
+  TabsLeft.TabAngle:= UiOps.TabAngle;
+  TabsLeft.TabIndentTop:= 0;
+  TabsLeft.TabIndentInit:= UiOps.TabIndentX;
+  TabsLeft.TabIndentText:= UiOps.TabIndentY;
+  TabsLeft.Height:= UiOps.TabSizeY;
+  TabsLeft.TabHeight:= UiOps.TabSizeY-1;
+  TabsLeft.TabWidthMax:= UiOps.TabSizeX;
+  if UiOps.TabBottom then
+    TabsLeft.Align:= alBottom
+  else
+    Tabsleft.Align:= alTop;
+
   Groups.SetTabOption(tabOptionBottomTabs, Ord(UiOps.TabBottom));
   Groups.SetTabOption(tabOptionShowXButtons, Ord(UiOps.TabShowX));
   Groups.SetTabOption(tabOptionShowPlus, Ord(UiOps.TabShowPlus));
@@ -1484,6 +1534,8 @@ begin
 
   Status.IndentTop:= UiOps.TabIndentY;
   Status.Height:= UiOps.StatusSizeY;
+  ButtonCancel.Height:= UiOps.StatusSizeY-2;
+
   Status.GetPanelData(0).ItemWidth:= UiOps.StatusSizeX;
   if UiOps.StatusCenter then
     Status.GetPanelData(0).ItemAlign:= saMiddle
@@ -1705,16 +1757,14 @@ begin
       MsgStatus(msgStatusBadNum);
       Exit
     end;
-
-    NumMax:= Ed.Strings.Count-1;
-    if Num>NumMax then Num:= NumMax;
+    Num:= Min(Num, Ed.Strings.Count-1);
 
     fmGoto.Hide;
-    Ed.DoCaretSingle(0, Num);
-    Ed.DoGotoPos(Point(0, Num), UiOps.FindIndentHorz, UiOps.FindIndentVert);
+    MsgStatus(Format(msgStatusGotoLine, [Num+1]));
+
+    Ed.DoGotoPos_AndUnfold(Point(0, Num), UiOps.FindIndentHorz, UiOps.FindIndentVert);
     Ed.Update;
     Ed.SetFocus;
-    MsgStatus(Format(msgStatusGotoLine, [Num+1]));
   end;
 end;
 
@@ -2041,6 +2091,16 @@ begin
   TimerStatus.Enabled:= true;
 end;
 
+procedure TfmMain.MsgStatusAlt(const S: string; const NSeconds: integer);
+begin
+  StatusAlt[0]:= S;
+  StatusAlt.Show;
+  StatusAlt.Top:= Status.Top-4;
+  TimerStatusAlt.Interval:= Max(1, Min(30, NSeconds))*1000;
+  TimerStatusAlt.Enabled:= false;
+  TimerStatusAlt.Enabled:= true;
+end;
+
 procedure TfmMain.SetShowStatus(AValue: boolean);
 begin
   Status.Visible:= AValue;
@@ -2357,7 +2417,10 @@ begin
   if DoPyEvent(Ed, cEventOnComplete, [])=cPyTrue then exit;
 
   if F.Lexer=nil then exit;
-  LexName:= F.Lexer.LexerName;
+  if Ed.Carets.Count<>1 then exit;
+
+  LexName:= F.LexerNameAtPos(Point(Ed.Carets[0].PosX, Ed.Carets[0].PosY));
+  MsgStatus('Trying auto-complete for: '+LexName);
   if LexName='' then exit;
 
   //'php_'->'php'
@@ -2365,8 +2428,8 @@ begin
     Delete(LexName, Length(Lexname), 1);
 
   IsPas:= Pos('Pascal', LexName)>0;
-  IsHtml:= Pos('HTML', LexName)>0;
-  IsCss:= LexName='CSS';
+  IsHtml:= UiOps.AutocompleteHtml and (Pos('HTML', LexName)>0);
+  IsCss:= UiOps.AutocompleteCss and (LexName='CSS');
   IsCaseSens:= (not IsPas) and (Pos('SQL', LexName)=0);
   FileCss:= GetAppPath(cDirDataAcpSpec)+DirectorySeparator+'css_list.ini';
   FileHtml:= GetAppPath(cDirDataAcpSpec)+DirectorySeparator+'html_list.ini';
@@ -2755,6 +2818,7 @@ begin
   end
   else
   begin
+    MsgStatus('Clicking log line');
     DoPyEvent(CurrentEditor, cEventOnOutputNav,
       [SStringToPythonString(SText), IntToStr(NTag)] );
   end;
@@ -2799,6 +2863,16 @@ procedure TfmMain.DoGotoDefinition;
 begin
   if DoPyEvent(CurrentEditor, cEventOnGotoDef, [])<>cPyTrue then
     MsgStatus('No goto-definition plugins installed for this lexer');
+end;
+
+procedure TfmMain.DoShowFuncHint;
+var
+  S: string;
+begin
+  S:= DoPyEvent(CurrentEditor, cEventOnFuncHint, []);
+  if (S='') or (S='None') then exit;
+
+  MsgStatusAlt(S, UiOps.StatusAltTime);
 end;
 
 procedure TfmMain.PopupTextPopup(Sender: TObject);
@@ -2893,6 +2967,9 @@ begin
   Ed.Strings.TextInsert(Caret.PosX, Caret.PosY, Str,
     Ed.ModeOverwrite, Shift, PosAfter);
   Ed.DoCaretSingle(Caret.PosX+Length(Str), Caret.PosY);
+
+  Ed.Strings.Modified:= true;
+  Ed.DoEventChange;
 
   UpdateFrame(true);
   UpdateStatus;
@@ -3033,18 +3110,20 @@ begin
 end;
 
 
-procedure TfmMain.DoGetSplitInfo(const Id: string; out IsVert: boolean;
-  out NPos, NTotal: integer);
+procedure TfmMain.DoGetSplitInfo(const Id: string;
+  out BoolVert, BoolVisible: boolean; out NPos, NTotal: integer);
   //----
   procedure GetSp(Sp: TSplitter);
   begin
-    IsVert:= (Sp.Align=alLeft) or (Sp.Align=alRight);
+    BoolVert:= (Sp.Align=alLeft) or (Sp.Align=alRight);
+    BoolVisible:= Sp.Visible;
     NPos:= Sp.GetSplitterPosition;
-    if IsVert then NTotal:= Sp.Parent.Width else NTotal:= Sp.Parent.Height;
+    if BoolVert then NTotal:= Sp.Parent.Width else NTotal:= Sp.Parent.Height;
   end;
   //----
 begin
-  IsVert:= false;
+  BoolVert:= false;
+  BoolVisible:= true;
   NPos:= 0;
   NTotal:= 0;
 
@@ -3053,8 +3132,6 @@ begin
   if Id='G1' then GetSp(Groups.Splitter1) else
   if Id='G2' then GetSp(Groups.Splitter2) else
   if Id='G3' then GetSp(Groups.Splitter3) else
-  if Id='G4' then GetSp(Groups.Splitter4) else
-  if Id='G5' then GetSp(Groups.Splitter5) else
   ;
 end;
 
@@ -3063,6 +3140,8 @@ procedure TfmMain.DoSetSplitInfo(const Id: string; NPos: integer);
   procedure SetSp(Sp: TSplitter);
   begin
     Sp.SetSplitterPosition(NPos);
+    if Assigned(Sp.OnMoved) then
+      Sp.OnMoved(Self);
   end;
 begin
   if NPos<0 then exit;
@@ -3071,9 +3150,12 @@ begin
   if Id='G1' then SetSp(Groups.Splitter1) else
   if Id='G2' then SetSp(Groups.Splitter2) else
   if Id='G3' then SetSp(Groups.Splitter3) else
-  if Id='G4' then SetSp(Groups.Splitter4) else
-  if Id='G5' then SetSp(Groups.Splitter5) else
   ;
+end;
+
+procedure TfmMain.FrameLexerChange(Sender: TObject);
+begin
+  DoPyEvent(CurrentEditor, cEventOnLexer, []);
 end;
 
 //----------------------------

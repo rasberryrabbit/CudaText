@@ -13,7 +13,7 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Menus,
-  FileUtil, Dialogs, Graphics, ExtCtrls,
+  FileUtil, Dialogs, Graphics, ExtCtrls, ComCtrls,
   LclProc, LclType,
   ujsonConf,
   Process,
@@ -22,6 +22,7 @@ uses
   ATSynEdit_Keymap_Init,
   ATStringProc,
   ATButtons,
+  ATListbox,
   proc_cmd,
   proc_lexer,
   proc_msg,
@@ -66,6 +67,9 @@ type
 
     PyLibrary: string;
     LexerLibFilename: string;
+
+    AutocompleteCss: boolean;
+    AutocompleteHtml: boolean;
 
     ListboxWidth: integer;
     ListboxItemCountCmd: integer;
@@ -123,6 +127,7 @@ type
     StatusSizeY: integer;
     StatusCenter: boolean;
     StatusTime: integer;
+    StatusAltTime: integer;
 
     ShowTitlePath: boolean;
     ShowLastFiles: boolean;
@@ -133,6 +138,7 @@ type
     NonTextFilesBufferKb: integer;
     LexerMenuGrouped: boolean;
     ReloadFollowTail: boolean;
+    BackupMode: string;
   end;
 var
   UiOps: TUiOps;
@@ -148,7 +154,7 @@ type
 
     OpOvrSel: boolean;
     OpOvrOnPaste: boolean;
-    OpUnderlineColor: boolean;
+    OpUnderlineColorFiles: string;
     OpUnderlineColorSize: integer;
 
     //view
@@ -310,18 +316,17 @@ type
     cEventOnChange,
     cEventOnChangeSlow,
     cEventOnCaret,
-    cEventOnNumber,
+    cEventOnClick,
     cEventOnState,
     cEventOnFocus,
+    cEventOnStart,
     cEventOnLexer,
     cEventOnComplete,
-    cEventOnFuncHint,
     cEventOnGotoDef,
+    cEventOnFuncHint,
     cEventOnConsole,
     cEventOnConsoleNav,
     cEventOnOutputNav,
-    cEventOnCompare,
-    cEventOnStart,
     cEventOnMacro
     );
   TAppPyEvents = set of TAppPyEvent;
@@ -335,18 +340,17 @@ const
     'on_change',
     'on_change_slow',
     'on_caret',
-    'on_num',
+    'on_click',
     'on_state',
     'on_focus',
+    'on_start',
     'on_lexer',
     'on_complete',
-    'on_func_hint',
     'on_goto_def',
+    'on_func_hint',
     'on_console',
     'on_console_nav',
     'on_output_nav',
-    'on_compare',
-    'on_start',
     'on_macro'
     );
 
@@ -373,6 +377,17 @@ type
 var
   FPluginsCmd: TAppPluginCmdArray;
   FPluginsEvents: TAppPluginEventArray;
+
+type
+  TAppSidePanel = record
+    ItemCaption: string;
+    ItemTreeview: TTreeView;
+    ItemListbox: TATListbox;
+    ItemListboxStrings: TStringList;
+  end;
+
+var
+  FAppSidePanels: array[0..10] of TAppSidePanel;
 
 
 implementation
@@ -565,7 +580,8 @@ begin
 
     OpOvrSel:= true;
     OpOvrOnPaste:= false;
-    OpUnderlineColor:= true;
+
+    OpUnderlineColorFiles:= '*';
     OpUnderlineColorSize:= 3;
 
     OpGutterShow:= true;
@@ -674,6 +690,9 @@ begin
     LexerLibFilename:= 'lib.lxl';
     PyLibrary:= InitPyLibraryPath;
 
+    AutocompleteCss:= true;
+    AutocompleteHtml:= true;
+
     ListboxWidth:= 450;
     ListboxItemCountCmd:= 15;
     ListboxItemCountBm:= 10;
@@ -730,6 +749,7 @@ begin
     StatusSizeY:= TabSizeY;
     StatusCenter:= true;
     StatusTime:= 5;
+    StatusAltTime:= 7;
 
     ShowTitlePath:= false;
     ShowLastFiles:= true;
@@ -740,6 +760,7 @@ begin
     NonTextFilesBufferKb:= 64;
     LexerMenuGrouped:= true;
     ReloadFollowTail:= true;
+    BackupMode:= '';
   end;
 end;
 
@@ -972,6 +993,8 @@ initialization
 
   FillChar(AppBookmarkSetup, SizeOf(AppBookmarkSetup), 0);
   AppBookmarkImagelist:= TImageList.Create(nil);
+
+  FillChar(FAppSidePanels, SizeOf(FAppSidePanels), 0);
 
 finalization
   FreeAndNil(Keymap);

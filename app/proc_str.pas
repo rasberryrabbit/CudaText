@@ -28,9 +28,10 @@ type
 
 function SFindFuzzyPositions(SText, SFind: UnicodeString): TATIntArray;
 function SFindWordsInString(SText, SFind: string): boolean;
-function IsLexerListed(const ALexer, ANameList: string): boolean;
 function SRegexReplaceSubstring(const AStr, AStrFind, AStrReplace: string; AUseSubstitute: boolean): string;
-function ShiftStateToString(const Shift: TShiftState): string;
+
+function IsLexerListed(const ALexer, ANameList: string): boolean;
+function IsFilenameListedInExtensionList(const AFilename, AExtList: string): boolean;
 
 type
   TRegexParts = array[1..8] of string;
@@ -40,6 +41,7 @@ function SStringToPythonString(const Str: string): string;
 procedure SLoadStringsFromFile(cfg: TJsonConfig; const path: string; List: TStrings; MaxItems: integer);
 procedure SSaveStringsToFile(cfg: TJsonConfig; const path: string; List: TStrings; MaxItems: integer);
 function SMaskFilenameSlashes(const fn: string): string;
+function SGetFilenameBackup(const fn, mode: string): string;
 
 
 implementation
@@ -195,6 +197,19 @@ begin
     ','+LowerCase(ANameList)+',' )>0;
 end;
 
+function IsFilenameListedInExtensionList(const AFilename, AExtList: string): boolean;
+var
+  Ext: string;
+begin
+  if AExtList='*' then exit(true);
+  if AExtList='' then exit(false);
+  Ext:= ExtractFileExt(AFilename);
+  if Ext='' then exit(false);
+  if Ext[1]='.' then Delete(Ext, 1, 1);
+  Result:= Pos(','+Ext+',', ','+AExtList+',' )>0;
+end;
+
+
 function SRegexReplaceSubstring(const AStr, AStrFind, AStrReplace: string; AUseSubstitute: boolean): string;
 var
   Obj: TRegExpr;
@@ -214,16 +229,6 @@ begin
   finally
     Obj.Free;
   end;
-end;
-
-
-function ShiftStateToString(const Shift: TShiftState): string;
-begin
-  Result:=
-    IfThen(ssShift in Shift, 's')+
-    IfThen(ssCtrl in Shift, 'c')+
-    IfThen(ssAlt in Shift, 'a')+
-    IfThen(ssMeta in Shift, 'm');
 end;
 
 
@@ -263,6 +268,15 @@ begin
   end;
 end;
 
+
+function SGetFilenameBackup(const fn, mode: string): string;
+begin
+  Result:= '';
+  if mode='' then exit;
+  if mode='1' then exit(fn+'~');
+  if mode='2' then exit(ChangeFileExt(fn, '.~'+Copy(ExtractFileExt(fn), 2, MaxInt)));
+  if StrToIntDef(mode, -1)<0 then exit(fn+'.'+mode);
+end;
 
 end.
 

@@ -1,3 +1,40 @@
+Legend:
+  + added
+  - fixed
+  * changed
+
+1.2.16
++ add commands: column select to line begin/ line end/ page up/ page down
++ faster render on Linux gtk2
+- fix: grouped-undo was broken
+- fix: btn "cancel search" didnt work 
+
+1.2.15
++ opt "backup"
++ plugin autocomplete: reshow list if 1 char typed
++ improved "Make Plugin", can hide items in Plugins
++ with col-block of zero width, can use Del/BkSp too
++ replace dlg key Ctrl+Alt+Enter: replace and don't find next
+* changed hotkeys in Replace
+* output panel uses dbl-click
+- fixes
+
+1.2.14
++ selection keeps bold/italic of selected words
++ redone plugin "Make Plugin"
+* lexers HTML/HTML_/PHP/PHP_: rename, old pair removed to Addon Manager
++ opt autocomplete_html
++ opt autocomplete_css
+* opts deleted: under_color, under_color_size
++ opts added: underline_color_files, underline_color_size 
+- fix: caret at bad coord
+- fix: must unfold found text
+- fix: sort must set "modified"
+- fix: Html autocomplete in Html part of Php
+
+1.2.12
++ api (log panels api, splitters api)
+* removed lexers NSIS, Inno: to Addon Manager
 
 1.2.11
 + addon-manager: config dlg (restart to see item); common install dlg; no more using of Synwrite wiki

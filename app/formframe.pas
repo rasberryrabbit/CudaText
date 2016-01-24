@@ -28,6 +28,7 @@ uses
   ATStringProc,
   ATStringProc_HtmlColor,
   ATFileNotif,
+  ATButtons,
   ecSyntAnal,
   proc_globdata,
   proc_lexer,
@@ -37,7 +38,8 @@ uses
   proc_files,
   proc_msg,
   proc_str,
-  proc_py, ATButtons,
+  proc_py,
+  proc_miscutils,
   ujsonConf,
   math;
 
@@ -158,6 +160,7 @@ type
     property TabKeyCollectMarkers: boolean read FTabKeyCollectMarkers write FTabKeyCollectMarkers;
     property TagString: string read FTagString write FTagString;
     property NotInRecents: boolean read FNotInRecents write FNotInRecents;
+    property TopLineTodo: integer read FTopLineTodo write FTopLineTodo; //always use it instead of Ed.LineTop
     function IsEmpty: boolean;
     //
     property LineEnds: TATLineEnds read GetLineEnds write SetLineEnds;
@@ -243,6 +246,9 @@ begin
     FActiveAlt:= NewAlt;
     DoOnUpdateStatus;
   end;
+
+  DoPyEvent(Sender as TATSynEdit, cEventOnClick,
+    ['"'+ConvertShiftStateToString(KeyboardStateToShiftState)+'"']);
 end;
 
 procedure TEditorFrame.SplitterMoved(Sender: TObject);
@@ -259,7 +265,7 @@ procedure TEditorFrame.EditorOnKeyDown(Sender: TObject; var Key: Word;
 begin
   if DoPyEvent(Sender as TATSynEdit,
     cEventOnKey,
-    [IntToStr(Key), '"'+ShiftStateToString(Shift)+'"']) = cPyFalse then
+    [IntToStr(Key), '"'+ConvertShiftStateToString(Shift)+'"']) = cPyFalse then
     begin
       Key:= 0;
       Exit
@@ -297,7 +303,8 @@ var
   i: integer;
 begin
   if AStr='' then Exit;
-  if not EditorOps.OpUnderlineColor then Exit;
+  if not IsFilenameListedInExtensionList(FileName, EditorOps.OpUnderlineColorFiles)
+    then exit;
 
   for i:= 1 to Length(AStr) do
     if AStr[i]='#' then
@@ -731,7 +738,7 @@ begin
       Editor.DoCaretSingle(0, Editor.Strings.Count-1);
       Editor.Update;
       Editor.LineTop:= Editor.Strings.Count-1; //no lexer
-      FTopLineTodo:= Editor.Strings.Count-1; //lexer active
+      FTopLineTodo:= Editor.Strings.Count-1; //lexer active, must use this instead of Ed.LineTop
     end;
 
   if IsFileReadonly(fn) then
@@ -745,6 +752,7 @@ var
   an: TecSyntAnalyzer;
   attr: integer;
   PrevEnabled: boolean;
+  NameBak: string;
 begin
   Result:= false;
   if DoPyEvent(Editor, cEventOnSaveBefore, [])=cPyFalse then Exit;
@@ -774,6 +782,11 @@ begin
     if Assigned(FOnAddRecent) then
       FOnAddRecent(Self);
   end;
+
+  NameBak:= SGetFilenameBackup(FFileName, UiOps.BackupMode);
+  if NameBak<>'' then
+    if FileExistsUTF8(FFileName) then
+      CopyFile(FFileName, NameBak, true{PreserveTime});
 
   try
     PrevEnabled:= NotifEnabled;
@@ -1114,7 +1127,7 @@ begin
   begin
     //this seems ok: works even for open-file via cmdline
     FFoldTodo:= c.GetValue(path+cSavFold, '');
-    FTopLineTodo:= c.GetValue(path+cSavTop, 0);
+    FTopLineTodo:= c.GetValue(path+cSavTop, 0); //must use, not Ed.LineTop
   end
   else
   begin
