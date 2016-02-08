@@ -39,9 +39,21 @@ var
   F: TEditorFrame;
   S, fmt: string;
   an: TecSyntAnalyzer;
+  Size: TPoint;
 begin
   F:= CurrentFrame;
   Ed:= CurrentEditor;
+
+  if not F.IsText then
+  begin
+    Size:= F.PictureSizes;
+    Status[cStatusCaret]:= Format(msgStatusPicture, [Size.X, Size.Y]);
+    Status[cStatusEnc]:= '';
+    Status[cStatusEnds]:= '';
+    Status[cStatusLexer]:= '';
+    Status[cStatusTabsize]:= '';
+    exit;
+  end;
 
   //------
   case EditorGetStatusType(Ed) of
@@ -51,7 +63,7 @@ begin
     selCarets:  fmt:= UiOps.StatusCarets;
     else        fmt:= UiOps.StatusNoSel;
   end;
-  Status[cStatusPos]:= EditorFormatStatus(Ed, fmt);
+  Status[cStatusCaret]:= EditorFormatStatus(Ed, fmt);
 
   //------
   S:= F.EncodingName;
@@ -185,6 +197,7 @@ var
 begin
   fmConsole.Font.Name:= EditorOps.OpFontName;
   fmConsole.Font.Size:= EditorOps.OpFontSize;
+  fmConsole.Font.Quality:= EditorOps.OpFontQuality;
   fmConsole.ed.Font:= fmConsole.Font;
   fmConsole.memo.Font:= fmConsole.Font;
 
@@ -195,6 +208,8 @@ begin
     F.Editor2.Font.Name:= EditorOps.OpFontName;
     F.Editor.Font.Size:= EditorOps.OpFontSize;
     F.Editor2.Font.Size:= EditorOps.OpFontSize;
+    F.Editor.Font.Quality:= EditorOps.OpFontQuality;
+    F.Editor2.Font.Quality:= EditorOps.OpFontQuality;
     DoOps_LoadOptionsOverride(F);
   end;
 
@@ -239,6 +254,7 @@ begin
     SAddStringToHistory('', FListRecents, UiOps.MaxHistoryMenu)
   else
   begin
+    if not F.IsText then exit;
     if F.FileName='' then exit;
     if F.NotInRecents then exit;
     SAddStringToHistory(pchar(F.FileName), FListRecents, UiOps.MaxHistoryMenu);
@@ -374,6 +390,10 @@ begin
   mi.Tag:= cmd;
   mi.OnClick:= @MenuMainClick;
   mi.ShortCut:= Keymap.GetShortcutFromCommand(cmd);
+
+  //don't set Esc here: for OSX/ Qt, else Esc blocked in Find/ Goto/ closing app
+  if mi.Shortcut=cShortcutEscape then
+    mi.ShortCut:= 0;
 end;
 
 procedure TfmMain.UpdateMenuHotkeys;
@@ -463,16 +483,17 @@ begin
   UpKey(mnuBmInvert, cmd_BookmarkInvertAll);
   UpKey(mnuBmClear, cmd_BookmarkClearAll);
 
-  UpKey(mnuGroupsOne, cmd_Groups1);
-  UpKey(mnuGroups2Vert, cmd_Groups2horz);
-  UpKey(mnuGroups2Horz, cmd_Groups2vert);
-  UpKey(mnuGroups3Vert, cmd_Groups3horz);
-  UpKey(mnuGroups3Horz, cmd_Groups3vert);
-  UpKey(mnuGroups3as12, cmd_Groups3plus);
-  UpKey(mnuGroups4Vert, cmd_Groups4horz);
-  UpKey(mnuGroups4Horz, cmd_Groups4vert);
-  UpKey(mnuGroups4Grid, cmd_Groups4grid);
-  UpKey(mnuGroups6Grid, cmd_Groups6grid);
+  UpKey(mnuGr1, cmd_Groups1);
+  UpKey(mnuGr2V, cmd_Groups2horz);
+  UpKey(mnuGr2H, cmd_Groups2vert);
+  UpKey(mnuGr3V, cmd_Groups3horz);
+  UpKey(mnuGr3H, cmd_Groups3vert);
+  UpKey(mnuGr1p2V, cmd_Groups3plus);
+  UpKey(mnuGr1p2H, cmd_Groups3plushorz);
+  UpKey(mnuGr4V, cmd_Groups4horz);
+  UpKey(mnuGr4H, cmd_Groups4vert);
+  UpKey(mnuGr4G, cmd_Groups4grid);
+  UpKey(mnuGr6, cmd_Groups6grid);
 
   UpKey(mnuViewSplitDo, cmd_SplitTabToggle);
   UpKey(mnuViewSplitHorz, cmd_SplitTabHorzVert);
@@ -600,14 +621,21 @@ begin
   C.SelectionFontColorUsed:= true; //new Laz
   C.SelectionColor:= GetAppColor('TreeSelBg');
   C.TreeLineColor:= GetAppColor('TreeLines');
+  C.TreeLinePenStyle:= psSolid;
   C.ExpandSignColor:= GetAppColor('TreeSign');
-  C.TreeLineColor:= Tree.TreeLineColor;
-  C.TreeLinePenStyle:= Tree.TreeLinePenStyle;
 
   C.BorderStyle:= bsNone;
   C.ExpandSignType:= tvestArrowFill;
   C.HideSelection:= false;
-  C.Options:= Tree.Options;
+  C.Options:= [
+    tvoAutoItemHeight,
+    tvoKeepCollapsedNodes,
+    tvoShowButtons,
+    tvoShowLines,
+    tvoShowRoot,
+    tvoToolTips
+    ];
+  C.ShowLines:= UiOps.TreeShowLines;
   C.ScrollBars:= ssVertical;
   C.RowSelect:= true;
   C.RightClickSelect:= true;
@@ -809,16 +837,17 @@ begin
   mnuViewSide.Checked:= ShowSidePanel;
   mnuViewBottom.Checked:= ShowBottom;
 
-  mnuGroupsOne.Checked:= Groups.Mode= gmOne;
-  mnuGroups2Horz.Checked:= Groups.Mode= gm2Vert;
-  mnuGroups2Vert.Checked:= Groups.Mode= gm2Horz;
-  mnuGroups3Horz.Checked:= Groups.Mode= gm3Vert;
-  mnuGroups3Vert.Checked:= Groups.Mode= gm3Horz;
-  mnuGroups3as12.Checked:= Groups.Mode= gm3Plus;
-  mnuGroups4Horz.Checked:= Groups.Mode= gm4Vert;
-  mnuGroups4Vert.Checked:= Groups.Mode= gm4Horz;
-  mnuGroups4Grid.Checked:= Groups.Mode= gm4Grid;
-  mnuGroups6Grid.Checked:= Groups.Mode= gm6Grid;
+  mnuGr1.Checked:= Groups.Mode= gmOne;
+  mnuGr2H.Checked:= Groups.Mode= gm2Vert;
+  mnuGr2V.Checked:= Groups.Mode= gm2Horz;
+  mnuGr3H.Checked:= Groups.Mode= gm3Vert;
+  mnuGr3V.Checked:= Groups.Mode= gm3Horz;
+  mnuGr1p2V.Checked:= Groups.Mode= gm1plus2Vert;
+  mnuGr1p2H.Checked:= Groups.Mode= gm1plus2Horz;
+  mnuGr4H.Checked:= Groups.Mode= gm4Vert;
+  mnuGr4V.Checked:= Groups.Mode= gm4Horz;
+  mnuGr4G.Checked:= Groups.Mode= gm4Grid;
+  mnuGr6.Checked:= Groups.Mode= gm6Grid;
 end;
 
 procedure TfmMain.UpdateTree(AFill: boolean; AConsiderTreeVisible: boolean=true);
@@ -936,4 +965,67 @@ begin
   end;
 end;
 
+
+procedure TfmMain.UpdateStatusbarPanelsFromString(AStr: string);
+var
+  SPanel, SItem: string;
+  NIndex, NSize: integer;
+  Al: TATStatusAlign;
+begin
+  Status.DeletePanels;
+  cStatusCaret:= -1;
+  cStatusEnc:= -1;
+  cStatusEnds:= -1;
+  cStatusLexer:= -1;
+  cStatusTabsize:= -1;
+  cStatusMsg:= -1;
+
+  repeat
+    SPanel:= SGetItem(AStr, '|');
+    if SPanel='' then Break;
+
+    NIndex:= Status.PanelCount;
+    SItem:= SGetItem(SPanel);
+    if SItem='caret' then cStatusCaret:= NIndex else
+     if SItem='enc' then cStatusEnc:= NIndex else
+      if SItem='ends' then cStatusEnds:= NIndex else
+       if SItem='lexer' then cStatusLexer:= NIndex else
+        if SItem='tabsize' then cStatusTabsize:= NIndex else
+         if SItem='msg' then cStatusMsg:= NIndex else
+          Continue;
+
+    SItem:= SGetItem(SPanel);
+    if SItem='C' then Al:= saMiddle else
+     if SItem='L' then Al:= saLeft else
+      if SItem='R' then Al:= saRight else
+       Al:= saMiddle;
+
+    SItem:= SGetItem(SPanel);
+    NSize:= Max(50, StrToIntDef(SItem, 200));
+
+    Status.AddPanel(NSize, Al, '');
+  until false;
+end;
+
+
+procedure TfmMain.DoInvalidateEditors;
+var
+  F: TEditorFrame;
+  i: integer;
+begin
+  for i:= 0 to FrameCount-1 do
+  begin
+    F:= Frames[i];
+    if not F.Visible then Continue;
+    F.Editor.Invalidate;
+    F.Editor2.Invalidate;
+    F.Splitter.Invalidate;
+  end;
+
+  Groups.Splitter1.Invalidate;
+  Groups.Splitter2.Invalidate;
+  Groups.Splitter3.Invalidate;
+  Groups.Splitter4.Invalidate;
+  Groups.Splitter5.Invalidate;
+end;
 

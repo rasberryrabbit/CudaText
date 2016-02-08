@@ -267,11 +267,14 @@ const
 var
   SCurLexer: string;
   bNeedGroup: boolean;
+  Frame: TEditorFrame;
   i: integer;
 begin
   //empty string result means "no handlers for event"
   Result:= '';
-  SCurLexer:= CurrentFrame.LexerName;
+  Frame:= CurrentFrame;
+  if Frame=nil then exit;
+  SCurLexer:= Frame.LexerName;
   bNeedGroup:= not (AEvent in [cEventOnCaret, cEventOnChange, cEventOnChangeSlow]);
 
   for i:= Low(FPluginsEvents) to High(FPluginsEvents) do
@@ -337,5 +340,32 @@ procedure TfmMain.DoPyRunLastPlugin;
 begin
   if PyLastCommandModule<>'' then
     DoPyCommand(PyLastCommandModule, PyLastCommandMethod, PyLastCommandParam);
+end;
+
+procedure TfmMain.DoPanel_Event(const AEvent: string);
+var
+  NTab: integer;
+  H: PtrInt;
+begin
+  NTab:= TabsLeft.TabIndex;
+  if NTab<0 then exit;
+  H:= PtrInt(FAppSidePanels[NTab].ItemTreeview);
+  DoPyEvent(CurrentEditor, cEventOnPanel,
+    [IntToStr(H), '"'+AEvent+'"']);
+end;
+
+procedure TfmMain.DoPanel_OnClick(Sender: TObject);
+begin
+  DoPanel_Event('on_click');
+end;
+
+procedure TfmMain.DoPanel_OnDblClick(Sender: TObject);
+begin
+  DoPanel_Event('on_dbl_click');
+end;
+
+procedure TfmMain.DoPanel_OnSelChanged(Sender: TObject);
+begin
+  DoPanel_Event('on_sel');
 end;
 

@@ -19,7 +19,7 @@ var
   PyEscapeFlag: boolean = false;
 
 //func at begin
-function PyEditor(Handle: PtrInt): TATSynEdit;
+function PyEditor(Handle: Int64): TATSynEdit;
 var
   nTab: Integer;
 begin
@@ -47,13 +47,15 @@ begin
             Result:= nil;
         end;
       else
-        Result:= TATSynEdit(Handle);
+        Result:= TATSynEdit(PtrInt(Handle));
     end;
   end;
 end;
 
 
-function Py_MenuItemFromId(const Str: string): TMenuItem;
+function Py_MenuItemFromId(Str: string): TMenuItem;
+const
+  cPrefixSidebar = 'side:';
 var
   N: PtrInt;
 begin
@@ -72,6 +74,14 @@ begin
   if Str=PyMenuId_TopHelp then exit(fmMain.mnuHelp);
 
   if Str=PyMenuId_Text then exit(fmMain.PopupText.Items);
+
+  if SBeginsWith(Str, cPrefixSidebar) then
+  begin
+    Delete(Str, 1, Length(cPrefixSidebar));
+    N:= fmMain.DoSidebar_GetTabIndexOfCaption(Str);
+    if N>=0 then
+      exit(FAppSidePanels[N].ItemMenu.Items);
+  end;
 end;
 
 procedure TfmMain.PythonIOSendData(Sender: TObject; const Data: AnsiString);
@@ -273,26 +283,42 @@ end;
 function Py_file_save(Self, Args: PPyObject): PPyObject; cdecl;
 var
   Ok: boolean;
+  PtrName: PChar;
+  StrName: string;
+  Frame: TEditorFrame;
 begin
   with GetPythonEngine do
-  begin
-    Ok:= fmMain.CurrentFrame.DoFileSave(false, fmMain.SaveDlg);
-    Result:= PyBool_FromLong(Ord(Ok));
-  end;
+    if Bool(PyArg_ParseTuple(Args, 's:file_save', @PtrName)) then
+    begin
+      StrName:= string(PtrName);
+      Frame:= fmMain.CurrentFrame;
+      if StrName<>'' then
+        Frame.FileName:= StrName;
+
+      Ok:= Frame.DoFileSave(false, fmMain.SaveDlg);
+      Result:= PyBool_FromLong(Ord(Ok));
+    end;
 end;
 
 function Py_ed_save(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   Frame: TEditorFrame;
+  PtrName: PChar;
+  StrName: string;
   Ok: boolean;
 begin
   with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'L:save', @H)) then
+    if Bool(PyArg_ParseTuple(Args, 'Ls:save', @H, @PtrName)) then
     begin
       Ed:= PyEditor(H);
       Frame:= fmMain.GetEditorFrame(Ed);
+      StrName:= string(PtrName);
+
+      if StrName<>'' then
+        Frame.FileName:= StrName;
+
       Ok:= false;
       if Assigned(Frame) then
         Ok:= Frame.DoFileSave(false, fmMain.SaveDlg);
@@ -303,7 +329,7 @@ end;
 
 function Py_ed_get_text_sel(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'L:get_text_sel', @H)) then
@@ -312,7 +338,7 @@ end;
 
 function Py_ed_get_text_line(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   N: Integer;
   Ed: TATSynEdit;
 begin
@@ -330,7 +356,7 @@ end;
 
 function Py_ed_get_text_substr(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   X1, Y1, X2, Y2: Integer;
   Str: atString;
   Ed: TATSynEdit;
@@ -346,7 +372,7 @@ end;
 
 function Py_ed_set_caret(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Id, NCaret: Integer;
   X1, Y1, X2, Y2: Integer;
   Ed: TATSynEdit;
@@ -407,7 +433,7 @@ end;
 
 function Py_ed_get_carets(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   Caret: TATCaretItem;
   ComArray: Variant;
@@ -439,7 +465,7 @@ end;
 
 function Py_ed_markers(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Id: Integer;
   Ed: TATSynEdit;
   ComArray: Variant;
@@ -506,7 +532,7 @@ end;
 
 function Py_ed_attr(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   ComArray: Variant;
   Mark: TATMarkerItem;
@@ -614,7 +640,7 @@ end;
 
 function Py_ed_get_sel_mode(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   N: Integer;
   Ed: TATSynEdit;
 begin
@@ -632,7 +658,7 @@ end;
 
 function Py_ed_get_sel_rect(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   R: TRect;
 begin
   with GetPythonEngine do
@@ -645,7 +671,7 @@ end;
 
 function Py_ed_get_sel_lines(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   N1, N2: Integer;
   Ed: TATSynEdit;
   Caret: TATCaretItem;
@@ -662,7 +688,7 @@ end;
 
 function Py_ed_set_sel_rect(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   X1, Y1, X2, Y2: Integer;
   Ed: TATSynEdit;
 begin
@@ -681,7 +707,7 @@ end;
 
 function Py_ed_set_text_all(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ptr: PChar;
   Ed: TATSynEdit;
   F: TEditorFrame;
@@ -709,7 +735,7 @@ end;
 
 function Py_ed_set_text_line(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   N: Integer;
   Ptr: PChar;
   Ed: TATSynEdit;
@@ -737,7 +763,7 @@ end;
 
 function Py_ed_delete(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   X1, Y1, X2, Y2: Integer;
   Ed: TATSynEdit;
   Shift, PosAfter: TPoint;
@@ -757,7 +783,7 @@ end;
 
 function Py_ed_insert(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   X1, Y1: Integer;
   Ptr: PChar;
   Str: atString;
@@ -781,7 +807,7 @@ end;
 
 function Py_ed_get_line_count(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'L:get_line_count', @H)) then
@@ -793,7 +819,7 @@ end;
 
 function Py_ed_get_filename(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   F: TEditorFrame;
 begin
@@ -808,7 +834,7 @@ end;
 
 function Py_ed_get_tabcolor(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   F: TEditorFrame;
 begin
@@ -823,7 +849,7 @@ end;
 
 function Py_ed_set_tabcolor(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Val: Integer;
   Ed: TATSynEdit;
   F: TEditorFrame;
@@ -841,7 +867,7 @@ end;
 
 function Py_ed_get_enc(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   F: TEditorFrame;
 begin
@@ -856,7 +882,7 @@ end;
 
 function Py_ed_set_enc(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ptr: PChar;
   Ed: TATSynEdit;
   F: TEditorFrame;
@@ -879,7 +905,7 @@ end;
 
 function Py_ed_get_top(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
 begin
   with GetPythonEngine do
@@ -892,7 +918,7 @@ end;
 
 function Py_ed_set_top(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Val: integer;
   Ed: TATSynEdit;
   F: TEditorFrame;
@@ -905,6 +931,7 @@ begin
 
       //more correct than Ed.LineTop:= -that don't work if parsing not done
       F.TopLineTodo:= Val;
+      Ed.LineTop:= Val;
 
       fmMain.UpdateFrame;
       fmMain.UpdateStatus;
@@ -914,7 +941,7 @@ end;
 
 function Py_ed_cmd(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   NCode: integer;
   Ptr: PChar;
@@ -932,7 +959,7 @@ end;
 
 function Py_ed_lock(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
 begin
   with GetPythonEngine do
@@ -946,7 +973,7 @@ end;
 
 function Py_ed_unlock(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
 begin
   with GetPythonEngine do
@@ -962,7 +989,7 @@ end;
 
 function Py_ed_focus(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   F: TEditorFrame;
 begin
@@ -983,12 +1010,11 @@ end;
 
 function Py_ed_bookmark(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ptr: PChar;
   Str: string;
   Ed: TATSynEdit;
   NId, NLine, NKind, NColor: integer;
-  Bmp: TBitmap;
   ComArray: Variant;
   List: TList;
   i: Integer;
@@ -1009,13 +1035,13 @@ begin
 
         BOOKMARK_SET:
           begin
-            EditorBmSet(Ed, NLine, NKind, bmOpSet);
+            EditorBookmarkSet(Ed, NLine, NKind, bmOpSet);
             Result:= ReturnNone;
           end;
 
         BOOKMARK_CLEAR:
           begin
-            EditorBmSet(Ed, NLine, NKind, bmOpClear);
+            EditorBookmarkSet(Ed, NLine, NKind, bmOpClear);
             Result:= ReturnNone;
           end;
 
@@ -1027,16 +1053,11 @@ begin
 
         BOOKMARK_SETUP:
           begin
-            Bmp:= TBitmap.Create;
-            try
-              Bmp.Transparent:= true;
-              Bmp.LoadFromFile(Str);
-              AppBookmarkImagelist.Add(Bmp, nil);
-              AppBookmarkSetup[NKind].ImageIndex:= AppBookmarkImagelist.Count-1;
-              AppBookmarkSetup[NKind].Color:= NColor;
-            finally
-              FreeAndNil(Bmp);
-            end;
+            if (Str<>'') and UpdateImagelistWithIconFromFile(AppBookmarkImagelist, Str) then
+              AppBookmarkSetup[NKind].ImageIndex:= AppBookmarkImagelist.Count-1
+            else
+              AppBookmarkSetup[NKind].ImageIndex:= -1;
+            AppBookmarkSetup[NKind].Color:= NColor;
             Result:= ReturnNone;
           end;
 
@@ -1076,7 +1097,7 @@ end;
 
 function Py_ed_get_split(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   NState: integer;
   NValue: double;
   Ed: TATSynEdit;
@@ -1100,7 +1121,7 @@ end;
 
 function Py_ed_set_split(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   NState: integer;
   NValue: double;
   Ed: TATSynEdit;
@@ -1234,7 +1255,7 @@ end;
 
 function Py_ed_complete(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ptr: PChar;
   Ed: TATSynEdit;
   Str: string;
@@ -1589,7 +1610,7 @@ end;
 
 function Py_ed_get_prop(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Id, Num1, Num2: integer;
   Ptr: PChar;
   Str: string;
@@ -1706,6 +1727,29 @@ begin
         PROP_CARET_SHAPE_RO:
           Result:= PyInt_FromLong(Ord(Ed.OptCaretShapeRO));
 
+        PROP_MINIMAP:
+          Result:= PyBool_FromLong(Ord(Ed.OptMinimapVisible));
+        PROP_MICROMAP:
+          Result:= PyBool_FromLong(Ord(Ed.OptMicromapVisible));
+
+        PROP_VISIBLE_LINES:
+          Result:= PyInt_FromLong(Ed.GetVisibleLines);
+        PROP_VISIBLE_COLUMNS:
+          Result:= PyInt_FromLong(Ed.GetVisibleColumns);
+        PROP_LINE_BOTTOM:
+          Result:= PyInt_FromLong(Ed.LineBottom);
+
+        PROP_PICTURE:
+          begin
+            if F.IsText then
+              Result:= ReturnNone
+            else
+            begin
+              Pnt:= F.PictureSizes;
+              Result:= Py_BuildValue('(sii)', PChar(F.PictureFileName), Pnt.X, Pnt.Y);
+            end;
+          end;
+
         else
           Result:= ReturnNone;
       end;
@@ -1714,7 +1758,7 @@ end;
 
 function Py_ed_set_prop(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Id: integer;
   Ptr: PChar;
   Str, Str1, Str2: string;
@@ -1810,6 +1854,11 @@ begin
         PROP_CARET_SHAPE_RO:
           Ed.OptCaretShapeRO:= TATSynCaretShape(StrToIntDef(Str, 0));
 
+        PROP_MINIMAP:
+          Ed.OptMinimapVisible:= ValueBool;
+        PROP_MICROMAP:
+          Ed.OptMicromapVisible:= ValueBool;
+
         PROP_EXPORT_HTML:
           begin
             DoEditorExportToHTML_WithParams(Ed, Str);
@@ -1838,6 +1887,7 @@ var
   mi, miMain: TMenuItem;
   SplitVert, SplitVisible, ok: boolean;
   SplitPos, SplitTotal: integer;
+  Num64: Int64;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'is:app_proc', @Id, @Ptr)) then
@@ -2102,39 +2152,13 @@ begin
             StrCaption:= SGetItem(Str); //caption
             StrIndex:= SGetItem(Str); //tab index
             StrId:= SGetItem(Str); //type of control
-            ok:= fmMain.DoGetTabsLeftIndexOfCaption(Str1)<0;
-            if ok then
-            begin
-              Num:= 0;
-              while FAppSidePanels[Num].ItemCaption<>'' do Inc(Num);
-              if Num>High(FAppSidePanels) then
-                ok:= false
-              else
-              begin
-                FAppSidePanels[Num].ItemCaption:= StrCaption;
-                if StrId='tree' then
-                  with FAppSidePanels[Num] do
-                  begin
-                    ItemTreeview:= TTreeView.Create(fmMain);
-                    ItemTreeview.Hide;
-                    ItemTreeview.Parent:= fmMain.PanelLeft;
-                    ItemTreeview.Align:= alClient;
-                    fmMain.DoApplyThemeToTreeview(ItemTreeview);
-                    ItemTreeview.Items.Add(nil, StrCaption);
-                  end;
-
-                fmMain.TabsLeft.AddTab(StrToIntDef(StrIndex, -1), StrCaption);
-              end;
-            end;
+            ok:= fmMain.DoSidebar_AddTab(StrCaption, StrId, StrToIntDef(StrIndex, -1));
             Result:= PyBool_FromLong(Ord(ok));
           end;
 
         APP_PROC_SIDEPANEL_ACTIVATE:
           begin
-            Num:= fmMain.DoGetTabsLeftIndexOfCaption(Str);
-            ok:= Num>=0;
-            if ok then
-              fmMain.TabsLeft.TabIndex:= Num;
+            ok:= fmMain.DoSidebar_ActivateTab(Str);
             Result:= PyBool_FromLong(Ord(ok));
           end;
 
@@ -2144,6 +2168,15 @@ begin
             for Num:= 0 to fmMain.TabsLeft.TabCount-1 do
               Str:= Str + IfThen(Num>0, #10) + fmMain.TabsLeft.GetTabData(Num).TabCaption;
             Result:= PyString_FromString(PChar(Str));
+          end;
+
+        APP_PROC_SIDEPANEL_GET_CONTROL:
+          begin
+            Num64:= fmMain.DoSidebar_GetControlHandle(Str);
+            if Num64<>0 then
+              Result:= PyLong_FromLongLong(Num64)
+            else
+              Result:= ReturnNone;
           end;
 
         else
@@ -2341,7 +2374,7 @@ end;
 
 function Py_ed_convert(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   Id, X, Y: integer;
   Str: atString;
@@ -2379,7 +2412,7 @@ end;
 
 function Py_ed_get_ranges(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  H: PtrInt;
+  H: Int64;
   Ed: TATSynEdit;
   ComArray: Variant;
   NLen, i: Integer;
@@ -2409,6 +2442,234 @@ begin
     end;
 end;
 
+//tree_proc(id_tree, id_action, id_item, index, text, icon)
+function Py_tree_proc(Self, Args: PPyObject): PPyObject; cdecl;
+var
+  IdTree, IdItem: Int64;
+  IdAction, NIndex, NImageIndex: integer;
+  PtrText: PChar;
+  StrText, Str: string;
+  Tree: TTreeView;
+  TreeNode, Node1: TTreeNode;
+  ok: boolean;
+begin
+  with GetPythonEngine do
+    if Bool(PyArg_ParseTuple(Args, 'LiLisi:tree_proc', @IdTree, @IdAction, @IdItem, @NIndex, @PtrText, @NImageIndex)) then
+    begin
+      StrText:= string(PtrText);
+      Tree:= TTreeView(PtrInt(IdTree));
+      TreeNode:= TTreeNode(PtrInt(IdItem));
+
+      case IdAction of
+        TREE_ITEM_ENUM:
+          begin
+            if Assigned(TreeNode) then
+              Node1:= TreeNode.GetFirstChild
+            else
+              Node1:= Tree.Items.GetFirstNode;
+            if Node1=nil then exit(ReturnNone);
+
+            Str:= '';
+            repeat
+              Str:= Str+(IntToStr(PtrInt(Node1))+'='+Node1.Text+#10);
+              Node1:= TreeNode.GetNextChild(Node1);
+            until Node1=nil;
+
+            Result:= PyString_FromString(PChar(Str));
+          end;
+
+        TREE_ITEM_ADD:
+          begin
+            Node1:= Tree.Items.AddChild(TreeNode, StrText);
+            Node1.Text:= StrText;
+            Node1.ImageIndex:= NImageIndex;
+            Node1.SelectedIndex:= NImageIndex;
+            if NIndex>=0 then
+              Node1.Index:= NIndex;
+
+            Tree.Invalidate;
+            Result:= PyLong_FromLongLong(PtrInt(Node1));
+          end;
+
+        TREE_ITEM_DELETE:
+          begin
+            if Assigned(TreeNode) then
+              TreeNode.Free
+            else
+              Tree.Items.Clear;
+
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_SET_TEXT:
+          begin
+            if Assigned(TreeNode) then
+              TreeNode.Text:= StrText;
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_SET_ICON:
+          begin
+            if Assigned(TreeNode) then
+            begin
+              TreeNode.ImageIndex:= NImageIndex;
+              TreeNode.SelectedIndex:= NImageIndex;
+            end;
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_SELECT:
+          begin
+            if Assigned(TreeNode) then
+            begin
+              TreeNode.Selected:= true;
+              TreeNode.MakeVisible;
+              Tree.Invalidate;
+            end;
+            Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_GET_SELECTED:
+          begin
+            if Assigned(Tree.Selected) then
+              Result:= PyLong_FromLongLong(PtrInt(Tree.Selected))
+            else
+              Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_GET_PROP:
+          begin
+            if Assigned(TreeNode) then
+              Result:= Py_BuildValue('(siii)',
+                       PChar(TreeNode.Text),
+                       TreeNode.Index,
+                       TreeNode.ImageIndex,
+                       TreeNode.Level)
+            else
+              Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_GET_PARENT:
+          begin
+            if Assigned(TreeNode) then
+              Result:= PyLong_FromLongLong(PtrInt(TreeNode.Parent))
+            else
+              Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_FOLD:
+          begin
+            if Assigned(TreeNode) then
+              TreeNode.Collapse(false);
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+        TREE_ITEM_FOLD_DEEP:
+          begin
+            if Assigned(TreeNode) then
+              TreeNode.Collapse(true)
+            else
+              Tree.FullCollapse;
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+
+        TREE_ITEM_UNFOLD:
+          begin
+            if Assigned(TreeNode) then
+              TreeNode.Expand(false);
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+        TREE_ITEM_UNFOLD_DEEP:
+          begin
+            if Assigned(TreeNode) then
+              TreeNode.Expand(true)
+            else
+              Tree.FullExpand;
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+
+        TREE_ICON_ADD:
+          begin
+            ok:= UpdateImagelistWithIconFromFile(Tree.Images, StrText);
+            if ok then
+              Result:= PyInt_FromLong(Tree.Images.Count-1)
+            else
+              Result:= PyInt_FromLong(-1);
+          end;
+
+        TREE_ICON_DELETE:
+          begin
+            ok:= Assigned(Tree.Images) and (NImageIndex>=0) and (NImageIndex<Tree.Images.Count);
+            if ok then
+            begin
+              Tree.Images.Delete(NImageIndex);
+              Tree.Invalidate;
+            end;
+            Result:= PyBool_FromLong(Ord(ok));
+          end;
+
+        TREE_PROP_SHOW_ROOT:
+          begin
+            Tree.ShowRoot:= StrText<>'0';
+            Tree.Invalidate;
+            Result:= ReturnNone;
+          end;
+
+        else
+          Result:= ReturnNone;
+      end;
+    end;
+end;
+
+function Py_ed_get_token_result(const PntFrom, PntTo: TPoint; const StrToken, StrStyle: string): PPyObject;
+begin
+  with GetPythonEngine do
+    if PntFrom.X<0 then
+      Result:= ReturnNone
+    else
+      Result:= Py_BuildValue('((ii)(ii)ss)',
+        PntFrom.X, PntFrom.Y,
+        PntTo.X, PntTo.Y,
+        PChar(StrToken), PChar(StrStyle));
+end;
+
+function Py_ed_get_token(Self, Args: PPyObject): PPyObject; cdecl;
+var
+  H: Int64;
+  Ed: TATSynEdit;
+  F: TEditorFrame;
+  Id, PosX, PosY: integer;
+  PntFrom, PntTo: TPoint;
+  StrToken, StrStyle: string;
+begin
+  with GetPythonEngine do
+    if Bool(PyArg_ParseTuple(Args, 'Liii:get_token', @H, @Id, @PosX, @PosY)) then
+    begin
+      Ed:= PyEditor(H);
+      F:= fmMain.GetEditorFrame(Ed);
+
+      case Id of
+        TOKEN_AT_POS:
+          begin
+            F.Adapter.GetTokenAtPos(Point(PosX, PosY), PntFrom, PntTo, StrToken, StrStyle);
+            Result:= Py_ed_get_token_result(PntFrom, PntTo, StrToken, StrStyle);
+          end;
+        TOKEN_INDEX:
+          begin
+            F.Adapter.GetTokenWithIndex(PosX, PntFrom, PntTo, StrToken, StrStyle);
+            Result:= Py_ed_get_token_result(PntFrom, PntTo, StrToken, StrStyle);
+          end;
+        else
+          Result:= ReturnNone;
+      end;
+    end;
+end;
 
 //func at end (uses funcs above)
 procedure TfmMain.PythonModInitialization(Sender: TObject);
@@ -2461,6 +2722,7 @@ begin
     AddMethod('ed_get_prop', @Py_ed_get_prop, '');
     AddMethod('ed_set_prop', @Py_ed_set_prop, '');
     AddMethod('ed_get_ranges', @Py_ed_get_ranges, '');
+    AddMethod('ed_get_token', @Py_ed_get_token, '');
 
     AddMethod('ed_save', @Py_ed_save, '');
     AddMethod('ed_cmd', @Py_ed_cmd, '');
@@ -2479,6 +2741,7 @@ begin
     AddMethod('ini_read', @Py_ini_read, '');
     AddMethod('ini_write', @Py_ini_write, '');
     AddMethod('lexer_proc', @Py_lexer_proc, '');
+    AddMethod('tree_proc', @Py_tree_proc, '');
   end;
 end;
 

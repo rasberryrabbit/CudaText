@@ -55,6 +55,7 @@ type
     MenuItem2: TMenuItem;
     Splitter: TSplitter;
     TimerChange: TTimer;
+    procedure FrameResize(Sender: TObject);
     procedure SplitterMoved(Sender: TObject);
     procedure TimerChangeTimer(Sender: TObject);
   private
@@ -64,6 +65,7 @@ type
     FFileName: string;
     FModified: boolean;
     FNotif: TATFileNotif;
+    FTextCharsTyped: integer;
     FOnChangeCaption: TNotifyEvent;
     FOnUpdateStatus: TNotifyEvent;
     FOnEditorClickMoveCaret: TATSynEditClickMoveCaretEvent;
@@ -88,17 +90,26 @@ type
     FNotInRecents: boolean;
     FMacroRecord: boolean;
     FMacroString: string;
+    FImage: TImage;
+    FImagePanel: TPanel;
+    FImageFilename: string;
+    procedure DoImagePanelPaint(Sender: TObject);
     procedure DoOnChangeCaption;
     procedure DoOnChangeCaretPos;
     procedure DoOnUpdateStatus;
     procedure EditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure EditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
+    procedure EditorDrawMicromap(Sender: TObject; C: TCanvas; const ARect: TRect
+      );
     procedure EditorOnChangeCommon(Sender: TObject);
     procedure EditorOnChange1(Sender: TObject);
     procedure EditorOnChange2(Sender: TObject);
     procedure EditorOnClick(Sender: TObject);
     procedure EditorOnClickGutter(Sender: TObject; ABand, ALine: integer);
+    procedure EditorOnClickDouble(Sender: TObject; var AHandled: boolean);
     procedure EditorOnCommand(Sender: TObject; ACmd: integer; const AText: string; var AHandled: boolean);
+    procedure EditorOnCommandAfter(Sender: TObject; ACommand: integer;
+      const AText: string);
     procedure EditorOnDrawBookmarkIcon(Sender: TObject; C: TCanvas; ALineNum: integer; const ARect: TRect);
     procedure EditorOnEnter(Sender: TObject);
     procedure EditorOnDrawLine(Sender: TObject; C: TCanvas; AX, AY: integer;
@@ -146,7 +157,7 @@ type
     function Editor: TATSynEdit;
     function Editor2: TATSynEdit;
     property ReadOnly: boolean read GetReadonly;
-    property FileName: string read FFileName;
+    property FileName: string read FFileName write FFileName;
     property TabCaption: string read FTabCaption write SetTabCaption;
     property Modified: boolean read FModified;
     property NotifEnabled: boolean read GetNotifEnabled write SetNotifEnabled;
@@ -161,7 +172,12 @@ type
     property TagString: string read FTagString write FTagString;
     property NotInRecents: boolean read FNotInRecents write FNotInRecents;
     property TopLineTodo: integer read FTopLineTodo write FTopLineTodo; //always use it instead of Ed.LineTop
+    property TextCharsTyped: integer read FTextCharsTyped write FTextCharsTyped;
     function IsEmpty: boolean;
+    //picture support
+    function IsText: boolean;
+    property PictureFileName: string read FImageFilename;
+    function PictureSizes: TPoint;
     //
     property LineEnds: TATLineEnds read GetLineEnds write SetLineEnds;
     property EncodingName: string read GetEncodingName write SetEncodingName;
@@ -231,6 +247,7 @@ const
 
 procedure TEditorFrame.SetTabCaption(const AValue: string);
 begin
+  if AValue='?' then Exit;
   if FTabCaption= AValue then Exit;
   FTabCaption:= AValue;
   DoOnChangeCaption;
@@ -258,6 +275,24 @@ begin
       FSplitPos:= Ed2.height/height
     else
       FSplitPos:= Ed2.width/width;
+end;
+
+procedure TEditorFrame.FrameResize(Sender: TObject);
+var
+  R: TRect;
+begin
+  if Assigned(FImage) and Assigned(FImage.Picture) then
+  begin
+    R:= Rect(0, 0, FImage.Picture.Width, FImage.Picture.Height);
+    if R.Right<ClientWidth then
+      R.Left:= (ClientWidth-R.Right) div 2;
+    if R.Bottom<ClientHeight then
+      R.Top:= (ClientHeight-R.Bottom) div 2;
+    FImagePanel.Left:= R.Left;
+    FImagePanel.Top:= R.Top;
+    FImagePanel.Width:= FImage.Picture.Width;
+    FImagePanel.Height:= FImage.Picture.Height;
+  end;
 end;
 
 procedure TEditorFrame.EditorOnKeyDown(Sender: TObject; var Key: Word;
@@ -475,6 +510,7 @@ procedure TEditorFrame.SetSplitHorz(AValue: boolean);
 var
   al: TAlign;
 begin
+  if not IsText then exit;
   FSplitHorz:= AValue;
 
   if FSplitHorz then al:= alBottom else al:= alRight;
@@ -488,6 +524,7 @@ procedure TEditorFrame.SetSplitPos(AValue: double);
 const
   cMin = 10;
 begin
+  if not IsText then exit;
   FSplitPos:= AValue;
 
   if FSplitHorz then
@@ -504,6 +541,8 @@ end;
 
 procedure TEditorFrame.SetSplitted(AValue: boolean);
 begin
+  if not IsText then exit;
+
   FSplitted:= AValue;
   Ed2.Visible:= AValue;
   Splitter.Visible:= AValue;
@@ -572,6 +611,40 @@ begin
     FOnEditorCommand(Sender, ACmd, AText, AHandled);
 end;
 
+procedure TEditorFrame.EditorOnCommandAfter(Sender: TObject; ACommand: integer;
+  const AText: string);
+var
+  Ed: TATSynEdit;
+begin
+  Ed:= Sender as TATSynEdit;
+  if (UiOps.AutocompleteAutoshowChars>0) and
+     (UiOps.AutocompleteAutoshowLexers<>'') and
+     (ACommand=cCommand_TextInsert) and
+     (Ed.Carets.Count=1) and
+     (Length(AText)=1) and IsCharWord(AText[1], '') then
+  begin
+    Inc(FTextCharsTyped);
+    if FTextCharsTyped=UiOps.AutocompleteAutoshowChars then
+      with Ed.Carets[0] do
+        if IsLexerListed(LexerNameAtPos(Point(PosX, PosY)), UiOps.AutocompleteAutoshowLexers) then
+        begin
+          FTextCharsTyped:= 0;
+          Ed.DoCommand(cmd_AutoComplete);
+        end;
+  end
+  else
+    FTextCharsTyped:= 0;
+end;
+
+procedure TEditorFrame.EditorOnClickDouble(Sender: TObject; var AHandled: boolean);
+var
+  Str: string;
+begin
+  Str:= DoPyEvent(Sender as TATSynEdit, cEventOnClickDbl,
+          ['"'+ConvertShiftStateToString(KeyboardStateToShiftState)+'"']);
+  AHandled:= Str=cPyFalse;
+end;
+
 procedure TEditorFrame.DoOnResize;
 begin
   inherited;
@@ -585,6 +658,7 @@ begin
 
   ed.Font.Name:= EditorOps.OpFontName;
   ed.Font.Size:= EditorOps.OpFontSize;
+  ed.Font.Quality:= EditorOps.OpFontQuality;
 
   ed.BorderStyle:= bsNone;
   ed.Keymap:= Keymap;
@@ -593,17 +667,20 @@ begin
   ed.OptRulerVisible:= false;
 
   ed.OnClick:= @EditorOnClick;
+  ed.OnClickDouble:= @EditorOnClickDouble;
   ed.OnClickMoveCaret:= @EditorClickMoveCaret;
   ed.OnClickEndSelect:= @EditorClickEndSelect;
   ed.OnEnter:= @EditorOnEnter;
   ed.OnChangeState:= @EditorOnChangeCommon;
   ed.OnChangeCaretPos:= @EditorOnChangeCaretPos;
   ed.OnCommand:= @EditorOnCommand;
+  ed.OnCommandAfter:= @EditorOnCommandAfter;
   ed.OnClickGutter:= @EditorOnClickGutter;
   ed.OnCalcBookmarkColor:= @EditorOnCalcBookmarkColor;
   ed.OnDrawBookmarkIcon:= @EditorOnDrawBookmarkIcon;
   ed.OnDrawLine:= @EditorOnDrawLine;
   ed.OnKeyDown:= @EditorOnKeyDown;
+  ed.OnDrawMicromap:=@EditorDrawMicromap;
 end;
 
 constructor TEditorFrame.Create(TheOwner: TComponent);
@@ -661,6 +738,9 @@ end;
 
 destructor TEditorFrame.Destroy;
 begin
+  if not Application.Terminated then //prevent crash on exit
+    DoPyEvent(Editor, cEventOnClose, []);
+
   inherited;
 end;
 
@@ -691,6 +771,11 @@ begin
     ((Str.Count=0) or ((Str.Count=1) and (Str.Lines[0]='')));
 end;
 
+function TEditorFrame.IsText: boolean;
+begin
+  Result:= not Assigned(FImage);
+end;
+
 
 procedure TEditorFrame.SetLexer(an: TecSyntAnalyzer);
 begin
@@ -707,6 +792,41 @@ var
 begin
   if not FileExistsUTF8(fn) then Exit;
   SetLexer(nil);
+
+  if IsFilenameListedInExtensionList(fn, UiOps.PictureTypes) then
+  begin
+    TabCaption:= ExtractFileName(fn);
+    FileName:= '?';
+
+    Ed1.Hide;
+    Ed2.Hide;
+    Ed1.ModeReadOnly:= true;
+    Ed2.ModeReadOnly:= true;
+    Splitter.Hide;
+
+    FImage:= TImage.Create(Self);
+    FImage.Parent:= Self;
+    FImage.Align:= alClient;
+    try
+      FImage.Picture.LoadFromFile(fn);
+      FImageFilename:= fn;
+    except
+      FImageFilename:= '';
+    end;
+
+    FImagePanel:= TPanel.Create(Self);
+    FImagePanel.OnPaint:=@DoImagePanelPaint;
+    FImagePanel.Parent:= Self;
+    FImagePanel.SetBounds(0, 0, 400, 400);
+    FImagePanel.BorderStyle:= bsNone;
+    FImagePanel.BevelInner:= bvNone;
+    FImagePanel.BevelOuter:= bvNone;
+    FImagePanel.Color:= clSkyBlue;
+    FImage.Parent:= FImagePanel;
+    FrameResize(Self);
+
+    exit
+  end;
 
   bTail:=
     AllowFollowTail and
@@ -755,6 +875,7 @@ var
   NameBak: string;
 begin
   Result:= false;
+  if not IsText then Exit;
   if DoPyEvent(Editor, cEventOnSaveBefore, [])=cPyFalse then Exit;
 
   if ASaveAs or (FFileName='') then
@@ -860,7 +981,7 @@ var
 begin
   ed:= Sender as TATSynEdit;
   if ABand=ed.GutterBandBm then
-    EditorBmSet(ed, ALine, 1, bmOpToggle);
+    EditorBookmarkSet(ed, ALine, 1, bmOpToggle);
 end;
 
 procedure TEditorFrame.EditorOnDrawBookmarkIcon(Sender: TObject; C: TCanvas; ALineNum: integer;
@@ -907,6 +1028,26 @@ begin
     FOnChangeCaption(Self);
 end;
 
+procedure TEditorFrame.DoImagePanelPaint(Sender: TObject);
+const
+  cell=8;
+var
+  c: TCanvas;
+  i, j: integer;
+begin
+  c:= FImagePanel.Canvas;
+  c.Brush.Color:= clWhite;
+  c.FillRect(0, 0, FImagePanel.ClientWidth, FImagePanel.ClientHeight);
+
+  for i:= 0 to FImagePanel.ClientWidth div cell + 1 do
+    for j:= 0 to FImagePanel.ClientHeight div cell + 1 do
+      if not (odd(i) xor odd(j)) then
+      begin
+        c.Brush.Color:= clLtGray;
+        c.FillRect(i*cell, j*cell, (i+1)*cell, (j+1)*cell);
+      end;
+end;
+
 procedure TEditorFrame.DoRestoreFolding;
 var
   S: string;
@@ -949,6 +1090,52 @@ procedure TEditorFrame.EditorClickMoveCaret(Sender: TObject; APrevPnt,
 begin
   if Assigned(FOnEditorClickMoveCaret) then
     FOnEditorClickMoveCaret(Self, APrevPnt, ANewPnt);
+end;
+
+procedure TEditorFrame.EditorDrawMicromap(Sender: TObject; C: TCanvas;
+  const ARect: TRect);
+var
+  Ed: TATSynEdit;
+  NColor: TColor;
+  St: TATLineState;
+  R1: TRect;
+  Mul: double;
+  i: integer;
+begin
+  Ed:= Sender as TATSynEdit;
+  if Ed.Strings.Count=0 then exit;
+  Mul:= (ARect.Bottom-ARect.Top) / Ed.Strings.Count;
+
+  C.Brush.Color:= GetAppColor('EdMicromapBg');
+  C.FillRect(ARect);
+
+  R1.Left:= ARect.Left;
+  R1.Top:= ARect.Top+Trunc(Ed.LineTop*Mul);
+  R1.Right:= ARect.Right;
+  R1.Bottom:= Max(R1.Top+2, ARect.Top+Trunc((Ed.LineBottom+1)*Mul));
+
+  C.Brush.Color:= GetAppColor('EdMicromapViewBg');
+  C.FillRect(R1);
+
+  for i:= 0 to Ed.Strings.Count-1 do
+  begin
+    St:= Ed.Strings.LinesState[i];
+    case St of
+      cLineStateNone: Continue;
+      cLineStateAdded: NColor:= Ed.Colors.StateAdded;
+      cLineStateChanged: NColor:= Ed.Colors.StateChanged;
+      cLineStateSaved: NColor:= Ed.Colors.StateSaved;
+      else Continue;
+    end;
+
+    R1.Left:= ARect.Left;
+    R1.Top:= ARect.Top+Trunc(i*Mul);
+    R1.Right:= R1.Left+3;
+    R1.Bottom:= Max(R1.Top+2, ARect.Top+Trunc((i+1)*Mul));
+
+    C.Brush.Color:= NColor;
+    C.FillRect(R1);
+  end;
 end;
 
 procedure TEditorFrame.EditorClickEndSelect(Sender: TObject; APrevPnt,
@@ -1010,7 +1197,7 @@ var
   lexname: string;
   caret: TATCaretItem;
   items: TStringlist;
-  i: integer;
+  N, i: integer;
 begin
   if FileName='' then exit;
   if Lexer=nil then
@@ -1051,8 +1238,11 @@ begin
   items:= TStringlist.Create;
   try
     for i:= 0 to Editor.Strings.Count-1 do
-      if Editor.Strings.LinesBm[i]>0 then
+    begin
+      N:= Editor.Strings.LinesBm[i];
+      if (N>0) and AppBookmarkKindStandard(N) then
         items.Add(Inttostr(i));
+    end;
     c.SetValue(path+cSavBookmark, items);
   finally
     FreeAndNil(items);
@@ -1215,6 +1405,13 @@ begin
   end;
 end;
 
+function TEditorFrame.PictureSizes: TPoint;
+begin
+  if Assigned(FImage) and Assigned(FImage.Picture) then
+    Result:= Point(FImage.Picture.Width, FImage.Picture.Height)
+  else
+    Result:= Point(0, 0);
+end;
 
 end.
 

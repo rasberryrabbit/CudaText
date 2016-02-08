@@ -15,8 +15,8 @@ uses
   Classes, SysUtils;
 
 const
-  cAppExeVersion = '1.2.16.3';
-  cAppApiVersion = '1.0.121';
+  cAppExeVersion = '1.2.21.1';
+  cAppApiVersion = '1.0.124';
 
 
 const
@@ -41,6 +41,7 @@ const
   msgStatusSavedFile = 'Saved:';
   msgStatusReadonly = '[Read Only]';
   msgStatusMacroRec = '[Macro Rec]';
+  msgStatusPicture = 'Image %dx%d';
   msgStatusCancel = 'Cancelled';
   msgStatusBadNum = 'Incorrect number entered';
   msgStatusEndsChanged = 'Line ends changed';
@@ -65,9 +66,9 @@ const
   msgAboutCredits =
       'Credits:'+sLineBreak+sLineBreak+
       'Lazarus IDE'+sLineBreak+
-      'ATSynEdit, ATTabs: at github'+sLineBreak+
-      'EControl parser: http://www.econtrol.ru, at github'+sLineBreak+
-      'Helper Python code: Andrey Kvichanskiy'+sLineBreak+
+      'ATSynEdit, ATTabs, ATListbox, ATButton, Python wrapper: https://github.com/Alexey-T/'+sLineBreak+
+      'EControl parser: http://www.econtrol.ru, https://github.com/Alexey-T/'+sLineBreak+
+      'Helper Python code: Andrey Kvichanskiy, https://github.com/kvichans/'+sLineBreak+
       'Toolbar icons: Silk icons, http://www.famfamfam.com'+sLineBreak+
       '    License: CC BY 2.5, http://creativecommons.org/licenses/by/2.5/'+sLineBreak+
       'App icon: Snipicons, http://www.snipicons.com/'+sLineBreak+

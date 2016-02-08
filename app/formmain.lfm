@@ -60,20 +60,11 @@ object fmMain: TfmMain
           Top = 0
           Width = 202
           Align = alClient
-          BorderStyle = bsNone
-          ExpandSignType = tvestArrowFill
-          HideSelection = False
           Images = ImageListTree
-          ParentFont = False
           PopupMenu = PopupTree
-          ReadOnly = True
-          RightClickSelect = True
-          RowSelect = True
-          ScrollBars = ssVertical
           TabOrder = 0
           OnDblClick = TreeClick
           OnMouseMove = TreeMouseMove
-          Options = [tvoAutoItemHeight, tvoKeepCollapsedNodes, tvoReadOnly, tvoRightClickSelect, tvoRowSelect, tvoShowButtons, tvoShowLines, tvoShowRoot, tvoToolTips]
           TreeLinePenStyle = psSolid
         end
       end
@@ -86,7 +77,7 @@ object fmMain: TfmMain
         ParentColor = False
       end
       object ButtonCancel: TATButton
-        Left = 408
+        Left = 416
         Height = 25
         Top = 24
         Width = 100
@@ -594,7 +585,7 @@ object fmMain: TfmMain
         Caption = 'Cancel carets'
       end
       object mnuCaretsExtSub: TMenuItem
-        Caption = 'Extend carets'
+        Caption = 'More carets'
         object mnuCaretsUp1Line: TMenuItem
           Caption = 'More carets, up, 1 line'
         end
@@ -630,7 +621,7 @@ object fmMain: TfmMain
         Caption = 'Find next'
       end
       object mnuFindPrev: TMenuItem
-        Caption = 'Find prev'
+        Caption = 'Find previous'
       end
       object SepSr1: TMenuItem
         Caption = '-'
@@ -639,7 +630,7 @@ object fmMain: TfmMain
         Caption = 'Find current word next'
       end
       object mnuFindWordPrev: TMenuItem
-        Caption = 'Find current word prev'
+        Caption = 'Find current word previous'
       end
       object SepSr2: TMenuItem
         Caption = '-'
@@ -656,7 +647,7 @@ object fmMain: TfmMain
           Caption = 'Go to next bookmark'
         end
         object mnuBmPrev: TMenuItem
-          Caption = 'Go to prev bookmark'
+          Caption = 'Go to previous bookmark'
         end
         object MenuItem14: TMenuItem
           Caption = '-'
@@ -676,34 +667,37 @@ object fmMain: TfmMain
       Caption = '&View'
       object mnuGroups: TMenuItem
         Caption = 'Groups'
-        object mnuGroupsOne: TMenuItem
+        object mnuGr1: TMenuItem
           Caption = 'One group'
         end
-        object mnuGroups2Vert: TMenuItem
+        object mnuGr2V: TMenuItem
           Caption = '2 vert'
         end
-        object mnuGroups2Horz: TMenuItem
+        object mnuGr2H: TMenuItem
           Caption = '2 horz'
         end
-        object mnuGroups3Vert: TMenuItem
+        object mnuGr3V: TMenuItem
           Caption = '3 vert'
         end
-        object mnuGroups3Horz: TMenuItem
+        object mnuGr3H: TMenuItem
           Caption = '3 horz'
         end
-        object mnuGroups3as12: TMenuItem
-          Caption = '3 as 1+2'
+        object mnuGr1p2V: TMenuItem
+          Caption = '1+2 vert'
         end
-        object mnuGroups4Vert: TMenuItem
+        object mnuGr1p2H: TMenuItem
+          Caption = '1+2 horz'
+        end
+        object mnuGr4V: TMenuItem
           Caption = '4 vert'
         end
-        object mnuGroups4Horz: TMenuItem
+        object mnuGr4H: TMenuItem
           Caption = '4 horz'
         end
-        object mnuGroups4Grid: TMenuItem
+        object mnuGr4G: TMenuItem
           Caption = '4 grid'
         end
-        object mnuGroups6Grid: TMenuItem
+        object mnuGr6: TMenuItem
           Caption = '6 grid'
         end
       end

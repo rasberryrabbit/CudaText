@@ -5,6 +5,15 @@
   "font_name": "Courier New",
   //Editor font size
   "font_size": 9,
+  //Editor font quality
+  //  0: Default 
+  //  1: Draft 
+  //  2: Proof 
+  //  3: Non Antialiased 
+  //  4: Antialiased
+  //  5: Cleartype 
+  //  6: Cleartype Natural 
+  "font_quality": 0,
 
   //UI elements font name
   "ui_font_name": "default",
@@ -123,6 +132,12 @@
   //Minimap width: 0: autosize, >0: fixed width in chars
   "minimap_char_width": 0,
 
+  //Show micromap: small vertical bar at the right edge
+  "micromap_show": true,
+  //Micromap width, pixels
+  "micromap_width": 12,
+
+
   //Fixed margin (vertical line) column.
   //Margin is always shown, to remove set it to eg 2000.
   "margin": 80,
@@ -235,10 +250,9 @@
 
   //Tabs width, height
   "ui_tab_size_x": 170,
-  "ui_tab_size_y": 24,
+  "ui_tab_size_y": 25,
   //Indent of text on tabs
   "ui_tab_indent_x": 5,
-  "ui_tab_indent_y": 5,
   //Angle of tab edge, it's set in pixel shift, 0..10
   "ui_tab_angle": 3,
   //Show tabs at bottom
@@ -281,6 +295,8 @@
   "ui_tree_time_fill": 2000,
   //Time (msec) after which tree-node for caret focused
   "ui_tree_time_focus": 2000,
+  //Show lines at left side
+  "ui_tree_show_lines": true,
 
   //[Properties of new tabs]
   //Lexer name in lexers menu
@@ -345,29 +361,32 @@
   //... and keep previous selection
   "key_left_right_swap_sel_and_select": false,
 
-  //[First panel of statusbar]
+  //[Caret-panel of statusbar]
   //States: no-selection, small-selection (1 line), stream-selection (>1 lines),
   //  column-selection, mul-carets.
   //Macros:
-  //  {y}: 1st caret line
-  //  {x}: 1st caret column, tab-chars counted as 1
-  //  {xx}: 1st caret column, tab-chars expanded
+  //  {y}: line of top caret
+  //  {y2}: line of bottom caret
+  //  {x}: column of top caret, tab-chars counted as 1
+  //  {xx}: column of top caret, tab-chars expanded
   //  {count}: number of lines
   //  {carets}: number of carets
-  //  {sel}: number of lines selected
+  //  {sel}: number of lines affected by selection(s)
   //  {cols}: number of columns in column-selection
-  "ui_stat_no_sel": "Ln {y}, Col {x}",
-  "ui_stat_small_sel": "Ln {y}, Col {x}, sel",
-  "ui_stat_str_sel": "Ln {y}, Col {x}, {sel} lines sel",
-  "ui_stat_col_sel": "{sel}x{cols} column",
-  "ui_stat_carets": "{carets} carets, {sel} lines sel",
-  //Sizes and align
-  "ui_stat_size_x": 200,
-  "ui_stat_size_y": 24,
-  "ui_stat_center": true,
+  "ui_statusbar_no_sel": "Ln {y}, Col {x}",
+  "ui_statusbar_small_sel": "Ln {y}, Col {x}, sel",
+  "ui_statusbar_str_sel": "Ln {y}, Col {x}, {sel} lines sel",
+  "ui_statusbar_col_sel": "{sel}x{cols} column",
+  "ui_statusbar_carets": "{carets} carets, {sel} lines sel",
 
-  //Message in statusbar: time in seconds
-  "ui_stat_time": 5,
+  //Statusbar panels (can skip items, can reorder items)
+  //  Names: caret, enc, ends, lexer, tabsize, msg
+  //  Align: C (center), L (left), R (right)
+  "ui_statusbar_panels": "caret,C,170|enc,C,105|ends,C,50|lexer,C,140|tabsize,C,80|msg,L,4000",
+  //Statusbar height   
+  "ui_statusbar_height": 24,
+  //Statusbar popup message: time in seconds
+  "ui_statusbar_time": 5,
 
   //Show full file path in window title
   "ui_title_path": false,
@@ -419,10 +438,14 @@
   //If no selection then move caret to next line
   "duplicate_move_down": true,
 
-  //Special auto-complete for HTML lexer (see wiki)
+  //Enable special auto-completion for HTML lexer (see wiki)
   "autocomplete_html": true,
-  //Special auto-complete for CSS lexer (see wiki)
+  //Enable special auto-completion for CSS lexer (see wiki)
   "autocomplete_css": true,
+  //Auto-show auto-completion after typing N word-chars (0: disabled)
+  "autocomplete_autoshow_chars": 0,
+  //Addition to prev option: for which lexers (comma-separated, empty: disabled)
+  "autocomplete_autoshow_lexers": "",
   
   //File backup
   //  "": no backup
@@ -430,5 +453,8 @@
   //  "2": symbol before ext: filename.~txt
   //  not number, eg "bak": additional ext: filename.txt.bak
   "backup": "",
+  
+  //Extensions of picture files (shown as pictures)
+  "picture_types": "bmp,png,jpg,jpeg,jpe,ico",
 
 }

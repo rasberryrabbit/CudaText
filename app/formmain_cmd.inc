@@ -25,8 +25,11 @@ begin
     cmd_FileCloseOtherAll:   Groups.CloseTabs(tabCloseOthersAllPages, false);
     cmd_FileCloseAndDelete:  DoFileCloseAndDelete;
 
-    cmd_FileSave:            if CurrentFrame.Modified then
-                               CurrentFrame.DoFileSave(false, SaveDlg);
+    cmd_FileSave:            begin
+                               with CurrentFrame do
+                                 if Modified or (FileName='') then
+                                   DoFileSave(false, SaveDlg);
+                             end;
     cmd_FileSaveAs:          CurrentFrame.DoFileSave(true, SaveDlg);
     cmd_FileSaveAll:         DoFileSaveAll;
 
@@ -57,6 +60,10 @@ begin
     cmd_ShowPanelOutput:   DoShowOutput;
     cmd_ShowPanelValidate: DoShowValidate;
 
+    cmd_ShowSidePanelAsIs: DoShowSidePanel('');
+    cmd_ShowSidePanelAndSyntaxTree: DoShowSidePanel('Tree');
+    cmd_HideSidePanel: DoShowSidePanel('-');
+
     cmd_FindNext:        DoFindNext(true);
     cmd_FindPrev:        DoFindNext(false);
     cmd_FindCurWordNext: DoFindCurrentWordOrSel(true, true);
@@ -80,7 +87,8 @@ begin
     cmd_Groups2vert: Groups.Mode:= gm2Vert;
     cmd_Groups3horz: Groups.Mode:= gm3Horz;
     cmd_Groups3vert: Groups.Mode:= gm3Vert;
-    cmd_Groups3plus: Groups.Mode:= gm3Plus;
+    cmd_Groups3plus: Groups.Mode:= gm1plus2Vert;
+    cmd_Groups3plushorz: Groups.Mode:= gm1plus2Horz;
     cmd_Groups4horz: Groups.Mode:= gm4Horz;
     cmd_Groups4vert: Groups.Mode:= gm4Vert;
     cmd_Groups4grid: Groups.Mode:= gm4Grid;
@@ -111,11 +119,11 @@ begin
     cmd_ConvertTabsToSpaces: EditorConvertTabsToSpaces(CurrentEditor);
     cmd_ConvertSpacesToTabsLeading: EditorConvertSpacesToTabsLeading(CurrentEditor);
 
-    cmd_BookmarkToggle: begin EditorBmSet(CurrentEditor, -1, 1, bmOpToggle); UpdateFrame; end;
-    cmd_BookmarkClearAll: begin EditorBmClearAll(CurrentEditor); UpdateFrame; end;
-    cmd_BookmarkInvertAll: begin EditorBmInvertAll(CurrentEditor); UpdateFrame; end;
-    cmd_BookmarkGotoNext: EditorBmGotoNext(CurrentEditor, true);
-    cmd_BookmarkGotoPrev: EditorBmGotoNext(CurrentEditor, false);
+    cmd_BookmarkToggle: begin EditorBookmarkSet(CurrentEditor, -1, 1, bmOpToggle); UpdateFrame; end;
+    cmd_BookmarkClearAll: begin EditorBookmarkClearAll(CurrentEditor); UpdateFrame; end;
+    cmd_BookmarkInvertAll: begin EditorBookmarkInvertAll(CurrentEditor); UpdateFrame; end;
+    cmd_BookmarkGotoNext: EditorBookmarkGotoNext(CurrentEditor, true);
+    cmd_BookmarkGotoPrev: EditorBookmarkGotoNext(CurrentEditor, false);
 
     cmd_CommentLineAdd_AtNonspace: DoCommentAction(cCommentAdd_AtNonespace_IfNone);
     cmd_CommentLineAdd_AtStart: DoCommentAction(cCommentAdd_AtStart_IfNone);

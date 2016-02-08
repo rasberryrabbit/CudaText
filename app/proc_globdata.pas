@@ -67,9 +67,12 @@ type
 
     PyLibrary: string;
     LexerLibFilename: string;
+    PictureTypes: string;
 
     AutocompleteCss: boolean;
     AutocompleteHtml: boolean;
+    AutocompleteAutoshowChars: integer;
+    AutocompleteAutoshowLexers: string;
 
     ListboxWidth: integer;
     ListboxItemCountCmd: integer;
@@ -82,7 +85,6 @@ type
     TabSizeX: integer;
     TabSizeY: integer;
     TabIndentX: integer;
-    TabIndentY: integer;
     TabAngle: integer;
     TabBottom: boolean;
     TabColorFull: boolean;
@@ -112,6 +114,7 @@ type
     TreeAutoSync: boolean;
     TreeTimeFill: integer;
     TreeTimeFocus: integer;
+    TreeShowLines: boolean;
     PyChangeSlow: integer;
 
     NewdocLexer: string;
@@ -123,9 +126,8 @@ type
     StatusStreamSel: string;
     StatusColSel: string;
     StatusCarets: string;
-    StatusSizeX: integer;
-    StatusSizeY: integer;
-    StatusCenter: boolean;
+    StatusPanels: string;
+    StatusHeight: integer;
     StatusTime: integer;
     StatusAltTime: integer;
 
@@ -147,6 +149,8 @@ type
   TEditorOps = record
     OpFontName: string;
     OpFontSize: integer;
+    OpFontQuality: TFontQuality;
+
     OpSpaceX: integer;
     OpSpaceY: integer;
     OpTabSize: integer;
@@ -175,6 +179,8 @@ type
     OpMinimapShowSelAlways: boolean;
     OpMinimapShowSelBorder: boolean;
     OpMinimapCharWidth: integer;
+    OpMicromapShow: boolean;
+    OpMicromapWidth: integer;
     OpMargin: integer;
     OpMarginString: string;
 
@@ -262,6 +268,7 @@ function GetAppPath(id: TAppPathId): string;
 function GetLexerOverrideFN(AName: string): string;
 function GetActiveControl(Form: TWinControl): TWinControl;
 function GetDefaultListItemHeight: integer;
+function AppBookmarkKindStandard(N: integer): boolean;
 
 function MsgBox(const Str: string; Flags: integer): integer;
 function AppFindLexer(const fn: string): TecSyntAnalyzer;
@@ -274,6 +281,7 @@ procedure CommandPlugins_UpdateSubcommands(AStr: string);
 var
   Manager: TecSyntaxManager = nil;
   Keymap: TATKeymap = nil;
+  cShortcutEscape: TShortcut = 0;
 
 type
   TStrEvent = procedure(Sender: TObject; const ARes: string) of object;
@@ -310,6 +318,7 @@ const
 type
   TAppPyEvent = (
     cEventOnOpen,
+    cEventOnClose,
     cEventOnSaveAfter,
     cEventOnSaveBefore,
     cEventOnKey,
@@ -317,6 +326,7 @@ type
     cEventOnChangeSlow,
     cEventOnCaret,
     cEventOnClick,
+    cEventOnClickDbl,
     cEventOnState,
     cEventOnFocus,
     cEventOnStart,
@@ -324,6 +334,7 @@ type
     cEventOnComplete,
     cEventOnGotoDef,
     cEventOnFuncHint,
+    cEventOnPanel,
     cEventOnConsole,
     cEventOnConsoleNav,
     cEventOnOutputNav,
@@ -334,6 +345,7 @@ type
 const
   cAppPyEvent: array[TAppPyEvent] of string = (
     'on_open',
+    'on_close',
     'on_save',
     'on_save_pre',
     'on_key',
@@ -341,6 +353,7 @@ const
     'on_change_slow',
     'on_caret',
     'on_click',
+    'on_click_dbl',
     'on_state',
     'on_focus',
     'on_start',
@@ -348,6 +361,7 @@ const
     'on_complete',
     'on_goto_def',
     'on_func_hint',
+    'on_panel',
     'on_console',
     'on_console_nav',
     'on_output_nav',
@@ -384,6 +398,8 @@ type
     ItemTreeview: TTreeView;
     ItemListbox: TATListbox;
     ItemListboxStrings: TStringList;
+    ItemImagelist: TImageList;
+    ItemMenu: TPopupMenu;
   end;
 
 var
@@ -571,6 +587,7 @@ begin
   begin
     OpFontName:= {$ifndef darwin} 'Courier New' {$else} 'Monaco' {$endif};
     OpFontSize:= {$ifndef darwin} 9 {$else} 11 {$endif};
+    OpFontQuality:= fqDefault;
 
     OpSpaceX:= 0;
     OpSpaceY:= 0;
@@ -604,6 +621,9 @@ begin
     OpMinimapShowSelAlways:= false;
     OpMinimapShowSelBorder:= false;
     OpMinimapCharWidth:= 0;
+
+    OpMicromapShow:= false;
+    OpMicromapWidth:= 12;
 
     OpMargin:= cInitMarginRight;
     OpMarginString:= '';
@@ -689,9 +709,12 @@ begin
 
     LexerLibFilename:= 'lib.lxl';
     PyLibrary:= InitPyLibraryPath;
+    PictureTypes:= 'bmp,png,jpg,jpeg,ico';
 
     AutocompleteCss:= true;
     AutocompleteHtml:= true;
+    AutocompleteAutoshowChars:= 0;
+    AutocompleteAutoshowLexers:= '';
 
     ListboxWidth:= 450;
     ListboxItemCountCmd:= 15;
@@ -702,9 +725,8 @@ begin
     ListboxFuzzySearch:= true;
 
     TabSizeX:= 170;
-    TabSizeY:= 24;
+    TabSizeY:= 25;
     TabIndentX:= 5;
-    TabIndentY:= 5;
     TabAngle:= 3;
     TabBottom:= false;
     TabColorFull:= false;
@@ -734,6 +756,7 @@ begin
     TreeAutoSync:= true;
     TreeTimeFill:= 2000;
     TreeTimeFocus:= 2000;
+    TreeShowLines:= true;
     PyChangeSlow:= 2000;
 
     NewdocLexer:= '';
@@ -745,9 +768,8 @@ begin
     StatusStreamSel:= 'Ln {y}, Col {x}, {sel} lines sel';
     StatusColSel:= '{sel}x{cols} column';
     StatusCarets:= '{carets} carets, {sel} lines sel';
-    StatusSizeX:= 200;
-    StatusSizeY:= TabSizeY;
-    StatusCenter:= true;
+    StatusPanels:= 'caret,C,170|enc,C,105|ends,C,50|lexer,C,140|tabsize,C,80|msg,L,4000';
+    StatusHeight:= TabSizeY;
     StatusTime:= 5;
     StatusAltTime:= 7;
 
@@ -982,6 +1004,12 @@ begin
 end;
 
 
+function AppBookmarkKindStandard(N: integer): boolean;
+begin
+  Result:= (N<=1) or (N>=240);
+end;
+
+
 initialization
   InitDirs;
   InitEditorOps(EditorOps);
@@ -995,6 +1023,8 @@ initialization
   AppBookmarkImagelist:= TImageList.Create(nil);
 
   FillChar(FAppSidePanels, SizeOf(FAppSidePanels), 0);
+
+  cShortcutEscape:= ShortCut(vk_escape, []);
 
 finalization
   FreeAndNil(Keymap);

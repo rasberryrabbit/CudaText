@@ -50,7 +50,6 @@ type
     FColorBorderU: TColor;
     FColorBorderD: TColor;
     FIndentLeft: Integer;
-    FIndentTop: Integer;
 
     FList: TList;
     FBitmap: TBitmap;
@@ -77,6 +76,7 @@ type
     function PanelCount: Integer;
     procedure AddPanel(AWidth: Integer; AAlign: TATStatusAlign; const ACaption: string = '');
     procedure DeletePanel(AIndex: Integer);
+    procedure DeletePanels;
     property Captions[Index: integer]: string read GetCaption write SetCaption; default;
   protected
     procedure Paint; override;
@@ -93,7 +93,6 @@ type
     property ColorBorderU: TColor read FColorBorderU write FColorBorderU;
     property ColorBorderD: TColor read FColorBorderD write FColorBorderD;
     property IndentLeft: Integer read FIndentLeft write FIndentLeft;
-    property IndentTop: Integer read FIndentTop write FIndentTop;
     property OnPanelClick: TATStatusClickEvent read FOnPanelClick write FOnPanelClick;
     property OnPanelDrawBefore: TATStatusDrawEvent read FOnPanelDrawBefore write FOnPanelDrawBefore;
     property OnPanelDrawAfter: TATStatusDrawEvent read FOnPanelDrawAfter write FOnPanelDrawAfter;
@@ -133,7 +132,6 @@ begin
   Font.Size:= 8;
 
   FIndentLeft:= 5;
-  FIndentTop:= 6;
 
   Color:= $E0E0E0;
   FColorBorderTop:= clGray;
@@ -184,7 +182,7 @@ procedure TATStatus.DoPaintPanelTo(C: TCanvas; ARect: TRect;
   AAlign: TATStatusAlign; const ACaption: string);
 var
   RText: TRect;
-  NSize, NOffset: Integer;
+  NSize, NOffset, NOffsetTop: Integer;
 begin
   C.Brush.Color:= Color;
   C.FillRect(ARect);
@@ -206,7 +204,8 @@ begin
       NOffset:= (ARect.Right-ARect.Left) div 2 - NSize div 2 - FIndentLeft;
   end;
 
-  FBitmapText.Canvas.TextOut(NOffset, FIndentTop, ACaption);
+  NOffsetTop:= (ClientHeight - FBitmapText.Canvas.TextHeight(ACaption)) div 2;
+  FBitmapText.Canvas.TextOut(NOffset, NOffsetTop, ACaption);
   C.CopyRect(
     RText,
     FBitmapText.Canvas,
@@ -342,6 +341,12 @@ begin
   end;
 end;
 
+procedure TATStatus.DeletePanels;
+begin
+  while PanelCount>0 do
+    DeletePanel(PanelCount-1);
+end;
+
 function TATStatus.GetPanelData(AIndex: Integer): TATStatusData;
 begin
   if IsIndexOk(AIndex) then
@@ -385,9 +390,15 @@ begin
 end;
 
 procedure TATStatus.SetCaption(N: integer; const S: string);
+var
+  D: TATStatusData;
 begin
-  GetPanelData(N).ItemCaption:= S;
-  Invalidate;
+  D:= GetPanelData(N);
+  if Assigned(D) then
+  begin
+    D.ItemCaption:= S;
+    Invalidate;
+  end;
 end;
 
 end.

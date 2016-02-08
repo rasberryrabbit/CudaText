@@ -270,7 +270,10 @@ begin
   F:= D.TabObject as TEditorFrame;
   if F=nil then exit;
 
-  MsgStatus(F.FileName);
+  if not F.IsText then
+    MsgStatus(F.PictureFileName)
+  else
+    MsgStatus(F.FileName);
 end;
 
 procedure TfmMain.DoOnTabsLeftClick(Sender: TObject);
@@ -285,17 +288,92 @@ begin
     with FAppSidePanels[i] do
     begin
       if ItemCaption='' then break;
-      if Assigned(ItemTreeview) then ItemTreeview.Visible:= ItemCaption=SCaption;
-      if Assigned(ItemListbox) then ItemListbox.Visible:= ItemCaption=SCaption;
+      if Assigned(ItemTreeview) then
+      begin
+        ItemTreeview.Visible:= ItemCaption=SCaption;
+        if PanelLeft.Visible and ItemTreeview.Visible then
+          if ItemTreeview.CanFocus then
+            ItemTreeview.SetFocus;
+      end;
+      if Assigned(ItemListbox) then
+      begin
+        ItemListbox.Visible:= ItemCaption=SCaption;
+        if ItemListbox.Visible then ItemListbox.SetFocus;
+      end;
     end;
 end;
 
-function TfmMain.DoGetTabsLeftIndexOfCaption(const Str: string): integer;
+function TfmMain.DoSidebar_GetTabIndexOfCaption(const Str: string): integer;
 var
   i: integer;
 begin
   Result:= -1;
-  for i:= 0 to TabsLeft.TabCount-1 do
-    if TabsLeft.GetTabData(i).TabCaption=Str then
-      exit(i);
+  for i:= Low(FAppSidePanels) to High(FAppSidePanels) do
+    with FAppSidePanels[i] do
+    begin
+      if ItemCaption='' then break;
+      if ItemCaption=Str then exit(i);
+    end;
 end;
+
+function TfmMain.DoSidebar_AddTab(const ACaption, AControlType: string; ATabIndex: integer): boolean;
+const
+  cTypeTree = 'tree';
+var
+  Num: integer;
+begin
+  if DoSidebar_GetTabIndexOfCaption(ACaption)>=0 then exit(false);
+  if (AControlType<>cTypeTree) then exit(false);
+
+  Num:= 0;
+  while FAppSidePanels[Num].ItemCaption<>'' do Inc(Num);
+  if Num>High(FAppSidePanels) then exit(false);
+
+  if AControlType=cTypeTree then
+    with FAppSidePanels[Num] do
+    begin
+      ItemCaption:= ACaption;
+      ItemMenu:= TPopupMenu.Create(Self);
+      ItemImagelist:= TImageList.Create(Self);
+      ItemTreeview:= TTreeView.Create(Self);
+
+      ItemTreeview.Hide;
+      ItemTreeview.Parent:= PanelLeft;
+      ItemTreeview.Align:= alClient;
+      ItemTreeview.Images:= ItemImagelist;
+      ItemTreeview.PopupMenu:= ItemMenu;
+      ItemTreeview.OnClick:= @DoPanel_OnClick;
+      ItemTreeview.OnDblClick:= @DoPanel_OnDblClick;
+      ItemTreeview.OnSelectionChanged:= @DoPanel_OnSelChanged;
+
+      fmMain.DoApplyThemeToTreeview(ItemTreeview);
+      //just to see it ok
+      ItemTreeview.Items.Add(nil, 'panel '+ACaption);
+    end;
+
+  TabsLeft.AddTab(ATabIndex, ACaption);
+  Result:= true;
+end;
+
+
+function TfmMain.DoSidebar_ActivateTab(const ACaption: string): boolean;
+var
+  Num: integer;
+begin
+  Num:= DoSidebar_GetTabIndexOfCaption(ACaption);
+  Result:= Num>=0;
+  if Result then
+    fmMain.TabsLeft.TabIndex:= Num;
+end;
+
+function TfmMain.DoSidebar_GetControlHandle(const ACaption: string): PtrInt;
+var
+  Num: integer;
+begin
+  Num:= DoSidebar_GetTabIndexOfCaption(ACaption);
+  if Num<0 then
+    Result:= 0
+  else
+    Result:= PtrInt(FAppSidePanels[Num].ItemTreeview)
+end;
+

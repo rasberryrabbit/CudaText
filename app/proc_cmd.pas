@@ -71,6 +71,9 @@ const
   cmd_ResetPythonPlugins = 2543;
   cmd_DialogCharMap      = 2544;
   cmd_RunLastCommandPlugin = 2545;
+  cmd_ShowSidePanelAsIs = 2546;
+  cmd_ShowSidePanelAndSyntaxTree = 2547;
+  cmd_HideSidePanel = 2548;
 
   cmd_DialogGoto       = 2580;
   cmd_DialogGotoBookmark = 2581;
@@ -99,6 +102,7 @@ const
   cmd_Groups3horz = 2633;
   cmd_Groups3vert = 2634;
   cmd_Groups3plus = 2635;
+  cmd_Groups3plushorz = 2629;
   cmd_Groups4horz = 2636;
   cmd_Groups4vert = 2637;
   cmd_Groups4grid = 2638;
@@ -267,9 +271,13 @@ begin
   M.Add(cmd_ToggleToolbar, 'ui: toggle toolbar', [], []);
   M.Add(cmd_ToggleStatusbar, 'ui: toggle statusbar', [], []);
 
-  M.Add(cmd_ShowPanelConsole, 'ui: show panel: console', ['Ctrl+`'], []);
-  M.Add(cmd_ShowPanelOutput, 'ui: show panel: output', [], []);
-  M.Add(cmd_ShowPanelValidate, 'ui: show panel: validate', [], []);
+  M.Add(cmd_ShowSidePanelAsIs, 'ui: show side panel', [], []);
+  M.Add(cmd_ShowSidePanelAndSyntaxTree, 'ui: show side panel, syntax tree', [], []);
+  M.Add(cmd_HideSidePanel, 'ui: hide side panel', [], []);
+
+  M.Add(cmd_ShowPanelConsole, 'ui: show bottom panel, console', ['Ctrl+`'], []);
+  M.Add(cmd_ShowPanelOutput, 'ui: show bottom panel, output', [], []);
+  M.Add(cmd_ShowPanelValidate, 'ui: show bottom panel, validate', [], []);
 
   M.Add(cmd_DialogSaveTabs, 'dialog: save tabs', [], []);
   M.Add(cmd_DialogCommands, 'dialog: command list', ['F1'], []);
@@ -284,11 +292,11 @@ begin
   M.Add(cmd_DialogFind, 'dialog: find', [cXControl+'+F'], []);
   M.Add(cmd_DialogReplace, 'dialog: replace', [cXControl+'+R'], []);
   M.Add(cmd_FindNext, 'find, next', ['F3'], []);
-  M.Add(cmd_FindPrev, 'find, prev', ['Shift+F3'], []);
+  M.Add(cmd_FindPrev, 'find, previous', ['Shift+F3'], []);
   M.Add(cmd_FindCurWordNext, 'find current word, next', [], []);
-  M.Add(cmd_FindCurWordPrev, 'find current word, prev', [], []);
+  M.Add(cmd_FindCurWordPrev, 'find current word, previous', [], []);
   M.Add(cmd_FindCurSelNext, 'find current selection, next', [], []);
-  M.Add(cmd_FindCurSelPrev, 'find current selection, prev', [], []);
+  M.Add(cmd_FindCurSelPrev, 'find current selection, previous', [], []);
 
   M.Add(cmd_CopyLine, 'clipboard: copy current line', [], []);
   M.Add(cmd_CopyFilenameFull, 'clipboard: copy full filepath', [], []);
@@ -306,20 +314,21 @@ begin
   M.Add(cmd_Groups2vert, 'groups: 2 groups horz', [], []);
   M.Add(cmd_Groups3horz, 'groups: 3 groups vert', [], []);
   M.Add(cmd_Groups3vert, 'groups: 3 groups horz', [], []);
-  M.Add(cmd_Groups3plus, 'groups: 3 groups as 1+2', [], []);
+  M.Add(cmd_Groups3plus, 'groups: 1+2 groups vert', [], []);
+  M.Add(cmd_Groups3plushorz, 'groups: 1+2 groups horz', [], []);
   M.Add(cmd_Groups4horz, 'groups: 4 groups vert', [], []);
   M.Add(cmd_Groups4vert, 'groups: 4 groups horz', [], []);
   M.Add(cmd_Groups4grid, 'groups: 4 groups grid', [], []);
   M.Add(cmd_Groups6grid, 'groups: 6 groups grid', [], []);
 
   M.Add(cmd_GroupActivateNext, 'groups: focus next group', [], []);
-  M.Add(cmd_GroupActivatePrev, 'groups: focus prev group', [], []);
+  M.Add(cmd_GroupActivatePrev, 'groups: focus previous group', [], []);
   M.Add(cmd_MoveTabToGroupNext, 'groups: move tab to next group', [], []);
-  M.Add(cmd_MoveTabToGroupPrev, 'groups: move tab to prev group', [], []);
+  M.Add(cmd_MoveTabToGroupPrev, 'groups: move tab to previous group', [], []);
 
   M.Add(cmd_BookmarkToggle, 'bookmarks: toggle current line', [], []);
   M.Add(cmd_BookmarkGotoNext, 'bookmarks: go to next', [], []);
-  M.Add(cmd_BookmarkGotoPrev, 'bookmarks: go to prev', [], []);
+  M.Add(cmd_BookmarkGotoPrev, 'bookmarks: go to previous', [], []);
   M.Add(cmd_BookmarkInvertAll, 'bookmarks: inverse all lines', [], []);
   M.Add(cmd_BookmarkClearAll, 'bookmarks: clear all', [], []);
 
@@ -419,10 +428,10 @@ begin
   M.Add(cmd_MacroCancel, 'macros: cancel recording', [], []);
 
   M.Add(cmd_TreeGotoNext, 'tree: select next node', [], []);
-  M.Add(cmd_TreeGotoPrev, 'tree: select prev node', [], []);
+  M.Add(cmd_TreeGotoPrev, 'tree: select previous node', [], []);
   M.Add(cmd_TreeGotoParent, 'tree: select parent node', [], []);
   M.Add(cmd_TreeGotoNextBrother, 'tree: select next-brother node', [], []);
-  M.Add(cmd_TreeGotoPrevBrother, 'tree: select prev-brother node', [], []);
+  M.Add(cmd_TreeGotoPrevBrother, 'tree: select previous-brother node', [], []);
   M.Add(cmd_TreeUpdate, 'tree: update tree panel', [], []);
 
   M.Add(cmd_HelpAbout, 'help: about', [], []);
@@ -499,6 +508,7 @@ begin
     cmd_Groups3horz  ,
     cmd_Groups3vert  ,
     cmd_Groups3plus  ,
+    cmd_Groups3plushorz  ,
     cmd_Groups4horz  ,
     cmd_Groups4vert  ,
     cmd_Groups4grid  ,
@@ -574,6 +584,7 @@ begin
     cmd_Groups3horz,
     cmd_Groups3vert,
     cmd_Groups3plus,
+    cmd_Groups3plushorz,
     cmd_Groups4horz,
     cmd_Groups4vert,
     cmd_Groups4grid,

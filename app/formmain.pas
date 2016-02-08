@@ -16,7 +16,7 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   StdCtrls, Buttons, ComCtrls, ExtCtrls, Menus,
   Clipbrd, StrUtils, Variants, IniFiles,
-  FileUtil, LclType, LclProc, LclIntf,
+  FileUtil, LazFileUtils, LazUTF8, LclType, LclProc, LclIntf,
   ujsonConf,
   PythonEngine,
   UniqueInstance,
@@ -91,6 +91,7 @@ type
     ImageListBar: TImageList;
     ImageListTree: TImageList;
     MainMenu: TMainMenu;
+    mnuGr1p2H: TMenuItem;
     mnuEditSpToTab: TMenuItem;
     SepEd7: TMenuItem;
     mnuEditTabToSp: TMenuItem;
@@ -298,17 +299,17 @@ type
     mnuFileCloseOther: TMenuItem;
     SepFile2: TMenuItem;
     mnuFileNew: TMenuItem;
-    mnuGroups3as12: TMenuItem;
-    mnuGroups6Grid: TMenuItem;
-    mnuGroups4Grid: TMenuItem;
-    mnuGroups4Vert: TMenuItem;
-    mnuGroups4Horz: TMenuItem;
+    mnuGr1p2V: TMenuItem;
+    mnuGr6: TMenuItem;
+    mnuGr4G: TMenuItem;
+    mnuGr4V: TMenuItem;
+    mnuGr4H: TMenuItem;
     mnuGroups: TMenuItem;
-    mnuGroupsOne: TMenuItem;
-    mnuGroups3Vert: TMenuItem;
-    mnuGroups3Horz: TMenuItem;
-    mnuGroups2Vert: TMenuItem;
-    mnuGroups2Horz: TMenuItem;
+    mnuGr1: TMenuItem;
+    mnuGr3V: TMenuItem;
+    mnuGr3H: TMenuItem;
+    mnuGr2V: TMenuItem;
+    mnuGr2H: TMenuItem;
     mnuFile: TMenuItem;
     SepFile3: TMenuItem;
     mnuFileExit: TMenuItem;
@@ -507,6 +508,11 @@ type
     FPyComplete_CaretPos: TPoint;
 
     procedure CharmapOnInsert(const AStr: string);
+    procedure DoInvalidateEditors;
+    procedure DoPanel_Event(const AEvent: string);
+    procedure DoPanel_OnSelChanged(Sender: TObject);
+    function DoSidebar_ActivateTab(const ACaption: string): boolean;
+    function DoSidebar_AddTab(const ACaption, AControlType: string; ATabIndex: integer): boolean;
     procedure DoApplyThemeToTreeview(C: TTreeview);
     procedure DoAutoComplete;
     procedure DoCudaLibAction(const AMethod: string);
@@ -516,7 +522,8 @@ type
     function DoFindOptionsToString: string;
     procedure DoGetSplitInfo(const Id: string; out BoolVert, BoolVisible: boolean;
       out NPos, NTotal: integer);
-    function DoGetTabsLeftIndexOfCaption(const Str: string): integer;
+    function DoSidebar_GetControlHandle(const ACaption: string): PtrInt;
+    function DoSidebar_GetTabIndexOfCaption(const Str: string): integer;
     procedure DoGotoDefinition;
     procedure DoShowFuncHint;
     procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps;
@@ -544,6 +551,8 @@ type
     procedure DoPyStringToEvents(const AEventStr: string; var AEvents: TAppPyEvents);
     procedure DoPyUpdateEvents(const AModuleName, AEventStr, ALexerStr, AKeyStr: string);
     procedure DoSetSplitInfo(const Id: string; NPos: integer);
+    procedure DoPanel_OnClick(Sender: TObject);
+    procedure DoPanel_OnDblClick(Sender: TObject);
     procedure FrameLexerChange(Sender: TObject);
     procedure FrameOnEditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure FrameOnEditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
@@ -590,6 +599,7 @@ type
     procedure DoShowConsole;
     procedure DoShowOutput;
     procedure DoShowValidate;
+    procedure DoShowSidePanel(const ATabCaption: string);
     procedure DoTreeCollapseLevel(ALevel: integer);
     function FrameOfPopup: TEditorFrame;
     procedure FrameOnCommand(Sender: TObject; ACommand: integer; const AText: string;
@@ -622,8 +632,7 @@ type
       var AContinue: boolean);
     procedure FinderUpdateEditor(AUpdateText: boolean);
     procedure FrameOnSaveFile(Sender: TObject);
-    procedure GetEditorIndexes(Ed: TATSynEdit; var AGroupIndex,
-      ATabIndex: Integer);
+    procedure GetEditorIndexes(Ed: TATSynEdit; out AGroupIndex, ATabIndex: Integer);
     function GetModifiedCount: integer;
     function GetShowSidePanel: boolean;
     function GetShowStatus: boolean;
@@ -672,6 +681,7 @@ type
     procedure SetShowStatus(AValue: boolean);
     procedure SetShowToolbar(AValue: boolean);
     procedure UpdateMenuThemes(sub: TMenuItem);
+    procedure UpdateStatusbarPanelsFromString(AStr: string);
     procedure UpdateTabsActiveColor(F: TEditorFrame);
     procedure UpdateTree(AFill: boolean; AConsiderTreeVisible: boolean=true);
     procedure UpKey(mi: TMenuItem; cmd: integer);
@@ -712,38 +722,41 @@ implementation
 
 {$R *.lfm}
 
-const
-  cStatusPos = 0;
-  cStatusEnc = 1;
-  cStatusEnds = 2;
-  cStatusLexer = 3;
-  cStatusTabsize = 4;
-  cStatusMsg = 5;
+var
+  cStatusCaret: integer = 0;
+  cStatusEnc: integer = 1;
+  cStatusEnds: integer = 2;
+  cStatusLexer: integer = 3;
+  cStatusTabsize: integer = 4;
+  cStatusMsg: integer = 5;
 
 { TfmMain }
 {$I formmain_py.inc}
 
 procedure TfmMain.StatusPanelClick(Sender: TObject; AIndex: Integer);
 begin
-  case AIndex of
-    cStatusEnc:
-      begin
-        if not CurrentFrame.ReadOnly then
-          PopupEnc.PopUp;
-      end;
-    cStatusEnds:
-      begin
-        if not CurrentFrame.ReadOnly then
-          PopupEnds.PopUp;
-      end;
-    cStatusLexer:
-      begin
-        PopupLex.PopUp;
-      end;
-    cStatusTabsize:
-      begin
-        PopupTabSize.Popup;
-      end;
+  if not CurrentFrame.IsText then exit;
+
+  if AIndex=cStatusEnc then
+  begin
+    if not CurrentFrame.ReadOnly then
+      PopupEnc.PopUp;
+  end
+  else
+  if AIndex=cStatusEnds then
+  begin
+    if not CurrentFrame.ReadOnly then
+      PopupEnds.PopUp;
+  end
+  else
+  if AIndex=cStatusLexer then
+  begin
+    PopupLex.PopUp;
+  end
+  else
+  if AIndex=cStatusTabsize then
+  begin
+    PopupTabSize.Popup;
   end;
 end;
 
@@ -889,7 +902,7 @@ procedure TfmMain.TreeMouseMove(Sender: TObject; Shift: TShiftState; X,
 begin
   //fix to hide parts on Tree's hints on editor canvas (Win32, moving mouse from
   //long hint to shorter)
-  Groups.Invalidate;
+  DoInvalidateEditors;
 end;
 
 procedure TfmMain.UniqInstanceOtherInstance(Sender: TObject;
@@ -950,22 +963,20 @@ begin
   Status.Align:= alBottom;
   Status.Top:= Height;
   Status.Height:= 23;
-  Status.IndentTop:= 2;
   Status.OnPanelClick:= @StatusPanelClick;
 
-  Status.AddPanel(150, saMiddle, '?');
+  Status.AddPanel(170, saMiddle, '?');
   Status.AddPanel(105, saMiddle, '?');
   Status.AddPanel(50, saMiddle, '?');
   Status.AddPanel(140, saMiddle, '?');
   Status.AddPanel(80, saMiddle, '?');
-  Status.AddPanel(1600, saLeft, '');
+  Status.AddPanel(4000, saLeft, '');
 
   StatusAlt:= TATStatus.Create(Self);
   StatusAlt.Parent:= Self;
   StatusAlt.Align:= alBottom;
   StatusAlt.Top:= Status.Top-4;
   StatusAlt.Height:= Status.Height;
-  StatusAlt.IndentTop:= Status.IndentTop;
   StatusAlt.AddPanel(5000, saLeft, '?');
   StatusAlt.Hide;
 
@@ -1008,6 +1019,8 @@ begin
   begin
     ItemCaption:= 'Tree';
     ItemTreeview:= Tree;
+    ItemImagelist:= ImageListTree;
+    ItemMenu:= PopupTree;
   end;
 
   FFinder:= TATEditorFinder.Create;
@@ -1167,6 +1180,7 @@ begin
       Key:= 0;
       exit
     end;
+
     exit
   end;
 end;
@@ -1189,16 +1203,17 @@ begin
   DoOps_LoadHistory;
   DoOps_LoadKeymap;
   DoOps_PreinstallPlugins;
-  DoLoadParamstr;
 
   UpdateMenuPlugins;
   UpdateMenuThemes(mnuThemes);
   UpdateMenuHotkeys;
 
-  ActiveControl:= CurrentEditor;
-  UpdateStatus;
   DoPyEvent(CurrentEditor, cEventOnFocus, []);
   DoPyEvent(CurrentEditor, cEventOnStart, []);
+
+  ActiveControl:= CurrentEditor;
+  UpdateStatus;
+  DoLoadParamstr;
 end;
 
 procedure TfmMain.FrameAddRecent(Sender: TObject);
@@ -1476,14 +1491,26 @@ begin
 end;
 
 type
-  TComponentHack = class(TComponent);
+  TUniqInstanceHack = class(TUniqueInstance);
 
 procedure TfmMain.DoApplyUiOps;
+var
+  i: integer;
 begin
+  UpdateStatusbarPanelsFromString(UiOps.StatusPanels);
+
   TimerTreeFill.Interval:= UiOps.TreeTimeFill;
   TimerTreeFocus.Interval:= UiOps.TreeTimeFocus;
 
   fmConsole.memo.OptCaretShapeRO:= TATSynCaretShape(EditorOps.OpCaretShapeRO);
+
+  for i:= Low(FAppSidePanels) to High(FAppSidePanels) do
+    with FAppSidePanels[i] do
+    begin
+      if ItemCaption='' then break;
+      if Assigned(ItemTreeview) then
+        ItemTreeview.ShowLines:= UiOps.TreeShowLines;
+    end;
 
   TabsBottom.TabBottom:= true;
   TabsBottom.TabShowPlus:= false;
@@ -1494,7 +1521,6 @@ begin
   TabsBottom.TabAngle:= UiOps.TabAngle;
   TabsBottom.TabIndentTop:= 0;
   TabsBottom.TabIndentInit:= UiOps.TabIndentX;
-  TabsBottom.TabIndentText:= UiOps.TabIndentY;
   TabsBottom.Height:= UiOps.TabSizeY;
   TabsBottom.TabHeight:= UiOps.TabSizeY-1;
   TabsBottom.TabWidthMax:= UiOps.TabSizeX;
@@ -1508,7 +1534,6 @@ begin
   TabsLeft.TabAngle:= UiOps.TabAngle;
   TabsLeft.TabIndentTop:= 0;
   TabsLeft.TabIndentInit:= UiOps.TabIndentX;
-  TabsLeft.TabIndentText:= UiOps.TabIndentY;
   TabsLeft.Height:= UiOps.TabSizeY;
   TabsLeft.TabHeight:= UiOps.TabSizeY-1;
   TabsLeft.TabWidthMax:= UiOps.TabSizeX;
@@ -1527,21 +1552,12 @@ begin
   Groups.SetTabOption(tabOptionHeight1, UiOps.TabSizeY);
   Groups.SetTabOption(tabOptionHeight2, UiOps.TabSizeY-2);
   Groups.SetTabOption(tabOptionIndentInit, UiOps.TabIndentX);
-  Groups.SetTabOption(tabOptionIndentText, UiOps.TabIndentY);
   Groups.SetTabOption(tabOptionIndentColor, 4);
   Groups.SetTabOption(tabOptionWidecharModified, Ord('*'));
   Groups.SetTabOption(tabOptionShowNums, Ord(UiOps.TabNumbers));
 
-  Status.IndentTop:= UiOps.TabIndentY;
-  Status.Height:= UiOps.StatusSizeY;
-  ButtonCancel.Height:= UiOps.StatusSizeY-2;
-
-  Status.GetPanelData(0).ItemWidth:= UiOps.StatusSizeX;
-  if UiOps.StatusCenter then
-    Status.GetPanelData(0).ItemAlign:= saMiddle
-  else
-    Status.GetPanelData(0).ItemAlign:= saLeft;
-
+  Status.Height:= UiOps.StatusHeight;
+  ButtonCancel.Height:= UiOps.StatusHeight-2;
   TimerStatus.Interval:= UiOps.StatusTime*1000;
 
   ATButtonTheme.FontName:= UiOps.VarFontName;
@@ -1554,7 +1570,7 @@ begin
     if not UniqInstance.Enabled then
     begin
       UniqInstance.Enabled:= true;
-      TComponentHack(UniqInstance).Loaded;
+      TUniqInstanceHack(UniqInstance).Loaded;
 
       if UniqInstance.PriorInstanceRunning then
         Application.Terminate;
@@ -1603,6 +1619,7 @@ begin
   end;
 
   //NonTextFiles: 0: prompt, 1: open, 2: don't open
+  if not IsFilenameListedInExtensionList(AFilename, UiOps.PictureTypes) then
   if UiOps.NonTextFiles<>1 then
     if not IsFileContentText(AFilename, UiOps.NonTextFilesBufferKb, false, IsOem) then
       case UiOps.NonTextFiles of
@@ -1738,7 +1755,7 @@ end;
 procedure TfmMain.GotoDialogDone(Sender: TObject; const Res: string);
 var
   Ed: TATSynEdit;
-  Num, NumMax: integer;
+  Num: integer;
 begin
   Ed:= CurrentEditor;
 
@@ -2076,13 +2093,19 @@ end;
 
 procedure TfmMain.MsgStatus(const S: string);
 var
+  Frame: TEditorFrame;
   msg: string;
 begin
+  Frame:= CurrentFrame;
   msg:= s;
-  if CurrentFrame.ReadOnly then
-    msg:= msgStatusReadonly + ' ' +msg;
-  if CurrentFrame.MacroRecord then
-    msg:= msgStatusMacroRec + ' ' +msg;
+
+  if Frame.IsText then
+  begin
+    if Frame.ReadOnly then
+      msg:= msgStatusReadonly + ' ' +msg;
+    if Frame.MacroRecord then
+      msg:= msgStatusMacroRec + ' ' +msg;
+  end;
 
   Status[cStatusMsg]:= msg;
 
@@ -2156,6 +2179,7 @@ procedure TfmMain.DoFileCloseAndDelete;
 var
   fn: string;
 begin
+  if not CurrentFrame.IsText then exit;
   fn:= CurrentFrame.FileName;
   if fn='' then exit;
 
@@ -2252,6 +2276,20 @@ procedure TfmMain.DoShowValidate;
 begin
   ShowBottom:= true;
   TabsBottom.TabIndex:= 2;
+end;
+
+procedure TfmMain.DoShowSidePanel(const ATabCaption: string);
+begin
+  if ATabCaption='-' then
+  begin
+    if PanelLeft.Visible then DoToggleSidePanel;
+  end
+  else
+  begin
+    if not PanelLeft.Visible then DoToggleSidePanel;
+    if ATabCaption<>'' then
+      DoSidebar_ActivateTab(ATabCaption);
+  end;
 end;
 
 procedure TfmMain.SetFullscreen(AValue: boolean);
@@ -2408,7 +2446,7 @@ var
   F: TEditorFrame;
   Ed: TATSynEdit;
   LexName: string;
-  IsPas, IsCss, IsHtml, IsCaseSens: boolean;
+  IsPascal, IsCss, IsHtml, IsCaseSens: boolean;
   FileHtml, FileCss, FileAcp: string;
 begin
   F:= CurrentFrame;
@@ -2427,10 +2465,10 @@ begin
   if LexName[Length(LexName)]='_' then
     Delete(LexName, Length(Lexname), 1);
 
-  IsPas:= Pos('Pascal', LexName)>0;
+  IsPascal:= Pos('Pascal', LexName)>0;
   IsHtml:= UiOps.AutocompleteHtml and (Pos('HTML', LexName)>0);
   IsCss:= UiOps.AutocompleteCss and (LexName='CSS');
-  IsCaseSens:= (not IsPas) and (Pos('SQL', LexName)=0);
+  IsCaseSens:= false; //cannot detect it yet
   FileCss:= GetAppPath(cDirDataAcpSpec)+DirectorySeparator+'css_list.ini';
   FileHtml:= GetAppPath(cDirDataAcpSpec)+DirectorySeparator+'html_list.ini';
   FileAcp:= GetAppPath(cDirDataAcp)+DirectorySeparator+LexName+'.acp';
@@ -2446,7 +2484,7 @@ begin
   if IsCss then
     DoEditorCompletionCss(Ed, FileCss)
   else
-    DoEditorCompletionAcp(Ed, FileAcp, IsCaseSens, IsPas);
+    DoEditorCompletionAcp(Ed, FileAcp, IsCaseSens, IsPascal);
 end;
 
 procedure TfmMain.mnuTreeFold2Click(Sender: TObject);
@@ -2616,7 +2654,7 @@ end;
 
 
 procedure TfmMain.GetEditorIndexes(Ed: TATSynEdit;
-  var AGroupIndex, ATabIndex: Integer);
+  out AGroupIndex, ATabIndex: Integer);
 begin
   Groups.PagesAndTabIndexOfControl(GetEditorFrame(Ed), AGroupIndex, ATabIndex);
   Dec(AGroupIndex); //was 1-based

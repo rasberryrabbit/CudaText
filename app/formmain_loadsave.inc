@@ -10,7 +10,6 @@ Copyright (c) Alexey Torgashin
 procedure TfmMain.DoOps_SaveHistory;
 var
   c: TJSONConfig;
-  i: integer;
 begin
   c:= TJSONConfig.Create(nil);
   try
@@ -97,6 +96,8 @@ begin
     begin
       F:= Frames[i];
       if F.Filename='' then Continue;
+      if not F.IsText then Continue;
+
       path:= '/'+Format('%3.3d', [i]);
       Groups.PagesAndTabIndexOfControl(F, nGroup, nTab);
 
@@ -383,18 +384,19 @@ begin
 
     Op.OpFontName:= UTF8Encode(c.GetValue('font_name', UTF8Decode(Op.OpFontName)));
     Op.OpFontSize:= c.GetValue('font_size', Op.OpFontSize);
+    Op.OpFontQuality:= TFontQuality(c.GetValue('font_quality', Ord(Op.OpFontQuality)));
+
     UiOps.VarFontName:= UTF8Encode(c.GetValue('ui_font_name', UTF8Decode(UiOps.VarFontName)));
     UiOps.VarFontSize:= c.GetValue('ui_font_size', UiOps.VarFontSize);
 
-    UiOps.StatusNoSel:= c.GetValue('ui_stat_no_sel', UiOps.StatusNoSel);
-    UiOps.StatusSmallSel:= c.GetValue('ui_stat_small_sel', UiOps.StatusSmallSel);
-    UiOps.StatusStreamSel:= c.GetValue('ui_stat_str_sel', UiOps.StatusStreamSel);
-    UiOps.StatusColSel:= c.GetValue('ui_stat_col_sel', UiOps.StatusColSel);
-    UiOps.StatusCarets:= c.GetValue('ui_stat_carets', UiOps.StatusCarets);
-    UiOps.StatusSizeX:= c.GetValue('ui_stat_size_x', UiOps.StatusSizeX);
-    UiOps.StatusSizeY:= c.GetValue('ui_stat_size_y', UiOps.StatusSizeY);
-    UiOps.StatusCenter:= c.GetValue('ui_stat_center', UiOps.StatusCenter);
-    UiOps.StatusTime:= Max(1, Min(60, c.GetValue('ui_stat_time', UiOps.StatusTime)));
+    UiOps.StatusNoSel:= c.GetValue('ui_statusbar_no_sel', UiOps.StatusNoSel);
+    UiOps.StatusSmallSel:= c.GetValue('ui_statusbar_small_sel', UiOps.StatusSmallSel);
+    UiOps.StatusStreamSel:= c.GetValue('ui_statusbar_str_sel', UiOps.StatusStreamSel);
+    UiOps.StatusColSel:= c.GetValue('ui_statusbar_col_sel', UiOps.StatusColSel);
+    UiOps.StatusCarets:= c.GetValue('ui_statusbar_carets', UiOps.StatusCarets);
+    UiOps.StatusPanels:= c.GetValue('ui_statusbar_panels', UiOps.StatusPanels);
+    UiOps.StatusHeight:= c.GetValue('ui_statusbar_height', UiOps.StatusHeight);
+    UiOps.StatusTime:= Max(1, Min(60, c.GetValue('ui_statusbar_time', UiOps.StatusTime)));
 
     UiOps.ShowTitlePath:= c.GetValue('ui_title_path', UiOps.ShowTitlePath);
     UiOps.ShowLastFiles:= c.GetValue('ui_reopen_session', UiOps.ShowLastFiles);
@@ -441,6 +443,9 @@ begin
     Op.OpMinimapShowSelAlways:= c.GetValue('minimap_sel_always', Op.OpMinimapShowSelAlways);
     Op.OpMinimapShowSelBorder:= c.GetValue('minimap_sel_border', Op.OpMinimapShowSelBorder);
     Op.OpMinimapCharWidth:= c.GetValue('minimap_char_width', Op.OpMinimapCharWidth);
+
+    Op.OpMicromapShow:= c.GetValue('micromap_show', Op.OpMicromapShow);
+    Op.OpMicromapWidth:= c.GetValue('micromap_width', Op.OpMicromapWidth);
 
     Op.OpMargin:= c.GetValue('margin', Op.OpMargin);
     Op.OpMarginString:= c.GetValue('margin_string', Op.OpMarginString);
@@ -491,9 +496,12 @@ begin
 
     UiOps.LexerLibFilename:= c.GetValue('lexlib', UiOps.LexerLibFilename);
     UiOps.PyLibrary:= c.GetValue('pylib', UiOps.PyLibrary);
+    UiOps.PictureTypes:= c.GetValue('picture_types', UiOps.PictureTypes);
 
     UiOps.AutocompleteHtml:= c.GetValue('autocomplete_html', UiOps.AutocompleteHtml);
     UiOps.AutocompleteCss:= c.GetValue('autocomplete_css', UiOps.AutocompleteCss);
+    UiOps.AutocompleteAutoshowChars:= c.GetValue('autocomplete_autoshow_chars', UiOps.AutocompleteAutoshowChars);
+    UiOps.AutocompleteAutoshowLexers:= c.GetValue('autocomplete_autoshow_lexers', UiOps.AutocompleteAutoshowLexers);
 
     UiOps.FindSuggestSel:= c.GetValue('find_suggest_sel', UiOps.FindSuggestSel);
     UiOps.FindSuggestWord:= c.GetValue('find_suggest_cur_word', UiOps.FindSuggestWord);
@@ -505,7 +513,6 @@ begin
     UiOps.TabSizeX:= c.GetValue('ui_tab_size_x', UiOps.TabSizeX);
     UiOps.TabSizeY:= c.GetValue('ui_tab_size_y', UiOps.TabSizeY);
     UiOps.TabIndentX:= c.GetValue('ui_tab_indent_x', UiOps.TabIndentX);
-    UiOps.TabIndentY:= c.GetValue('ui_tab_indent_y', UiOps.TabIndentY);
     UiOps.TabAngle:= Max(0, Min(10, c.GetValue('ui_tab_angle', UiOps.TabAngle)));
     UiOps.TabBottom:= c.GetValue('ui_tab_bottom', UiOps.TabBottom);
     UiOps.TabColorFull:= c.GetValue('ui_tab_fullcolor', UiOps.TabColorFull);
@@ -532,6 +539,7 @@ begin
     UiOps.TreeAutoSync:= c.GetValue('ui_tree_auto_sync', UiOps.TreeAutoSync);
     UiOps.TreeTimeFill:= c.GetValue('ui_tree_time_fill', UiOps.TreeTimeFill);
     UiOps.TreeTimeFocus:= c.GetValue('ui_tree_time_focus', UiOps.TreeTimeFocus);
+    UiOps.TreeShowLines:= c.GetValue('ui_tree_show_lines', UiOps.TreeShowLines);
     UiOps.PyChangeSlow:= c.GetValue('py_change_slow', UiOps.PyChangeSlow);
 
     UiOps.NewdocLexer:= c.GetValue('newdoc_lexer', UiOps.NewdocLexer);
