@@ -1121,7 +1121,7 @@ begin
         if Dlg.Execute then
         begin
           if ofAllowMultiSelect in Dlg.Options then
-            StrFilename:= pchar(string(utf8decode(Dlg.Files.Text)));
+            StrFilename:= pchar(string(utf8decode(Dlg.Files.Text)))
           else
             StrFilename:= pchar(string(utf8decode(Dlg.FileName)));
           Result:= PyUnicode_FromWideString(Utf8Decode(StrFilename));

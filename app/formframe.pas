@@ -38,13 +38,8 @@ uses
   proc_msg,
   proc_str,
   proc_py,
-<<<<<<< HEAD
-  proc_miscutils,
-  ujsonConf,
-=======
   proc_miscutils, formlexerstylemap,
   jsonConf,
->>>>>>> upstream/master
   math;
 
 type

@@ -668,7 +668,7 @@ begin
   cfg:= TJSONConfig.Create(nil);
   try
     cfg.Formatted:= true;
-    cfg.Filename:= string(utf8decode(fn);
+    cfg.Filename:= string(utf8decode(fn));
     cfg.SetValue(AConfigStrName, UTF8Decode(OpName));
     cfg.SetValue(AConfigStrSize, OpSize);
   finally

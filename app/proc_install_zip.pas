@@ -39,7 +39,7 @@ uses
   LCLIntf, LCLProc, LCLType,
   StrUtils,
   IniFiles,
-  ujsonConf,
+  jsonConf,
   Zipper,
   proc_files,
   proc_globdata,
