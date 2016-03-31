@@ -1,9 +1,8 @@
 //"default" config file is for copying parts to "user" config file,
 //it's not read as actual config. "user" file is read.
 {
-  //Editor font name
+  //Editor font
   "font_name": "Courier New",
-  //Editor font size
   "font_size": 9,
   //Editor font quality
   //  0: Default 
@@ -15,10 +14,13 @@
   //  6: Cleartype Natural 
   "font_quality": 0,
 
-  //UI elements font name
+  //UI elements font
   "ui_font_name": "default",
-  //UI elements font size
   "ui_font_size": 9,
+
+  //Output/Validate panel font
+  "ui_font_output_name" : "default",
+  "ui_font_output_size" : 9,
 
   //Allow to run only one instance of program
   "ui_one_instance": false,
@@ -80,14 +82,13 @@
   "word_chars": "",
 
   //Show these unicode chars as "<NNNN>" hex codes.
-  //Some chars here by default:
-  //  http://unicode.org/reports/tr9/#Directional_Formatting_Characters
-  //Note: config read as utf8-no-bom.
+  //Some chars are here by default: http://unicode.org/reports/tr9/#Directional_Formatting_Characters
+  //Note: config is read as utf8-no-bom.
   "hex_chars": "",
 
   //Additional pixels per char
   "spacing_x": 0,
-  "spacing_y": 0,
+  "spacing_y": 1,
 
   //Tab-char width
   "tab_size": 8,
@@ -107,9 +108,9 @@
   "numbers_show": true,
   //If not 0, special font size used for numbers
   "numbers_font_size": 0,
-  //Style: 0: all lines; 1: none; 2: each 10th line; 3: each 5th line
-  "numbers_style": 3,
-  //Show also for lines with carets
+  //Numbers style: 0: all lines; 1: none; 2: each 10th line; 3: each 5th line
+  "numbers_style": 2,
+  //Show numbers for lines with carets
   "numbers_for_carets": false,
   //Center numbers on column
   "numbers_center": false,
@@ -131,15 +132,16 @@
   "minimap_sel_border": false,
   //Minimap width: 0: autosize, >0: fixed width in chars
   "minimap_char_width": 0,
+  //Minimap placed at left side
+  "minimap_at_left": false,
 
   //Show micromap: small vertical bar at the right edge
   "micromap_show": true,
   //Micromap width, pixels
   "micromap_width": 12,
 
-
   //Fixed margin (vertical line) column.
-  //Margin is always shown, to remove set it to eg 2000.
+  //Fixed margin is always shown, to hide set it to eg 2000.
   "margin": 80,
   //Additional margins, list of columns like "10 20 25" space-separated
   "margin_string": "",
@@ -170,7 +172,10 @@
   //Scale of tab-arrow pointer (15..50)
   "unprinted_tab_ptr_scale": 22,
 
-  //Mode: 0: off (faster); 1: wrap at editor edge; 2: wrap at fixed margin
+  //Wrap mode:
+  //  0: off (faster)
+  //  1: wrap at editor edge (changed on window resize)
+  //  2: wrap at "fixed margin"
   "wrap_mode": 0,
   //Show wrapped parts of long line indented, like line itself
   //(if line begins with spaces/tabs)
@@ -185,48 +190,57 @@
 
   //Allow to place caret after end-of-line
   "caret_after_end": true,
-  //Blink time (msec) of caret
+  //Caret blink time (msec)
   "caret_blink_time": 600,
-  //Blink enabled
+  //Caret blink enabled
   "caret_blink_en": true,
   //Enable multi-carets, see "Help--Mouse usage"
   "caret_multi": true,
 
-  //Possible caret shapes, from 0:
-  //  0 Full,
-  //  1 VertPixels1,
-  //  2 VertPixels2,
-  //  3 VertPixels3,
-  //  4 VertPixels4,
-  //  5 VertPercents10,
-  //  6 VertPercents15,
-  //  7 VertPercents20,
-  //  8 VertPercents25,
-  //  9 VertPercents30,
-  // 10 VertPercents35,
-  // 11 VertPercents40,
-  // 12 VertPercents50,
-  // 13 HorzPixels1,
-  // 14 HorzPixels2,
-  // 15 HorzPixels3,
-  // 16 HorzPixels4,
-  // 17 HorzPixels5,
-  // 18 HorzPercents10,
-  // 19 HorzPercents15,
-  // 20 HorzPercents20,
-  // 21 HorzPercents25,
-  // 22 HorzPercents30,
-  // 23 HorzPercents35,
-  // 24 HorzPercents40,
-  // 25 HorzPercents50,
-  // 26 FrameFull
+  //Possible caret shapes:
+  //  0: Full,
+  //  1: VertPixels1,
+  //  2: VertPixels2,
+  //  3: VertPixels3,
+  //  4: VertPixels4,
+  //  5: VertPercents10,
+  //  6: VertPercents15,
+  //  7: VertPercents20,
+  //  8: VertPercents25,
+  //  9: VertPercents30,
+  // 10: VertPercents35,
+  // 11: VertPercents40,
+  // 12: VertPercents50,
+  // 13: HorzPixels1,
+  // 14: HorzPixels2,
+  // 15: HorzPixels3,
+  // 16: HorzPixels4,
+  // 17: HorzPixels5,
+  // 18: HorzPercents10,
+  // 19: HorzPercents15,
+  // 20: HorzPercents20,
+  // 21: HorzPercents25,
+  // 22: HorzPercents30,
+  // 23: HorzPercents35,
+  // 24: HorzPercents40,
+  // 25: HorzPercents50,
+  // 26: Frame
   //
-  //Shape normal
+  //Caret shape, normal state
   "caret_shape": 1,
-  //Shape for "overwrite" mode (Ins key pressed)
+  //Caret shape, overwrite mode (Ins key: insert/overwrite)
   "caret_shape_ovr": 0,
-  //Shape for read-only mode
+  //Caret shape, read-only mode
   "caret_shape_ro": 13,
+
+  //Caret pos after pasting column-block:
+  //  0: no change
+  //  1: left-bottom
+  //  2: right-bottom
+  //  3: right-top
+  //  4: carets column on left
+  //  5: carets column on right 
+  "caret_after_paste_column": 5,
 
   //Suggest selection (of 1st caret) to Find dialog
   "find_suggest_sel": false,
@@ -244,9 +258,6 @@
   //             N>=0: indent from top (goto up) or bottom (goto down)
   "find_indent_vert": -5,
   "find_indent_horz": 10,
-
-  //Name of lexer-library file in dir "data/lexlib"
-  "lexlib": "lib.lxl",
 
   //Tabs width, height
   "ui_tab_size_x": 170,
@@ -276,6 +287,8 @@
   //Enables fuzzy search in menu-dialogs (else search is normal)
   "ui_listbox_fuzzy": true,
 
+  //Max items in comboboxes history (0..200)
+  "ui_max_history_edits": 20,
   //Max items in "recent files" menu (0..20)
   "ui_max_history_menu": 10,
   //Max items in "settings/history files.json" (0..400)
@@ -323,6 +336,8 @@
 
   //Drag-drop of text blocks
   "mouse_drag_drop": true,
+  //After drag-drop of text block to another group, focus target editor
+  "mouse_drag_drop_focus_target": true,
   //Right-click moves caret, before menu
   "mouse_rt_click_moves_caret": false,
   //Dbl-click and immediately drag makes selection by words
@@ -361,12 +376,14 @@
   //... and keep previous selection
   "key_left_right_swap_sel_and_select": false,
 
-  //[Caret-panel of statusbar]
+  //[Statusbar: caret-panel]
   //States: no-selection, small-selection (1 line), stream-selection (>1 lines),
   //  column-selection, mul-carets.
   //Macros:
   //  {y}: line of top caret
   //  {y2}: line of bottom caret
+  //  {yb}: line of 1st selection begin
+  //  {ye}: line of 1st selection end
   //  {x}: column of top caret, tab-chars counted as 1
   //  {xx}: column of top caret, tab-chars expanded
   //  {count}: number of lines
@@ -380,18 +397,27 @@
   "ui_statusbar_carets": "{carets} carets, {sel} lines sel",
 
   //Statusbar panels (can skip items, can reorder items)
-  //  Names: caret, enc, ends, lexer, tabsize, msg
+  //  Panels: caret, enc, ends, lexer, tabsize, msg, ins (hidden by default)
   //  Align: C (center), L (left), R (right)
-  "ui_statusbar_panels": "caret,C,170|enc,C,105|ends,C,50|lexer,C,140|tabsize,C,80|msg,L,4000",
+  //  Panel "msg" is autosized
+  "ui_statusbar_panels": "caret,C,170|enc,C,105|ends,C,50|lexer,C,140|tabsize,C,80|msg,L,",
   //Statusbar height   
   "ui_statusbar_height": 24,
   //Statusbar popup message: time in seconds
   "ui_statusbar_time": 5,
 
+  //Statusbar: tabsize-panel. Macros here:
+  //  {tab}: tab size
+  //  {_}: char "_" if spaces used
+  "ui_statusbar_tabsize": "Tab size {tab}{_}",
+
   //Show full file path in window title
   "ui_title_path": false,
   //Restore session (all named tabs) at start
   "ui_reopen_session": true,
+
+  //Allow to apply color-theme to lexer's styles (and auto-show dialog "Lexer styles mapping")
+  "ui_lexer_themes": true,
 
   //[Underline HTML color tokens like #008080, #0a0]
   //File extensions, comma-separated, w/o dot; "*" for all files, empty str to disable
@@ -446,6 +472,9 @@
   "autocomplete_autoshow_chars": 0,
   //Addition to prev option: for which lexers (comma-separated, empty: disabled)
   "autocomplete_autoshow_lexers": "",
+
+  //Auto-close brackets ([{. It skips escaped brackets: \( 
+  "auto_close_brackets": true,
   
   //File backup
   //  "": no backup
@@ -455,6 +484,11 @@
   "backup": "",
   
   //Extensions of picture files (shown as pictures)
-  "picture_types": "bmp,png,jpg,jpeg,jpe,ico",
+  "picture_types": "bmp,png,jpg,jpeg,jpe,gif,ico",
+
+  //Highlight URLs (font color+ underline)
+  "links_hilite": true,
+  //Reg-ex which finds URLs
+  "links_regex": "\\b(https?://|ftp://|magnet:\\?|www\\.)\\w[^<>''\"\\s]+",
 
 }

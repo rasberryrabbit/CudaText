@@ -100,13 +100,13 @@ begin
 
     FFinder.Editor.DoCaretSingle(NCaretX, NCaretY);
     FFinder.Editor.LineTop:= NTop;
-    MsgStatus(msgStatusReplaceCount+Inttostr(cnt));
+    MsgStatus(Format(msgStatusReplaceCount, [cnt]));
   end;
 
   if Res=cOpFindCount then
   begin
     cnt:= FFinder.DoCountAll(false);
-    MsgStatus(Format(msgStatusFindCount, [Utf8Encode(FFinder.StrFind)])+Inttostr(cnt));
+    MsgStatus(Format(msgStatusFindCount, [Utf8Encode(FFinder.StrFind), cnt]));
   end;
 
   if Res=cOpFindMarkAll then
@@ -115,7 +115,7 @@ begin
     cnt:= FFinder.DoCountAll(true);
     FFindMark:= false;
     FinderUpdateEditor(false);
-    MsgStatus(Format(msgStatusFindCount, [Utf8Encode(FFinder.StrFind)])+Inttostr(cnt));
+    MsgStatus(Format(msgStatusFindCount, [Utf8Encode(FFinder.StrFind), cnt]));
   end;
 
   UpdateAppForSearch(false);
@@ -131,19 +131,21 @@ begin
     fmFind.OnDone:= @FindDialogDone;
     fmFind.Parent:= PanelMain;
     fmFind.Align:= alBottom;
-    fmFind.FHotkeyFind:= Keymap.GetShortcutFromCommand(cmd_DialogFind);
-    fmFind.FHotkeyRep:= Keymap.GetShortcutFromCommand(cmd_DialogReplace);
+    fmFind.FHotkeyFind:= AppKeymap.GetShortcutFromCommand(cmd_DialogFind);
+    fmFind.FHotkeyRep:= AppKeymap.GetShortcutFromCommand(cmd_DialogReplace);
     fmFind.Color:= GetAppColor('TabBg');
 
     cfg:= TJSONConfig.Create(nil);
     try
-      cfg.Filename:= string(utf8decode(GetAppPath(cFileOptHistory)));
-      SLoadStringsFromFile(cfg, '/list_find', fmFind.edFind.Items, UiOps.MaxHistoryMenu);
-      SLoadStringsFromFile(cfg, '/list_replace', fmFind.edRep.Items, UiOps.MaxHistoryMenu);
+      cfg.Filename:= string(utf8encode(GetAppPath(cFileOptHistory)));
+      SLoadStringsFromFile(cfg, '/list_find', fmFind.edFind.Items, UiOps.MaxHistoryEdits);
+      SLoadStringsFromFile(cfg, '/list_replace', fmFind.edRep.Items, UiOps.MaxHistoryEdits);
     finally
       cfg.Free
     end;
   end;
+
+  DoLocalize_FormFind;
 end;
 
 procedure TfmMain.DoDialogFind(AReplaceMode: boolean);
@@ -232,9 +234,9 @@ end;
 procedure TfmMain.DoFindResult(ok: boolean);
 begin
   if ok then
-    MsgStatus('Found next match')
+    MsgStatus(msgStatusFoundNextMatch)
   else
-    MsgStatus('Cannot find ('+SFindOptionsToTextHint+'): '+Utf8Encode(FFinder.StrFind));
+    MsgStatus(msgCannotFindMatch+' ('+SFindOptionsToTextHint+'): '+Utf8Encode(FFinder.StrFind));
 end;
 
 procedure TfmMain.FinderConfirmReplace(Sender: TObject; APos1, APos2: TPoint;
@@ -265,7 +267,8 @@ begin
 
   fmConfirmReplace:= TfmConfirmReplace.Create(Self);
   try
-    fmConfirmReplace.LabelInfo.Caption:= Format(msgConfirmReplaceText, [APos1.Y+1]);
+    DoLocalize_FormConfirmReplace(fmConfirmReplace);
+    fmConfirmReplace.MsgLineNumber:= APos1.Y+1;
     fmConfirmReplace.bYesAll.Enabled:= AForMany;
     fmConfirmReplace.bNoAll.Enabled:= AForMany;
     if Assigned(fmFind) then
@@ -290,7 +293,7 @@ end;
 procedure TfmMain.FinderBadRegex(Sender: TObject);
 begin
   MsgBox(
-    msgErrRegex+#13+Utf8Encode(FFinder.StrFind),
+    msgStatusBadRegex+#13+Utf8Encode(FFinder.StrFind),
     mb_ok or mb_iconerror);
 end;
 

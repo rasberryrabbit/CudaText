@@ -53,7 +53,7 @@ const
   cmd_OpsOpenFileTypes   = 2524;
   cmd_OpsFontText        = 2525;
   cmd_OpsFontUi          = 2526;
-  cmd_DialogSaveTabs     = 2527;
+  cmd_OpsFontOutput      = 2527;
   cmd_ToggleFullScreen   = 2528;
   cmd_OpsReloadAndApply  = 2529;
   cmd_DialogLexerProp    = 2530;
@@ -65,6 +65,7 @@ const
   cmd_ShowPanelOutput    = 2536;
   cmd_ShowPanelValidate  = 2537;
   cmd_ToggleFindDialog   = 2538;
+  cmd_ShowPanelSearchRes = 2539;
   cmd_DialogLoadLexerStyles = 2540;
   cmd_ToggleToolbar      = 2541;
   cmd_ToggleStatusbar    = 2542;
@@ -74,6 +75,9 @@ const
   cmd_ShowSidePanelAsIs = 2546;
   cmd_ShowSidePanelAndSyntaxTree = 2547;
   cmd_HideSidePanel = 2548;
+  cmd_DialogSaveTabs = 2549;
+  cmd_DialogLexerStyleMap = 2550;
+  cmd_RescanPythonPluginsInfFiles = 2551;
 
   cmd_DialogGoto       = 2580;
   cmd_DialogGotoBookmark = 2581;
@@ -158,6 +162,8 @@ const
   cmd_HelpMouse     = 2703;
   cmd_HelpChangelog = 2704;
   cmd_HelpLexers    = 2705;
+  cmd_HelpIssues    = 2706;
+  cmd_HelpHotkeys   = 2707;
 
   cmd_Encoding_ansi_NoReload      = 2710;
   cmd_Encoding_utf8bom_NoReload   = 2711;
@@ -219,6 +225,11 @@ const
   cmd_Markers_ClearAll           = 2803;
   cmd_Markers_SwapCaretAndMarker = 2804;
 
+  cmd_LinkAtCaret_Open           = 2806;
+  cmd_LinkAtCaret_Copy           = 2807;
+  cmd_LinkAtPopup_Open           = 2808;
+  cmd_LinkAtPopup_Copy           = 2809;
+
   cmd_MacroStart                 = 2810;
   cmd_MacroStop                  = 2811;
   cmd_MacroCancel                = 2812;
@@ -258,11 +269,14 @@ begin
   M.Add(cmd_OpsOpenUser, 'settings: open user config', [], []);
   M.Add(cmd_OpsOpenLexerOvr, 'settings: open lexer-override config', [], []);
   M.Add(cmd_OpsOpenFileTypes, 'settings: open file-types config', [], []);
-  M.Add(cmd_OpsFontText, 'settings: select text font', [], []);
-  M.Add(cmd_OpsFontUi, 'settings: select ui font', [], []);
+
+  M.Add(cmd_OpsFontText, 'settings: select font: text', [], []);
+  M.Add(cmd_OpsFontUi, 'settings: select font: ui', [], []);
+  M.Add(cmd_OpsFontOutput, 'settings: select font: output panel', [], []);
 
   M.Add(cmd_ResetPythonPlugins, 'plugins: reset python plugins', [], []);
   M.Add(cmd_RunLastCommandPlugin, 'plugins: run last command plugin', [], []);
+  M.Add(cmd_RescanPythonPluginsInfFiles, 'plugins: rescan python plugins inf-files', [], []);
 
   M.Add(cmd_ToggleFullScreen, 'ui: toggle full-screen mode', ['F11'], []);
   M.Add(cmd_ToggleSidePanel, 'ui: toggle side panel', ['F12'], []);
@@ -278,6 +292,7 @@ begin
   M.Add(cmd_ShowPanelConsole, 'ui: show bottom panel, console', ['Ctrl+`'], []);
   M.Add(cmd_ShowPanelOutput, 'ui: show bottom panel, output', [], []);
   M.Add(cmd_ShowPanelValidate, 'ui: show bottom panel, validate', [], []);
+  M.Add(cmd_ShowPanelSearchRes, 'ui: show bottom panel, search results', [], []);
 
   M.Add(cmd_DialogSaveTabs, 'dialog: save tabs', [], []);
   M.Add(cmd_DialogCommands, 'dialog: command list', ['F1'], []);
@@ -285,6 +300,7 @@ begin
   M.Add(cmd_DialogGotoBookmark, 'dialog: go to bookmark', [cXControl+'+B'], []);
   M.Add(cmd_DialogLexerProp, 'dialog: lexer properties', [], []);
   M.Add(cmd_DialogLexerLib, 'dialog: lexer library', [], []);
+  M.Add(cmd_DialogLexerStyleMap, 'dialog: lexer styles map', [], []);
   M.Add(cmd_DialogLoadLexerStyles, 'dialog: restore lexer styles', [], []);
   M.Add(cmd_DialogColors, 'dialog: config color theme', [], []);
   M.Add(cmd_DialogCharMap, 'dialog: char map', [], []);
@@ -427,6 +443,11 @@ begin
   M.Add(cmd_MacroStop, 'macros: stop recording', [], []);
   M.Add(cmd_MacroCancel, 'macros: cancel recording', [], []);
 
+  M.Add(cmd_LinkAtCaret_Open, 'url: open url at 1st caret ', [], []);
+  M.Add(cmd_LinkAtCaret_Copy, 'url: copy url at 1st caret', [], []);
+  M.Add(cmd_LinkAtPopup_Open, 'url: open url of right-click', [], []);
+  M.Add(cmd_LinkAtPopup_Copy, 'url: copy url of right-click', [], []);
+
   M.Add(cmd_TreeGotoNext, 'tree: select next node', [], []);
   M.Add(cmd_TreeGotoPrev, 'tree: select previous node', [], []);
   M.Add(cmd_TreeGotoParent, 'tree: select parent node', [], []);
@@ -440,6 +461,7 @@ begin
   M.Add(cmd_HelpMouse, 'help: mouse usage', [], []);
   M.Add(cmd_HelpChangelog, 'help: changelog', [], []);
   M.Add(cmd_HelpLexers, 'help: lexers', [], []);
+  M.Add(cmd_HelpIssues, 'help: issues', [], []);
 
 end;
 
@@ -472,11 +494,13 @@ begin
     cmd_OpsOpenFileTypes      ,
     cmd_OpsFontText           ,
     cmd_OpsFontUi             ,
+    cmd_OpsFontOutput         ,
     cmd_DialogSaveTabs        ,
     cmd_ToggleFullScreen      ,
     cmd_OpsReloadAndApply     ,
     cmd_DialogLexerProp       ,
     cmd_DialogLexerLib        ,
+    cmd_DialogLexerStyleMap   ,
     cmd_DialogColors          ,
     cmd_ToggleSidePanel       ,
     cmd_ToggleBottomPanel     ,
@@ -490,6 +514,7 @@ begin
     cmd_ResetPythonPlugins  ,
     cmd_DialogCharMap       ,
     cmd_RunLastCommandPlugin ,
+    cmd_RescanPythonPluginsInfFiles,
 
     cmd_DialogGotoBookmark,
     cmd_DialogCommands   ,
@@ -532,7 +557,8 @@ begin
     cmd_HelpWiki      ,
     cmd_HelpMouse     ,
     cmd_HelpChangelog ,
-    cmd_HelpLexers    :
+    cmd_HelpLexers    ,
+    cmd_HelpIssues    :
       Result:= true;
 
     else
@@ -560,6 +586,7 @@ begin
     cmd_DialogGotoBookmark,
     cmd_DialogLexerLib,
     cmd_DialogLexerProp,
+    cmd_DialogLexerStyleMap,
     cmd_DialogLoadLexerStyles,
     cmd_DialogSaveTabs,
     cmd_FileNew,
@@ -599,7 +626,8 @@ begin
     cmd_HelpWiki,
     cmd_HelpMouse,
     cmd_HelpChangelog,
-    cmd_HelpLexers:
+    cmd_HelpLexers,
+    cmd_HelpIssues:
       Result:= false;
     else
       Result:= true;

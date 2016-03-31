@@ -62,13 +62,18 @@ var
   pnt: TPoint;
 begin
   if AIndex=List.ItemIndex then
-    cl:= GetAppColor('ListSelBg')
+  begin
+    c.Font.Color:= GetAppColor('ListSelFont');
+    cl:= GetAppColor('ListSelBg');
+  end
   else
+  begin
+    c.Font.Color:= GetAppColor('ListFont');
     cl:= List.Color;
+  end;
   c.Brush.Color:= cl;
   c.Pen.Color:= cl;
   c.FillRect(ARect);
-  c.Font.Color:= GetAppColor('ListFont');
 
   pnt:= Point(ARect.Left+4, ARect.Top+1);
   c.TextOut(pnt.x, pnt.y, Items[AIndex]);
@@ -89,7 +94,7 @@ begin
   List.Color:= self.Color;
 
   self.Width:= UiOps.ListboxWidth;
-  List.ItemHeight:= GetDefaultListItemHeight;
+  List.ItemHeight:= GetListboxItemHeight(UiOps.VarFontName, UiOps.VarFontSize);;
   Items:= nil;
   ResultIndex:= -1;
 end;

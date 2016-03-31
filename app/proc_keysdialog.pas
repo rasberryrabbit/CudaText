@@ -27,36 +27,39 @@ implementation
 function DoDialogHotkeys(ACmd: integer): boolean;
 var
   n: integer;
+  Form: TfmKeys;
   StrId: string;
 begin
   Result:= false;
   if (ACmd>=cmdFirstLexerCommand) and
      (ACmd<=cmdLastLexerCommand) then exit;
 
-  n:= keymap.IndexOf(ACmd);
+  n:= AppKeymap.IndexOf(ACmd);
   if n<0 then exit;
 
   //number (usual ACmd) or
   //'module,proc' (plugin)
-  StrId:= IntToStr(keymap[n].Command);
+  StrId:= IntToStr(AppKeymap[n].Command);
 
   if (ACmd>=cmdFirstPluginCommand) and
      (ACmd<=cmdLastPluginCommand) then
     with FPluginsCmd[ACmd-cmdFirstPluginCommand] do
       StrId:= ItemModule+','+ItemProc+IfThen(ItemProcParam<>'', ','+ItemProcParam);
 
-  with TfmKeys.Create(nil) do
+  Form:= TfmKeys.Create(nil);
+  with Form do
   try
-    Caption:= 'Keys - '+keymap[n].Name;
-    Keys1:= keymap[n].Keys1;
-    Keys2:= keymap[n].Keys2;
+    DoLocalize_FormKeys(Form);
+    Caption:= Caption+' - '+AppKeymap[n].Name;
+    Keys1:= AppKeymap[n].Keys1;
+    Keys2:= AppKeymap[n].Keys2;
 
     Result:= ShowModal=mrOk;
     if Result then
     begin
-      keymap[n].Keys1:= Keys1;
-      keymap[n].Keys2:= Keys2;
-      DoSaveKeyItem(keymap[n], StrId);
+      AppKeymap[n].Keys1:= Keys1;
+      AppKeymap[n].Keys2:= Keys2;
+      DoSaveKeyItem(AppKeymap[n], StrId);
     end;
   finally
     Free
@@ -74,6 +77,7 @@ begin
 
   Result:= DoDialogHotkeys(N+cmdFirstPluginCommand);
 end;
+
 
 end.
 

@@ -28,6 +28,9 @@ type
   TMyPopupMenu = {$ifdef SP} TSpTbxPopupMenu {$else} TPopupMenu {$endif};
 
 type
+
+  { TATPages }
+
   TATPages = class(TPanel)
   private
     FTabs: TATTabs;
@@ -98,10 +101,11 @@ type
     tabOptionShowEntireColor,
     tabOptionDoubleClickClose,
     tabOptionDragDrop,
-    tabOptionHeight1,
-    tabOptionHeight2,
+    tabOptionHeight,
+    tabOptionHeightInner,
     tabOptionWidthMin,
     tabOptionWidthMax,
+    tabOptionIndentTop,
     tabOptionIndentInit,
     tabOptionIndentInter,
     tabOptionIndentColor,
@@ -130,6 +134,9 @@ type
   TATGroupsNums = 1..6;
 
 type
+
+  { TATGroups }
+
   TATGroups = class(TPanel)
   private
     FSplit1,
@@ -336,6 +343,7 @@ begin
   FTabs.OnTabEmpty:= TabEmpty;
   FTabs.OnTabOver:= TabOver;
   FTabs.OnTabMove:= TabMove;
+  FTabs.DragMode:= dmAutomatic; //allow DnD between groups
 
   FTabs.TabAngle:= 0;
   FTabs.TabHeight:= 24;
@@ -1482,10 +1490,11 @@ begin
         tabOptionDoubleClickClose: TabDoubleClickClose:= Boolean(N);
         tabOptionDragDrop:         TabDragEnabled:= Boolean(N);
         tabOptionAngle:            TabAngle:= N;
-        tabOptionHeight1:          Height:= N;
-        tabOptionHeight2:          TabHeight:= N;
+        tabOptionHeight:           Height:= N;
+        tabOptionHeightInner:      TabHeight:= N;
         tabOptionWidthMin:         TabWidthMin:= N;
         tabOptionWidthMax:         TabWidthMax:= N;
+        tabOptionIndentTop:        TabIndentTop:= N;
         tabOptionIndentInit:       TabIndentInit:= N;
         tabOptionIndentInter:      TabIndentInter:= N;
         tabOptionIndentColor:      TabIndentColor:= N;

@@ -40,11 +40,11 @@ begin
     SSaveStringsToFile(c, '/recent_files', FListRecents, UiOps.MaxHistoryMenu);
     if Assigned(fmFind) then
     begin
-      SSaveStringsToFile(c, '/list_find', fmFind.edFind.Items, UiOps.MaxHistoryMenu);
-      SSaveStringsToFile(c, '/list_replace', fmFind.edRep.Items, UiOps.MaxHistoryMenu);
+      SSaveStringsToFile(c, '/list_find', fmFind.edFind.Items, UiOps.MaxHistoryEdits);
+      SSaveStringsToFile(c, '/list_replace', fmFind.edRep.Items, UiOps.MaxHistoryEdits);
     end;
 
-    SSaveStringsToFile(c, '/list_console', fmConsole.ed.Items, UiOps.MaxHistoryMenu);
+    SSaveStringsToFile(c, '/list_console', fmConsole.ed.Items, UiOps.MaxHistoryEdits);
 
     ////finder
     c.SetValue('/finder/regex', FFinder.OptRegex);
@@ -56,7 +56,8 @@ begin
 
     ////state
     c.SetValue('theme', FThemeName);
-    c.SetValue('session', FSessionFilename);
+    c.SetValue('lang', AppLangName);
+    c.SetValue('session', FSessionName);
 
     DoOps_SaveHistory_GroupView(c);
   finally
@@ -64,7 +65,7 @@ begin
   end;
 
   if UiOps.ShowLastFiles then
-    DoOps_SaveSession(FSessionFilename);
+    DoOps_SaveSession(GetSessionFilename);
 end;
 
 
@@ -76,9 +77,6 @@ var
   path: string;
 begin
   if fn_session='' then exit;
-  if (ExtractFileDir(fn_session)='') then
-    fn_session:= GetAppPath(cDirSettings)+DirectorySeparator+pchar(fn_session);
-
   DeleteFile(fn_session);
 
   c:= TJSONConfig.Create(nil);
@@ -117,11 +115,10 @@ var
   fn: string;
   F: TEditorFrame;
   nGroup, i: integer;
+  Pages: TATPages;
 begin
   if fn_session='' then exit;
-  if ExtractFileDir(fn_session)='' then
-    fn_session:= GetAppPath(cDirSettings)+DirectorySeparator+fn_session;
-
+  if not FileExists(fn_session) then exit;
   DoFileCloseAll;
 
   c:= TJSONConfig.Create(nil);
@@ -139,12 +136,13 @@ begin
       fn:= UTF8Encode(c.GetValue('/'+list[i]+'/file', ''));
       nGroup:= c.GetValue('/'+list[i]+'/group', Low(TATGroupsNums));
 
+      Pages:= nil;
       if nGroup in [Low(TATGroupsNums)..High(TATGroupsNums)] then
-        Groups.PagesCurrent:= Groups.Pages[nGroup];
+        Pages:= Groups.Pages[nGroup];
 
       if FileExistsUTF8(fn) then
       begin
-        F:= DoFileOpen(fn);
+        F:= DoFileOpen(fn, Pages);
         if F<>nil then
         begin
           F.NotInRecents:= true;
@@ -234,7 +232,7 @@ begin
 
     ////recents
     SLoadStringsFromFile(c, '/recent_files', FListRecents, UiOps.MaxHistoryMenu);
-    SLoadStringsFromFile(c, '/list_console', fmConsole.ed.Items, UiOps.MaxHistoryMenu);
+    SLoadStringsFromFile(c, '/list_console', fmConsole.ed.Items, UiOps.MaxHistoryEdits);
     UpdateMenuRecent(nil);
 
     ////finder
@@ -253,13 +251,17 @@ begin
     PanelLeft.Width:= c.GetValue('size_side', 200);
     PanelBottom.Height:= c.GetValue('size_bottom', 200);
 
-    ////theme
+    ////AppTheme
     FThemeName:= c.GetValue('theme', '');
-    FSessionFilename:= c.GetValue('session', FSessionFilename);
+    AppLangName:= c.GetValue('lang', '');
+    FSessionName:= c.GetValue('session', FSessionName);
+
+    if AppLangName<>'' then
+      DoLocalize;
 
     if FThemeName<>'' then
     begin
-      DoLoadTheme(GetAppPath(cDirDataThemes)+DirectorySeparator+FThemeName+'.json', Theme);
+      DoLoadTheme(GetAppPath(cDirDataThemes)+DirectorySeparator+FThemeName+'.json', AppTheme);
       DoApplyTheme;
     end;
 
@@ -269,7 +271,7 @@ begin
   end;
 
   if UiOps.ShowLastFiles then
-    DoOps_LoadSession(FSessionFilename);
+    DoOps_LoadSession(GetSessionFilename);
 end;
 
 procedure TfmMain.DoOps_LoadKeymap;
@@ -352,11 +354,11 @@ begin
         if ncmd<0 then Continue;
       end;
 
-      nitem:= Keymap.IndexOf(ncmd);
+      nitem:= AppKeymap.IndexOf(ncmd);
       if nitem<0 then Continue;
 
-      DoReadConfigOneKey(slist[i]+'/s1', slist[i]+'/k1', Keymap[nitem].Keys1);
-      DoReadConfigOneKey(slist[i]+'/s2', slist[i]+'/k2', Keymap[nitem].Keys2);
+      DoReadConfigOneKey(slist[i]+'/s1', slist[i]+'/k1', AppKeymap[nitem].Keys1);
+      DoReadConfigOneKey(slist[i]+'/s2', slist[i]+'/k2', AppKeymap[nitem].Keys2);
     end;
   finally
     skeys.Free;
@@ -377,17 +379,20 @@ begin
     except
       on E: Exception do
       begin
-        MsgBox('Error in config file'#13+fn+#13#13+E.Message, mb_ok or mb_iconerror);
+        MsgBox(msgStatusErrorInConfigFile+#13+fn+#13#13+E.Message, mb_ok or mb_iconerror);
         Exit
       end;
     end;
 
-    Op.OpFontName:= UTF8Encode(c.GetValue('font_name', UTF8Decode(Op.OpFontName)));
-    Op.OpFontSize:= c.GetValue('font_size', Op.OpFontSize);
-    Op.OpFontQuality:= TFontQuality(c.GetValue('font_quality', Ord(Op.OpFontQuality)));
+    Op.OpFontName:= UTF8Encode(c.GetValue(str_FontName, UTF8Decode(Op.OpFontName)));
+    Op.OpFontSize:= c.GetValue(str_FontSize, Op.OpFontSize);
+    Op.OpFontQuality:= TFontQuality(c.GetValue(str_FontQuality, Ord(Op.OpFontQuality)));
 
-    UiOps.VarFontName:= UTF8Encode(c.GetValue('ui_font_name', UTF8Decode(UiOps.VarFontName)));
-    UiOps.VarFontSize:= c.GetValue('ui_font_size', UiOps.VarFontSize);
+    UiOps.VarFontName:= UTF8Encode(c.GetValue(str_UiFontName, UTF8Decode(UiOps.VarFontName)));
+    UiOps.VarFontSize:= c.GetValue(str_UiFontSize, UiOps.VarFontSize);
+
+    UiOps.OutputFontName:= UTF8Encode(c.GetValue(str_UiFontOutputName, UTF8Decode(UiOps.OutputFontName)));
+    UiOps.OutputFontSize:= c.GetValue(str_UiFontOutputSize, UiOps.OutputFontSize);
 
     UiOps.StatusNoSel:= c.GetValue('ui_statusbar_no_sel', UiOps.StatusNoSel);
     UiOps.StatusSmallSel:= c.GetValue('ui_statusbar_small_sel', UiOps.StatusSmallSel);
@@ -397,6 +402,7 @@ begin
     UiOps.StatusPanels:= c.GetValue('ui_statusbar_panels', UiOps.StatusPanels);
     UiOps.StatusHeight:= c.GetValue('ui_statusbar_height', UiOps.StatusHeight);
     UiOps.StatusTime:= Max(1, Min(60, c.GetValue('ui_statusbar_time', UiOps.StatusTime)));
+    UiOps.StatusTabsize:= c.GetValue('ui_statusbar_tabsize', UiOps.StatusTabsize);
 
     UiOps.ShowTitlePath:= c.GetValue('ui_title_path', UiOps.ShowTitlePath);
     UiOps.ShowLastFiles:= c.GetValue('ui_reopen_session', UiOps.ShowLastFiles);
@@ -411,8 +417,8 @@ begin
     UiOps.ReloadFollowTail:= c.GetValue('ui_reload_tail', UiOps.ReloadFollowTail);
     UiOps.BackupMode:= c.GetValue('backup', UiOps.BackupMode);
 
-    Op.OpSpaceX:= c.GetValue('spacing_x', Op.OpSpaceX);
-    Op.OpSpaceY:= c.GetValue('spacing_y', Op.OpSpaceY);
+    Op.OpSpacingX:= c.GetValue('spacing_x', Op.OpSpacingX);
+    Op.OpSpacingY:= c.GetValue('spacing_y', Op.OpSpacingY);
 
     Op.OpTabSize:= c.GetValue('tab_size', Op.OpTabSize);
     Op.OpTabSpaces:= c.GetValue('tab_spaces', Op.OpTabSpaces);
@@ -422,6 +428,9 @@ begin
 
     Op.OpUnderlineColorFiles:= c.GetValue('underline_color_files', Op.OpUnderlineColorFiles);
     Op.OpUnderlineColorSize:= c.GetValue('underline_color_size', Op.OpUnderlineColorSize);
+
+    Op.OpLinks:= c.GetValue('links_hilite', Op.OpLinks);
+    Op.OpLinksRegex:= c.GetValue('links_regex', Op.OpLinksRegex);
 
     Op.OpGutterShow:= c.GetValue('gutter_show', Op.OpGutterShow);
     Op.OpGutterFold:= c.GetValue('gutter_fold', Op.OpGutterFold);
@@ -443,6 +452,7 @@ begin
     Op.OpMinimapShowSelAlways:= c.GetValue('minimap_sel_always', Op.OpMinimapShowSelAlways);
     Op.OpMinimapShowSelBorder:= c.GetValue('minimap_sel_border', Op.OpMinimapShowSelBorder);
     Op.OpMinimapCharWidth:= c.GetValue('minimap_char_width', Op.OpMinimapCharWidth);
+    Op.OpMinimapAtLeft:= c.GetValue('minimap_at_left', Op.OpMinimapAtLeft);
 
     Op.OpMicromapShow:= c.GetValue('micromap_show', Op.OpMicromapShow);
     Op.OpMicromapWidth:= c.GetValue('micromap_width', Op.OpMicromapWidth);
@@ -477,6 +487,7 @@ begin
     Op.OpCaretShapeRO:= c.GetValue('caret_shape_ro', Op.OpCaretShapeRO);
     Op.OpCaretVirtual:= c.GetValue('caret_after_end', Op.OpCaretVirtual);
     Op.OpCaretMulti:= c.GetValue('caret_multi', Op.OpCaretMulti);
+    Op.OpCaretAfterPasteColumn:= c.GetValue('caret_after_paste_column', Op.OpCaretAfterPasteColumn);
 
     Op.OpShowCurLine:= c.GetValue('show_cur_line', Op.OpShowCurLine);
     Op.OpShowCurLineMin:= c.GetValue('show_cur_line_minimal', Op.OpShowCurLineMin);
@@ -494,6 +505,7 @@ begin
     Op.OpWordChars:= c.GetValue('word_chars', Op.OpWordChars);
     Op.OpHexChars:= c.GetValue('hex_chars', Op.OpHexChars);
 
+    UiOps.LexerThemes:= c.GetValue('ui_lexer_themes', UiOps.LexerThemes);
     UiOps.LexerLibFilename:= c.GetValue('lexlib', UiOps.LexerLibFilename);
     UiOps.PyLibrary:= c.GetValue('pylib', UiOps.PyLibrary);
     UiOps.PictureTypes:= c.GetValue('picture_types', UiOps.PictureTypes);
@@ -502,6 +514,7 @@ begin
     UiOps.AutocompleteCss:= c.GetValue('autocomplete_css', UiOps.AutocompleteCss);
     UiOps.AutocompleteAutoshowChars:= c.GetValue('autocomplete_autoshow_chars', UiOps.AutocompleteAutoshowChars);
     UiOps.AutocompleteAutoshowLexers:= c.GetValue('autocomplete_autoshow_lexers', UiOps.AutocompleteAutoshowLexers);
+    UiOps.AutoCloseBrackets:= c.GetValue('auto_close_brackets', UiOps.AutoCloseBrackets);
 
     UiOps.FindSuggestSel:= c.GetValue('find_suggest_sel', UiOps.FindSuggestSel);
     UiOps.FindSuggestWord:= c.GetValue('find_suggest_cur_word', UiOps.FindSuggestWord);
@@ -510,9 +523,10 @@ begin
     UiOps.FindIndentVert:= c.GetValue('find_indent_vert', UiOps.FindIndentVert);
     UiOps.FindIndentHorz:= c.GetValue('find_indent_horz', UiOps.FindIndentHorz);
 
-    UiOps.TabSizeX:= c.GetValue('ui_tab_size_x', UiOps.TabSizeX);
-    UiOps.TabSizeY:= c.GetValue('ui_tab_size_y', UiOps.TabSizeY);
-    UiOps.TabIndentX:= c.GetValue('ui_tab_indent_x', UiOps.TabIndentX);
+    UiOps.TabWidth:= c.GetValue('ui_tab_size_x', UiOps.TabWidth);
+    UiOps.TabHeight:= c.GetValue('ui_tab_size_y', UiOps.TabHeight);
+    UiOps.TabHeightInner:= UiOps.TabHeight-1;
+    UiOps.TabIndentInit:= c.GetValue('ui_tab_indent_x', UiOps.TabIndentInit);
     UiOps.TabAngle:= Max(0, Min(10, c.GetValue('ui_tab_angle', UiOps.TabAngle)));
     UiOps.TabBottom:= c.GetValue('ui_tab_bottom', UiOps.TabBottom);
     UiOps.TabColorFull:= c.GetValue('ui_tab_fullcolor', UiOps.TabColorFull);
@@ -526,8 +540,10 @@ begin
     UiOps.ListboxCompleteSizeY:= c.GetValue('ui_listbox_complete_size_y', UiOps.ListboxCompleteSizeY);
     UiOps.ListboxFuzzySearch:= c.GetValue('ui_listbox_fuzzy', UiOps.ListboxFuzzySearch);
 
+    UiOps.MaxHistoryEdits:= Max(0, Min(200, c.GetValue('ui_max_history_edits', UiOps.MaxHistoryEdits)));
     UiOps.MaxHistoryMenu:= Max(0, Min(20, c.GetValue('ui_max_history_menu', UiOps.MaxHistoryMenu)));
     UiOps.MaxHistoryFiles:= Max(0, Min(400, c.GetValue('ui_max_history_files', UiOps.MaxHistoryFiles)));
+
     UiOps.EscapeClose:= c.GetValue('ui_esc_close', UiOps.EscapeClose);
     UiOps.EscapeCloseConsole:= c.GetValue('ui_esc_close_console', UiOps.EscapeCloseConsole);
     UiOps.InitialDir:= c.GetValue('ui_initial_dir', UiOps.InitialDir);
@@ -553,6 +569,7 @@ begin
 
     Op.OpMouse2ClickDragSelectsWords:= c.GetValue('mouse_2click_drag_select_words', Op.OpMouse2ClickDragSelectsWords);
     Op.OpMouseDragDrop:= c.GetValue('mouse_drag_drop', Op.OpMouseDragDrop);
+    Op.OpMouseDragDropFocusTarget:= c.GetValue('mouse_drag_drop_focus_target', Op.OpMouseDragDropFocusTarget);
     Op.OpMouseNiceScroll:= c.GetValue('mouse_browser_scroll', Op.OpMouseNiceScroll);
     Op.OpMouseRightClickMovesCaret:= c.GetValue('mouse_rt_click_moves_caret', Op.OpMouseRightClickMovesCaret);
     Op.OpMouseEnableColumnSelection:= c.GetValue('mouse_column_selection', Op.OpMouseEnableColumnSelection);
@@ -587,7 +604,7 @@ begin
   if an=nil then exit;
   if an.LexerName='' then exit;
 
-  fn:= GetLexerOverrideFN(an.LexerName);
+  fn:= GetAppLexerOverrideFilename(an.LexerName);
   if FileExistsUTF8(fn) then
   begin
     Ops:= EditorOps;
@@ -597,29 +614,40 @@ begin
 end;
 
 
-procedure TfmMain.DoOps_DlgFontText;
+procedure TfmMain.DoOps_DialogFont_Text;
 begin
-  DoOps_DlgFont(
+  DoOps_DialogFont(
     EditorOps.OpFontName,
     EditorOps.OpFontSize,
-    'font_name',
-    'font_size');
-  DoApplyFontFixed;
+    str_FontName,
+    str_FontSize);
+  DoApplyFont_Text;
 end;
 
-procedure TfmMain.DoOps_DlgFontUi;
+procedure TfmMain.DoOps_DialogFont_Ui;
 begin
-  DoOps_DlgFont(
+  DoOps_DialogFont(
     UiOps.VarFontName,
     UiOps.VarFontSize,
-    'ui_font_name',
-    'ui_font_size');
-  DoApplyFontVar;
+    str_UiFontName,
+    str_UiFontSize);
+  DoApplyFont_Ui;
 end;
 
-procedure TfmMain.DoOps_DlgFont(
+procedure TfmMain.DoOps_DialogFont_Output;
+begin
+  DoOps_DialogFont(
+    UiOps.OutputFontName,
+    UiOps.OutputFontSize,
+    str_UiFontOutputName,
+    str_UiFontOutputSize);
+  DoApplyFont_Output;
+end;
+
+
+procedure TfmMain.DoOps_DialogFont(
   var OpName: string; var OpSize: integer;
-  const ConfStrName, ConfStrSize: string);
+  const AConfigStrName, AConfigStrSize: string);
 var
   cfg: TJsonConfig;
   fn: string;
@@ -640,9 +668,9 @@ begin
   cfg:= TJSONConfig.Create(nil);
   try
     cfg.Formatted:= true;
-    cfg.Filename:= string(utf8decode(fn));
-    cfg.SetValue(ConfStrName, UTF8Decode(OpName));
-    cfg.SetValue(ConfStrSize, OpSize);
+    cfg.Filename:= string(utf8decode(fn);
+    cfg.SetValue(AConfigStrName, UTF8Decode(OpName));
+    cfg.SetValue(AConfigStrSize, OpSize);
   finally
     try
       cfg.Free;
@@ -656,7 +684,7 @@ procedure TfmMain.DoOps_LoadOptionsAndApplyAll;
 begin
   DoOps_LoadOptions(GetAppPath(cFileOptUser), EditorOps);
   DoApplyAllOps;
-  MsgStatus(msgStatusReadOps);
+  MsgStatus(msgStatusReadingOps);
 end;
 
 

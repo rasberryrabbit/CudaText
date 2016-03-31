@@ -23,6 +23,7 @@ uses
   LclType,
   LclIntf,
   proc_globdata,
+  proc_msg,
   proc_colors,
   proc_str,
   proc_keysdialog,
@@ -93,10 +94,11 @@ begin
   edit.Colors.TextBG:= GetAppColor('EdTextBg');
   edit.Colors.TextSelFont:= GetAppColor('EdSelFont');
   edit.Colors.TextSelBG:= GetAppColor('EdSelBg');
+  edit.Colors.BorderLine:= GetAppColor('EdBorder');
   list.Color:= GetAppColor('ListBg');
 
   ResultNum:= 0;
-  list.ItemHeight:= GetDefaultListItemHeight;
+  list.ItemHeight:= GetListboxItemHeight(UiOps.VarFontName, UiOps.VarFontSize);
   self.Width:= UiOps.ListboxWidth;
   keymapList:= TList.Create;
 end;
@@ -191,11 +193,15 @@ begin
 end;
 
 procedure TfmCommands.DoConfigKey(Cmd: integer);
+var
+  N: integer;
 begin
+  N:= list.ItemIndex;
   if DoDialogHotkeys(Cmd) then
   begin
     DoFilter;
     DoFindDupKeys;
+    list.ItemIndex:= N;
   end;
 end;
 
@@ -227,13 +233,18 @@ var
   buf: string;
 begin
   if AIndex=list.ItemIndex then
-    cl:= GetAppColor('ListSelBg')
+  begin
+    cl:= GetAppColor('ListSelBg');
+    c.Font.Color:= GetAppColor('ListSelFont');
+  end
   else
+  begin
     cl:= list.Color;
+    c.Font.Color:= GetAppColor('ListFont');
+  end;
   c.Brush.Color:= cl;
   c.Pen.Color:= cl;
   c.FillRect(ARect);
-  c.Font.Color:= GetAppColor('ListFont');
 
   //name, key
   strname:= TATKeymapItem(keymapList[AIndex]).Name;
@@ -355,10 +366,10 @@ begin
          KeyArraysEqualNotEmpty(item1.Keys1, item2.Keys2) or
          KeyArraysEqualNotEmpty(item1.Keys2, item2.Keys1) then
         begin
-          MsgBox('Commands have same hotkeys:'#13+
+          MsgBox(msgStatusCommandsHaveSameHotkeys+#13+
             item1.Name+#13+
             item2.Name+#13+
-            #13'Please correct one of these hotkeys.',
+            #13+msgStatusCorrectOneOfTheseHotkeys,
             MB_OK or MB_ICONWARNING);
           Result:= true;
           Exit

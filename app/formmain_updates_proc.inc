@@ -15,15 +15,19 @@ begin
   F:= CurrentFrame;
   if UiOps.ShowTitlePath then
   begin
-    SName:= F.FileName;
-    if SName='' then SName:= F.TabCaption;
+    if F.IsText then
+      SName:= F.FileName
+    else
+      SName:= F.PictureFileName;
+    if SName='' then
+      SName:= F.TabCaption;
   end
   else
     SName:= F.TabCaption;
 
   SMark:= IfThen(F.Editor.Modified, '*');
 
-  SSession:= ChangeFileExt(ExtractFileName(FSessionFilename), '');
+  SSession:= ChangeFileExt(ExtractFileName(FSessionName), '');
   if SSession<>'history session' then
     SSession:= ' {'+SSession+'}'
   else
@@ -47,11 +51,12 @@ begin
   if not F.IsText then
   begin
     Size:= F.PictureSizes;
-    Status[cStatusCaret]:= Format(msgStatusPicture, [Size.X, Size.Y]);
+    Status[cStatusCaret]:= Format(msgStatusPictureNxN, [Size.X, Size.Y]);
     Status[cStatusEnc]:= '';
     Status[cStatusEnds]:= '';
     Status[cStatusLexer]:= '';
     Status[cStatusTabsize]:= '';
+    Status[cStatusInsOvr]:= '';
     exit;
   end;
 
@@ -71,9 +76,9 @@ begin
 
   //------
   case F.LineEnds of
-    cEndWin: S:= 'Win';
-    cEndUnix: S:= 'Unix';
-    cEndMac: S:= 'Mac';
+    cEndWin: S:= msgEndWin;
+    cEndUnix: S:= msgEndUnix;
+    cEndMac: S:= msgEndMac;
     else S:= '?';
   end;
   Status[cStatusEnds]:= S;
@@ -87,8 +92,11 @@ begin
   Status[cStatusLexer]:= S;
 
   //------
-  S:= Format('Tab size %d%s', [Ed.OptTabSize, IfThen(Ed.OptTabSpaces, '_')]);
-  Status[cStatusTabsize]:= S;
+  Status[cStatusTabsize]:= EditorFormatTabsize(Ed, UiOps.StatusTabsize);
+
+  //------
+  S:= IfThen(Ed.ModeOverwrite, 'Ovr', 'Ins');
+  Status[cStatusInsOvr]:= S;
 end;
 
 procedure TfmMain.InitStatusButton;
@@ -190,7 +198,7 @@ begin
 end;
 
 
-procedure TfmMain.DoApplyFontFixed;
+procedure TfmMain.DoApplyFont_Text;
 var
   F: TEditorFrame;
   i: integer;
@@ -215,15 +223,13 @@ begin
 
   if Assigned(fmFind) then fmFind.UpdateFonts;
   if Assigned(fmGoto) then fmGoto.UpdateFonts;
-
-  ListboxOut.ItemHeight:= GetDefaultListItemHeight;
-  ListboxVal.ItemHeight:= ListboxOut.ItemHeight;
 end;
 
-procedure TfmMain.DoApplyFontVar;
+procedure TfmMain.DoApplyFont_Ui;
 begin
   Self.Font.Name:= UiOps.VarFontName;
   Self.Font.Size:= UiOps.VarFontSize;
+  Self.Font.Color:= GetAppColor('TabFont');
 
   Groups.SetTabFont(Self.Font);
   TabsBottom.Font:= Self.Font;
@@ -241,7 +247,17 @@ begin
 
   cCompleteFontName:= UiOps.VarFontName;
   cCompleteFontSize:= UiOps.VarFontSize;
-  cCompleteItemHeight:= GetDefaultListItemHeight;
+  cCompleteItemHeight:= GetListboxItemHeight(UiOps.VarFontName, UiOps.VarFontSize);
+end;
+
+procedure TfmMain.DoApplyFont_Output;
+begin
+  ListboxOut.Font.Name:= UiOps.OutputFontName;
+  ListboxOut.Font.Size:= UiOps.OutputFontSize;
+  ListboxVal.Font.Name:= UiOps.OutputFontName;
+  ListboxVal.Font.Size:= UiOps.OutputFontSize;
+  ListboxOut.ItemHeight:= GetListboxItemHeight(UiOps.OutputFontName, UiOps.OutputFontSize);
+  ListboxVal.ItemHeight:= ListboxOut.ItemHeight;
 end;
 
 procedure TfmMain.UpdateMenuRecent(F: TEditorFrame);
@@ -281,7 +297,7 @@ begin
   sub.Add(mi);
 
   mi:= TMenuItem.Create(Self);
-  mi.Caption:= 'Clear list';
+  mi.Caption:= msgFileClearList;
   mi.OnClick:= @MenuRecentsClear;
   sub.Add(mi);
 
@@ -356,8 +372,9 @@ var
   F: TEditorFrame;
   i: integer;
 begin
-  DoApplyFontFixed;
-  DoApplyFontVar;
+  DoApplyFont_Text;
+  DoApplyFont_Ui;
+  DoApplyFont_Output;
   DoApplyUiOps;
 
   for i:= 0 to FrameCount-1 do
@@ -389,15 +406,23 @@ begin
   if not Assigned(mi) then exit;
   mi.Tag:= cmd;
   mi.OnClick:= @MenuMainClick;
-  mi.ShortCut:= Keymap.GetShortcutFromCommand(cmd);
+  mi.ShortCut:= AppKeymap.GetShortcutFromCommand(cmd);
 
   //don't set Esc here: for OSX/ Qt, else Esc blocked in Find/ Goto/ closing app
-  if mi.Shortcut=cShortcutEscape then
+  if mi.Shortcut=AppShortcutEscape then
     mi.ShortCut:= 0;
 end;
 
 procedure TfmMain.UpdateMenuHotkeys;
 begin
+  UpKey(mnuFileEndWin, cmd_LineEndWin);
+  UpKey(mnuFileEndUn, cmd_LineEndUnix);
+  UpKey(mnuFileEndMac, cmd_LineEndMac);
+
+  UpKey(mnuEndsWin, cmd_LineEndWin);
+  UpKey(mnuEndsUnix, cmd_LineEndUnix);
+  UpKey(mnuEndsMac, cmd_LineEndMac);
+
   UpKey(mnuFileNew, cmd_FileNew);
   UpKey(mnuFileOpen, cmd_FileOpen);
   UpKey(mnuFileReopen, cmd_FileReopen);
@@ -519,10 +544,15 @@ begin
   UpKey(mnuOpUser, cmd_OpsOpenUser);
   UpKey(mnuOpLexer, cmd_OpsOpenLexerOvr);
   UpKey(mnuOpFileTypes, cmd_OpsOpenFileTypes);
+  UpKey(mnuOpKeys, cmd_HelpHotkeys);
+
   UpKey(mnuFontText, cmd_OpsFontText);
   UpKey(mnuFontUi, cmd_OpsFontUi);
+  UpKey(mnuFontOutput, cmd_OpsFontOutput);
+
   UpKey(mnuOpLexProp, cmd_DialogLexerProp);
   UpKey(mnuOpLexLib, cmd_DialogLexerLib);
+  UpKey(mnuOpLexMap, cmd_DialogLexerStyleMap);
   UpKey(mnuOpColors, cmd_DialogColors);
 
   UpKey(mnuHelpCmd, cmd_DialogCommands);
@@ -530,6 +560,7 @@ begin
   UpKey(mnuHelpWiki, cmd_HelpWiki);
   UpKey(mnuHelpMouse, cmd_HelpMouse);
   UpKey(mnuHelpLexers, cmd_HelpLexers);
+  UpKey(mnuHelpIssues, cmd_HelpIssues);
   UpKey(mnuHelpChangelog, cmd_HelpChangelog);
   UpKey(mnuHelpAbout, cmd_HelpAbout);
 
@@ -553,17 +584,21 @@ var
   sl: tstringlist;
 begin
   //del all dynamic items
-  while Keymap[Keymap.Count-1].Command>=cmdFirstLexerCommand do
-    Keymap.Delete(Keymap.Count-1);
+  while AppKeymap[AppKeymap.Count-1].Command>=cmdFirstLexerCommand do
+    AppKeymap.Delete(AppKeymap.Count-1);
 
   //dynamic lexer items
   sl:= TStringList.Create;
   try
-    for i:= 0 to Manager.AnalyzerCount-1 do
-      sl.AddObject('lexer: '+Manager.Analyzers[i].LexerName, TObject(cmdFirstLexerCommand+i));
+    for i:= 0 to AppManager.AnalyzerCount-1 do
+      sl.AddObject('lexer: '+AppManager.Analyzers[i].LexerName, TObject(cmdFirstLexerCommand+i));
     sl.Sort;
+
+    //insert "none" at list begin
+    sl.InsertObject(0, 'lexer: '+msgNoLexer, TObject(cmdLastLexerCommand));
+
     for i:= 0 to sl.count-1 do
-      Keymap.Add(PtrInt(sl.Objects[i]), sl[i], [], []);
+      AppKeymap.Add(PtrInt(sl.Objects[i]), sl[i], [], []);
   finally
     FreeAndNil(sl);
   end;
@@ -573,7 +608,7 @@ begin
   begin
     if FPluginsCmd[i].ItemModule='' then Break;
     if SEndsWith(FPluginsCmd[i].ItemCaption, '-') then Continue;
-    Keymap.Add(
+    AppKeymap.Add(
       cmdFirstPluginCommand+i,
       'plugin: '+StringReplace(FPluginsCmd[i].ItemCaption, '\', ' - ', [rfReplaceAll]),
       [], []);
@@ -591,7 +626,7 @@ begin
   sub.Clear;
 
   mi:= tmenuitem.create(Self);
-  mi.caption:= msgDefTheme;
+  mi.caption:= msgThemeDefault;
   mi.OnClick:= @MenuThemeDefClick;
   mi.Checked:= FThemeName='';
   sub.Add(mi);
@@ -673,6 +708,7 @@ begin
   fmConsole.ed.Colors.TextSelBG:= GetAppColor('EdSelBg');
   fmConsole.ed.Colors.ComboboxArrow:= GetAppColor('EdComboArrow');
   fmConsole.ed.Colors.ComboboxArrowBG:= GetAppColor('EdComboArrowBg');
+  fmConsole.ed.Colors.BorderLine:= GetAppColor('EdBorder');
   fmConsole.ed.Update;
 
   fmConsole.memo.Colors.TextFont:= GetAppColor('EdTextFont');
@@ -683,10 +719,10 @@ begin
 
   ToolbarMain.Color:= GetAppColor('TabBg');
 
-  Status.Font.Color:= GetAppColor('TabFont');
-  Status.Color:= GetAppColor('TabBg');
-  Status.ColorBorderTop:= GetAppColor('TabBorderPassive');
-  Status.ColorBorderR:= GetAppColor('TabBorderPassive');
+  Status.Font.Color:= GetAppColor('StatusFont');
+  Status.Color:= GetAppColor('StatusBg');
+  Status.ColorBorderTop:= GetAppColor('StatusLines');
+  Status.ColorBorderR:= GetAppColor('StatusLines');
 
   StatusAlt.Font.Color:= Status.Font.Color;
   StatusAlt.Color:= GetAppColor('StatusAltBg');
@@ -751,6 +787,7 @@ begin
     fmGoto.edInput.Colors.TextBG:= GetAppColor('EdTextBg');
     fmGoto.edInput.Colors.TextSelFont:= GetAppColor('EdSelFont');
     fmGoto.edInput.Colors.TextSelBG:= GetAppColor('EdSelBg');
+    fmGoto.edInput.Colors.BorderLine:= GetAppColor('EdBorder');
     fmGoto.edInput.Update;
     fmGoto.Invalidate;
   end;
@@ -765,6 +802,7 @@ begin
     fmFind.edFind.Colors.TextSelBG:= GetAppColor('EdSelBg');
     fmFind.edFind.Colors.ComboboxArrow:= GetAppColor('EdComboArrow');
     fmFind.edFind.Colors.ComboboxArrowBG:= GetAppColor('EdComboArrowBg');
+    fmFind.edFind.Colors.BorderLine:= GetAppColor('EdBorder');
     fmFind.edFind.Update;
     fmFind.edRep.Colors.TextFont:= GetAppColor('EdTextFont');
     fmFind.edRep.Colors.TextBG:= GetAppColor('EdTextBg');
@@ -774,11 +812,14 @@ begin
     fmFind.edRep.Colors.TextDisabledBG:= GetAppColor('EdDisableBg');
     fmFind.edRep.Colors.ComboboxArrow:= GetAppColor('EdComboArrow');
     fmFind.edRep.Colors.ComboboxArrowBG:= GetAppColor('EdComboArrowBg');
+    fmFind.edRep.Colors.BorderLine:= GetAppColor('EdBorder');
     fmFind.edRep.Update;
     fmFind.Invalidate;
   end;
 
   DoApplyThemeToTreeview(Tree);
+  DoApplyThemeToTreeview(TreeRes);
+
   for i:= Low(FAppSidePanels) to High(FAppSidePanels) do
     with FAppSidePanels[i] do
     begin
@@ -787,9 +828,11 @@ begin
         DoApplyThemeToTreeview(ItemTreeview);
     end;
 
+  //apply AppTheme to all frames
   for i:= 0 to FrameCount-1 do
   begin
     F:= Frames[i];
+    F.Lexer:= F.Lexer; //apply lexer style map
     EditorApplyTheme(F.Editor);
     EditorApplyTheme(F.Editor2);
     F.Editor.Update;
@@ -889,37 +932,40 @@ var
     (Sub: ''; Name: cEncNameUtf16LE),
     (Sub: ''; Name: cEncNameUtf16BE),
     (Sub: ''; Name: '-'),
-    (Sub: 'European'; Name: cEncNameCP1250),
-    (Sub: 'European'; Name: cEncNameCP1251),
-    (Sub: 'European'; Name: cEncNameCP1252),
-    (Sub: 'European'; Name: cEncNameCP1253),
-    (Sub: 'European'; Name: cEncNameCP1257),
-    (Sub: 'European'; Name: '-'),
-    (Sub: 'European'; Name: cEncNameCP437),
-    (Sub: 'European'; Name: cEncNameCP850),
-    (Sub: 'European'; Name: cEncNameCP852),
-    (Sub: 'European'; Name: cEncNameCP866),
-    (Sub: 'European'; Name: '-'),
-    (Sub: 'European'; Name: cEncNameISO1),
-    (Sub: 'European'; Name: cEncNameISO2),
-    (Sub: 'European'; Name: cEncNameMac),
-    (Sub: 'Misc'; Name: cEncNameCP1254),
-    (Sub: 'Misc'; Name: cEncNameCP1255),
-    (Sub: 'Misc'; Name: cEncNameCP1256),
-    (Sub: 'Asian'; Name: cEncNameCP874),
-    (Sub: 'Asian'; Name: cEncNameCP932),
-    (Sub: 'Asian'; Name: cEncNameCP936),
-    (Sub: 'Asian'; Name: cEncNameCP949),
-    (Sub: 'Asian'; Name: cEncNameCP950),
-    (Sub: 'Asian'; Name: cEncNameCP1258)
+    (Sub: 'eu'; Name: cEncNameCP1250),
+    (Sub: 'eu'; Name: cEncNameCP1251),
+    (Sub: 'eu'; Name: cEncNameCP1252),
+    (Sub: 'eu'; Name: cEncNameCP1253),
+    (Sub: 'eu'; Name: cEncNameCP1257),
+    (Sub: 'eu'; Name: '-'),
+    (Sub: 'eu'; Name: cEncNameCP437),
+    (Sub: 'eu'; Name: cEncNameCP850),
+    (Sub: 'eu'; Name: cEncNameCP852),
+    (Sub: 'eu'; Name: cEncNameCP866),
+    (Sub: 'eu'; Name: '-'),
+    (Sub: 'eu'; Name: cEncNameISO1),
+    (Sub: 'eu'; Name: cEncNameISO2),
+    (Sub: 'eu'; Name: cEncNameMac),
+    (Sub: 'mi'; Name: cEncNameCP1254),
+    (Sub: 'mi'; Name: cEncNameCP1255),
+    (Sub: 'mi'; Name: cEncNameCP1256),
+    (Sub: 'as'; Name: cEncNameCP874),
+    (Sub: 'as'; Name: cEncNameCP932),
+    (Sub: 'as'; Name: cEncNameCP936),
+    (Sub: 'as'; Name: cEncNameCP949),
+    (Sub: 'as'; Name: cEncNameCP950),
+    (Sub: 'as'; Name: cEncNameCP1258)
   );
   //
-  procedure DoAdd(AMenu: TMenuItem; const Sub, SName: string; AReloadFile: boolean);
+  procedure DoAdd(AMenu: TMenuItem; Sub, SName: string; AReloadFile: boolean);
   var
     mi, miSub: TMenuItem;
     n: integer;
   begin
     miSub:= nil;
+    if Sub='eu' then Sub:= msgEncEuropean else
+     if Sub='as' then Sub:= msgEncAsian else
+      if Sub='mi' then Sub:= msgEncMisc;
 
     if Sub<>'' then
     begin
@@ -937,6 +983,7 @@ var
     if miSub=nil then miSub:= AMenu;
     mi:= TMenuItem.Create(Self);
     mi.Caption:= SName;
+
     if AReloadFile then
       mi.OnClick:= @MenuEncWithReloadClick
     else
@@ -949,12 +996,16 @@ var
   miReload, miNoReload: TMenuItem;
   i: integer;
 begin
+  if AMenu=nil then exit;
   AMenu.Clear;
 
   miReload:= TMenuItem.Create(Self);
-  miReload.Caption:= 'Reload as';
+  miReload.Caption:= msgEncReloadAs;
+  miReload.Hint:= 'enc_reload';
   miNoReload:= TMenuItem.Create(Self);
-  miNoReload.Caption:= 'Convert to';
+  miNoReload.Caption:= msgEncConvertTo;
+  miNoReload.Hint:= 'enc_noreload';
+
   AMenu.Add(miReload);
   AMenu.Add(miNoReload);
 
@@ -978,6 +1029,7 @@ begin
   cStatusEnds:= -1;
   cStatusLexer:= -1;
   cStatusTabsize:= -1;
+  cStatusInsOvr:= -1;
   cStatusMsg:= -1;
 
   repeat
@@ -991,8 +1043,9 @@ begin
       if SItem='ends' then cStatusEnds:= NIndex else
        if SItem='lexer' then cStatusLexer:= NIndex else
         if SItem='tabsize' then cStatusTabsize:= NIndex else
-         if SItem='msg' then cStatusMsg:= NIndex else
-          Continue;
+         if SItem='ins' then cStatusInsOvr:= NIndex else
+          if SItem='msg' then cStatusMsg:= NIndex else
+           Continue;
 
     SItem:= SGetItem(SPanel);
     if SItem='C' then Al:= saMiddle else
@@ -1001,10 +1054,12 @@ begin
        Al:= saMiddle;
 
     SItem:= SGetItem(SPanel);
-    NSize:= Max(50, StrToIntDef(SItem, 200));
+    NSize:= Max(20, StrToIntDef(SItem, 200));
 
     Status.AddPanel(NSize, Al, '');
   until false;
+
+  UpdateStatusbarPanelAutosize;
 end;
 
 
@@ -1028,4 +1083,50 @@ begin
   Groups.Splitter4.Invalidate;
   Groups.Splitter5.Invalidate;
 end;
+
+procedure TfmMain.UpdateStatusbarPanelAutosize;
+begin
+  Status.DoPanelAutosize(cStatusMsg);
+end;
+
+procedure TfmMain.StatusResize(Sender: TObject);
+begin
+  UpdateStatusbarPanelAutosize;
+end;
+
+
+procedure TfmMain.UpdateMenuLangs(sub: TMenuItem);
+var
+  mi: tmenuitem;
+  cap: string;
+  i: integer;
+begin
+  if sub=nil then exit;
+  sub.Clear;
+
+  mi:= tmenuitem.create(Self);
+  mi.Caption:= 'English (built-in)';
+  mi.Tag:= -1;
+  mi.OnClick:= @MenuLangClick;
+  mi.Checked:= AppLangName='';
+  sub.Add(mi);
+
+  FFindFilesInDir(GetAppPath(cDirDataLangs), '*.ini', FListLangs);
+  if FListLangs.count=0 then exit;
+  FListLangs.Sort;
+
+  for i:= 0 to FListLangs.count-1 do
+  begin
+    cap:= ExtractFileNameOnly(FListLangs[i]);
+    if sub.IndexOfCaption(cap)>=0 then Continue; //for Qt
+    mi:= TMenuItem.Create(Self);
+    mi.Caption:= cap;
+    mi.Tag:= i;
+    mi.OnClick:= @MenuLangClick;
+    mi.Checked:= LowerCase(AppLangName)=LowerCase(mi.Caption);
+    sub.Add(mi);
+  end;
+end;
+
+
 

@@ -11,6 +11,7 @@ procedure TfmMain.TimerCmdTimer(Sender: TObject);
 var
   Cmd: integer;
   P: TPoint;
+  Str: atString;
 begin
   TimerCmd.Enabled:= false;
   Cmd:= TimerCmd.Tag;
@@ -25,12 +26,8 @@ begin
     cmd_FileCloseOtherAll:   Groups.CloseTabs(tabCloseOthersAllPages, false);
     cmd_FileCloseAndDelete:  DoFileCloseAndDelete;
 
-    cmd_FileSave:            begin
-                               with CurrentFrame do
-                                 if Modified or (FileName='') then
-                                   DoFileSave(false, SaveDlg);
-                             end;
-    cmd_FileSaveAs:          CurrentFrame.DoFileSave(true, SaveDlg);
+    cmd_FileSave:            DoFileSave;
+    cmd_FileSaveAs:          DoFileSaveAs;
     cmd_FileSaveAll:         DoFileSaveAll;
 
     cmd_FileExit:            Close;
@@ -44,6 +41,7 @@ begin
     cmd_DialogSaveTabs:    DoDialogSaveTabs;
     cmd_DialogLexerProp:   DoDialogLexerProp(CurrentFrame.Lexer);
     cmd_DialogLexerLib:    DoDialogLexerLib;
+    cmd_DialogLexerStyleMap: DoDialogLexerMap;
     cmd_DialogLoadLexerStyles: DoDialogLoadLexerStyles;
     cmd_DialogColors:      DoDialogColors;
     cmd_DialogCharMap:     DoDialogCharMap;
@@ -59,6 +57,7 @@ begin
     cmd_ShowPanelConsole:  DoShowConsole;
     cmd_ShowPanelOutput:   DoShowOutput;
     cmd_ShowPanelValidate: DoShowValidate;
+    cmd_ShowPanelSearchRes: DoShowSearchResults;
 
     cmd_ShowSidePanelAsIs: DoShowSidePanel('');
     cmd_ShowSidePanelAndSyntaxTree: DoShowSidePanel('Tree');
@@ -76,11 +75,14 @@ begin
     cmd_OpsOpenUser:        DoOps_OpenFile_User;
     cmd_OpsOpenLexerOvr:    DoOps_OpenFile_LexerOvr;
     cmd_OpsOpenFileTypes:   DoOps_OpenFile_FileTypes;
-    cmd_OpsFontText:        DoOps_DlgFontText;
-    cmd_OpsFontUi:          DoOps_DlgFontUi;
+
+    cmd_OpsFontText:        DoOps_DialogFont_Text;
+    cmd_OpsFontUi:          DoOps_DialogFont_Ui;
+    cmd_OpsFontOutput:      DoOps_DialogFont_Output;
 
     cmd_ResetPythonPlugins: DoPyResetPlugins;
     cmd_RunLastCommandPlugin: DoPyRunLastPlugin;
+    cmd_RescanPythonPluginsInfFiles: DoPyRescanPlugins;
 
     cmd_Groups1:     Groups.Mode:= gmOne;
     cmd_Groups2horz: Groups.Mode:= gm2Horz;
@@ -119,7 +121,7 @@ begin
     cmd_ConvertTabsToSpaces: EditorConvertTabsToSpaces(CurrentEditor);
     cmd_ConvertSpacesToTabsLeading: EditorConvertSpacesToTabsLeading(CurrentEditor);
 
-    cmd_BookmarkToggle: begin EditorBookmarkSet(CurrentEditor, -1, 1, bmOpToggle); UpdateFrame; end;
+    cmd_BookmarkToggle: begin EditorBookmarkSet(CurrentEditor, -1, 1, bmOpToggle, ''); UpdateFrame; end;
     cmd_BookmarkClearAll: begin EditorBookmarkClearAll(CurrentEditor); UpdateFrame; end;
     cmd_BookmarkInvertAll: begin EditorBookmarkInvertAll(CurrentEditor); UpdateFrame; end;
     cmd_BookmarkGotoNext: EditorBookmarkGotoNext(CurrentEditor, true);
@@ -260,6 +262,46 @@ begin
         MsgStatus('');
       end;
 
+    cmd_LinkAtCaret_Open:
+      begin
+        Str:= EditorGetLinkAtCaret(CurrentEditor);
+        if Str<>'' then
+        begin
+          OpenURL(Str);
+          MsgStatus(msgStatusOpenedBrowser);
+        end;
+      end;
+
+    cmd_LinkAtCaret_Copy:
+      begin
+        Str:= EditorGetLinkAtCaret(CurrentEditor);
+        if Str<>'' then
+        begin
+          Clipboard.AsText:= Utf8Encode(Str);
+          MsgStatus(msgStatusCopiedLink);
+        end;
+      end;
+
+    cmd_LinkAtPopup_Open:
+      begin
+        Str:= EditorGetLinkAtScreenCoord(CurrentEditor, PopupText.PopupPoint);
+        if Str<>'' then
+        begin
+          OpenURL(Str);
+          MsgStatus(msgStatusOpenedBrowser);
+        end;
+      end;
+
+    cmd_LinkAtPopup_Copy:
+      begin
+        Str:= EditorGetLinkAtScreenCoord(CurrentEditor, PopupText.PopupPoint);
+        if Str<>'' then
+        begin
+          Clipboard.AsText:= Utf8Encode(Str);
+          MsgStatus(msgStatusCopiedLink);
+        end;
+      end;
+
     cmd_TreeGotoNext: DoTreeviewJump(Tree, treeGoNext);
     cmd_TreeGotoPrev: DoTreeviewJump(Tree, treeGoPrev);
     cmd_TreeGotoParent: DoTreeviewJump(Tree, treeGoParent);
@@ -273,6 +315,8 @@ begin
     cmd_HelpMouse: DoHelpMouse;
     cmd_HelpChangelog: DoHelpChangelog;
     cmd_HelpLexers: DoHelpLexers;
+    cmd_HelpIssues: DoHelpIssues;
+    cmd_HelpHotkeys: DoHelpHotkeys;
 
 
     cmdFirstLexerCommand..

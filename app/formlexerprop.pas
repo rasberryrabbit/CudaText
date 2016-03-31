@@ -12,12 +12,15 @@ unit formlexerprop;
 interface
 
 uses
-  Classes, SysUtils, Graphics, FileUtil, Forms, Controls, StdCtrls,
-  Dialogs, ButtonPanel, ComCtrls, ExtCtrls, ColorBox,
+  Classes, SysUtils, Graphics, Forms, Controls, StdCtrls,
+  Dialogs, ButtonPanel, ComCtrls, ExtCtrls, ColorBox, IniFiles,
+  LazUTF8, LazFileUtils,
   ecSyntAnal,
   ATSynEdit,
   ATSynEdit_Adapter_EControl,
-  proc_lexer_styles;
+  proc_msg,
+  proc_globdata,
+  proc_lexer_styles, proc_editor;
 
 type
   { TfmLexerProp }
@@ -40,21 +43,21 @@ type
     edLineCmt: TEdit;
     edName: TEdit;
     edSample: TATSynEdit;
-    Label1: TLabel;
-    Label10: TLabel;
-    Label11: TLabel;
-    Label12: TLabel;
-    Label13: TLabel;
-    Label14: TLabel;
-    Label2: TLabel;
-    Label3: TLabel;
-    Label4: TLabel;
+    LabelSample: TLabel;
+    LabelBorderL: TLabel;
+    LabelBorderT: TLabel;
+    LabelBorderR: TLabel;
+    LabelBorderB: TLabel;
+    LabelColorBorder: TLabel;
+    LabelLexerName: TLabel;
+    LabelFileTypes: TLabel;
+    LabelLineCmt: TLabel;
     edNotes: TMemo;
-    Label5: TLabel;
-    Label6: TLabel;
-    Label7: TLabel;
-    Label8: TLabel;
-    Label9: TLabel;
+    LabelColorFont: TLabel;
+    LabelStyleType: TLabel;
+    LabelColorBg: TLabel;
+    LabelFontStyles: TLabel;
+    LabelBorder: TLabel;
     ListStyles: TListBox;
     chkBorderT: TPageControl;
     Panel1: TPanel;
@@ -99,19 +102,95 @@ implementation
 
 {$R *.lfm}
 
+var
+  msgBorderTypeNone: string = 'none';
+  msgBorderTypeSolid: string = 'solid';
+  msgBorderTypeDash: string = 'dash';
+  msgBorderTypeDot: string = 'dot';
+  msgBorderTypeDashDot: string = 'dash dot';
+  msgBorderTypeDashDotDot: string = 'dash dot dot';
+  msgBorderTypeSolid2: string = 'solid2';
+  msgBorderTypeSolid3: string = 'solid3';
+  msgBorderTypeWave: string = 'wave';
+  msgBorderTypeDouble: string = 'double';
+
+procedure DoLocString(var AStr: string; ini: TIniFile; const ASection, AKey: string);
+begin
+  AStr:= ini.ReadString(ASection, AKey, AStr);
+end;
+
+procedure DoLocalize_FormLexerProp(F: TfmLexerProp);
+const
+  section = 'd_lex_prop';
+var
+  ini: TIniFile;
+  fn: string;
+begin
+  fn:= GetAppLangFilename;
+  if not FileExists(fn) then exit;
+  ini:= TIniFile.Create(fn);
+  try
+    with F do Caption:= ini.ReadString(section, '_', Caption);
+    with F.ButtonPanel1.OKButton do Caption:= msgButtonOk;
+    with F.ButtonPanel1.CancelButton do Caption:= msgButtonCancel;
+
+    with F.TabSheetGen do Caption:= ini.ReadString(section, 'tab_gen', Caption);
+    with F.TabSheetStyles do Caption:= ini.ReadString(section, 'tab_st', Caption);
+    with F.TabSheetNotes do Caption:= ini.ReadString(section, 'tab_not', Caption);
+
+    with F.LabelLexerName do Caption:= ini.ReadString(section, 'gen_nam', Caption);
+    with F.LabelFileTypes do Caption:= ini.ReadString(section, 'gen_typ', Caption);
+    with F.LabelLineCmt do Caption:= ini.ReadString(section, 'gen_cmt_ln', Caption);
+    with F.LabelSample do Caption:= ini.ReadString(section, 'gen_smp', Caption);
+
+    with F.LabelColorBg do Caption:= ini.ReadString(section, 'col_bg', Caption);
+    with F.LabelColorFont do Caption:= ini.ReadString(section, 'col_fon', Caption);
+    with F.LabelColorBorder do Caption:= ini.ReadString(section, 'col_bor', Caption);
+
+    with F.LabelBorder do Caption:= ini.ReadString(section, 'bor', Caption);
+    with F.LabelBorderL do Caption:= ini.ReadString(section, 'bor_l', Caption);
+    with F.LabelBorderR do Caption:= ini.ReadString(section, 'bor_r', Caption);
+    with F.LabelBorderT do Caption:= ini.ReadString(section, 'bor_t', Caption);
+    with F.LabelBorderB do Caption:= ini.ReadString(section, 'bor_b', Caption);
+
+    with F.LabelFontStyles do Caption:= ini.ReadString(section, 'fon_st', Caption);
+    with F.chkBold do Caption:= ini.ReadString(section, 'fon_b', Caption);
+    with F.chkItalic do Caption:= ini.ReadString(section, 'fon_i', Caption);
+    with F.chkUnder do Caption:= ini.ReadString(section, 'fon_u', Caption);
+    with F.chkStrik do Caption:= ini.ReadString(section, 'fon_s', Caption);
+
+    with F.LabelStyleType do Caption:= ini.ReadString(section, 'typ_', Caption);
+    with F.edStyleType do Items[0]:= ini.ReadString(section, 'typ_mi', Items[0]);
+    with F.edStyleType do Items[1]:= ini.ReadString(section, 'typ_col_st', Items[1]);
+    with F.edStyleType do Items[2]:= ini.ReadString(section, 'typ_col', Items[2]);
+    with F.edStyleType do Items[3]:= ini.ReadString(section, 'typ_col_bg', Items[3]);
+
+    DoLocString(msgBorderTypeNone, ini, section, 'bty_none');
+    DoLocString(msgBorderTypeSolid, ini, section, 'bty_solid');
+    DoLocString(msgBorderTypeDash, ini, section, 'bty_dash');
+    DoLocString(msgBorderTypeDot, ini, section, 'bty_dot');
+    DoLocString(msgBorderTypeDashDot, ini, section, 'bty_dashdot');
+    DoLocString(msgBorderTypeDashDotDot, ini, section, 'bty_dashdotdot');
+    DoLocString(msgBorderTypeSolid2, ini, section, 'bty_solid2');
+    DoLocString(msgBorderTypeSolid3, ini, section, 'bty_solid3');
+    DoLocString(msgBorderTypeWave, ini, section, 'bty_wave');
+    DoLocString(msgBorderTypeDouble, ini, section, 'bty_double');
+
+  finally
+    FreeAndNil(ini);
+  end;
+end;
+
+
 { TfmLexerProp }
 
 procedure TfmLexerProp.FormCreate(Sender: TObject);
 begin
   Adapter:= TATAdapterEControl.Create(Self);
   edSample.AdapterHilite:= Adapter;
+  edSample.OptTabSize:= 4;
 
   FFormats:= TecStylesCollection.Create;
-
-  InitBorder(cbBorderL);
-  InitBorder(cbBorderT);
-  InitBorder(cbBorderR);
-  InitBorder(cbBorderB);
 end;
 
 procedure TfmLexerProp.edStyleTypeChange(Sender: TObject);
@@ -130,7 +209,7 @@ begin
       FAnalyzer.Formats.Items[i].Assign(FFormats[i]);
 
     if FStylesFilename<>'' then
-      SaveLexerStylesToFile(FAnalyzer, FStylesFilename);
+      DoSaveLexerStylesToFile(FAnalyzer, FStylesFilename);
   end;
 end;
 
@@ -167,6 +246,11 @@ procedure TfmLexerProp.FormShow(Sender: TObject);
 var
   i: integer;
 begin
+  InitBorder(cbBorderL);
+  InitBorder(cbBorderT);
+  InitBorder(cbBorderR);
+  InitBorder(cbBorderB);
+
   FFormats.Clear;
   for i:= 0 to FAnalyzer.Formats.Count-1 do
   begin
@@ -279,6 +363,9 @@ begin
 
   F:= TfmLexerProp.Create(nil);
   try
+    DoLocalize_FormLexerProp(F);
+    EditorApplyTheme(F.edSample);
+
     F.FStylesFilename:= AStylesFilename;
     F.FAnalyzer:= an;
     F.edName.Text:= an.LexerName;
@@ -317,16 +404,16 @@ begin
   with cb.Items do
   begin
     Clear;
-    Add('none');
-    Add('solid');
-    Add('dash');
-    Add('dot');
-    Add('dash dot');
-    Add('dash dot dot');
-    Add('solid2');
-    Add('solid3');
-    Add('wave');
-    Add('double');
+    Add(msgBorderTypeNone);
+    Add(msgBorderTypeSolid);
+    Add(msgBorderTypeDash);
+    Add(msgBorderTypeDot);
+    Add(msgBorderTypeDashDot);
+    Add(msgBorderTypeDashDotDot);
+    Add(msgBorderTypeSolid2);
+    Add(msgBorderTypeSolid3);
+    Add(msgBorderTypeWave);
+    Add(msgBorderTypeDouble);
   end;
 end;
 

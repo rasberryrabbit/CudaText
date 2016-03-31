@@ -56,6 +56,7 @@ end;
 function Py_MenuItemFromId(Str: string): TMenuItem;
 const
   cPrefixSidebar = 'side:';
+  cPrefixToolmenu = 'toolmenu:';
 var
   N: PtrInt;
 begin
@@ -81,6 +82,13 @@ begin
     N:= fmMain.DoSidebar_GetTabIndexOfCaption(Str);
     if N>=0 then
       exit(FAppSidePanels[N].ItemMenu.Items);
+  end;
+
+  if SBeginsWith(Str, cPrefixToolmenu) then
+  begin
+    for N:= 0 to fmMain.ToolbarMain.ButtonCount-1 do
+      if fmMain.ToolbarMain.Buttons[N].Caption=Str then
+        exit(fmMain.ToolbarMain.Buttons[N].MenuItem);
   end;
 end;
 
@@ -127,7 +135,7 @@ begin
         APP_DIR_PY:
           Result:= PyString_FromString(PChar(string(utf8decode(GetAppPath(cDirPy)))));
         APP_FILE_SESSION:
-          Result:= PyString_FromString(PChar(string(utf8decode(fmMain.FSessionFilename))));
+          Result:= PyString_FromString(PChar(string(utf8decode(fmMain.GetSessionFilename))));
         else
           Result:= ReturnNone;
       end;
@@ -196,7 +204,7 @@ begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, ':dlg_charmap')) then
     begin
-      str:= DoDialogCharmapModal;
+      str:= DoDialogCharmapModal(GetAppLangFilename);
       if str<>'' then
         Result:= PyString_FromString(PChar(string(utf8decode(str))))
       else
@@ -259,22 +267,24 @@ end;
 
 function Py_file_open(Self, Args: PPyObject): PPyObject; cdecl;
 var
-  P: PChar;
+  Ptr: PChar;
   Str: string;
   Num: integer;
   Ok: boolean;
+  Pages: TATPages;
 begin
   with GetPythonEngine do
   begin
-    if Bool(PyArg_ParseTuple(Args, 'si:file_open', @P, @Num)) then
+    if Bool(PyArg_ParseTuple(Args, 'si:file_open', @Ptr, @Num)) then
     begin
-      Str:= string(P);
+      Str:= string(Ptr);
 
-      Inc(Num, Low(TATGroupsNums));
-      if Num in [Low(TATGroupsNums)..High(TATGroupsNums)] then
-        fmMain.Groups.PagesCurrent:= fmMain.Groups.Pages[Num];
+      Pages:= nil;
+      Inc(Num, Low(TATGroupsNums)); //was 0-based, need 1-based
+      if (Num>=Low(TATGroupsNums)) and (Num<=High(TATGroupsNums)) then
+        Pages:= fmMain.Groups.Pages[Num];
 
-      Ok:= fmMain.DoFileOpen(Str)<>nil;
+      Ok:= fmMain.DoFileOpen(Str, Pages)<>nil;
       Result:= PyBool_FromLong(Ord(Ok));
     end;
   end;
@@ -295,7 +305,7 @@ begin
       if StrName<>'' then
         Frame.FileName:= StrName;
 
-      Ok:= Frame.DoFileSave(false, fmMain.SaveDlg);
+      Ok:= Frame.DoFileSave(false, fmMain.SaveDlg, nil);
       Result:= PyBool_FromLong(Ord(Ok));
     end;
 end;
@@ -321,7 +331,7 @@ begin
 
       Ok:= false;
       if Assigned(Frame) then
-        Ok:= Frame.DoFileSave(false, fmMain.SaveDlg);
+        Ok:= Frame.DoFileSave(false, fmMain.SaveDlg, nil);
       Result:= PyBool_FromLong(Ord(Ok));
     end;
 end;
@@ -623,9 +633,7 @@ begin
 
         MARKERS_DELETE_BY_TAG:
           begin
-            for i:= Ed.Attribs.Count-1 downto 0 do
-              if Ed.Attribs[i].Tag=NTag then
-                Ed.Attribs.Delete(i);
+            Ed.Attribs.DeleteWithTag(NTag);
             Ed.Update;
             fmMain.UpdateStatus;
             Result:= ReturnNone;
@@ -832,112 +840,6 @@ begin
     end;
 end;
 
-function Py_ed_get_tabcolor(Self, Args: PPyObject): PPyObject; cdecl;
-var
-  H: Int64;
-  Ed: TATSynEdit;
-  F: TEditorFrame;
-begin
-  with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'L:get_tabcolor', @H)) then
-    begin
-      Ed:= PyEditor(H);
-      F:= fmMain.GetEditorFrame(Ed);
-      Result:= PyInt_FromLong(F.TabColor);
-    end;
-end;
-
-function Py_ed_set_tabcolor(Self, Args: PPyObject): PPyObject; cdecl;
-var
-  H: Int64;
-  Val: Integer;
-  Ed: TATSynEdit;
-  F: TEditorFrame;
-begin
-  with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'Li:set_tabcolor', @H, @Val)) then
-    begin
-      Ed:= PyEditor(H);
-      F:= fmMain.GetEditorFrame(Ed);
-      F.TabColor:= Val;
-      Result:= ReturnNone;
-    end;
-end;
-
-
-function Py_ed_get_enc(Self, Args: PPyObject): PPyObject; cdecl;
-var
-  H: Int64;
-  Ed: TATSynEdit;
-  F: TEditorFrame;
-begin
-  with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'L:get_enc', @H)) then
-    begin
-      Ed:= PyEditor(H);
-      F:= fmMain.GetEditorFrame(Ed);
-      Result:= PyUnicode_FromWideString(Utf8Decode(F.EncodingName));
-    end;
-end;
-
-function Py_ed_set_enc(Self, Args: PPyObject): PPyObject; cdecl;
-var
-  H: Int64;
-  Ptr: PChar;
-  Ed: TATSynEdit;
-  F: TEditorFrame;
-  Str: string;
-begin
-  with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'Ls:set_enc', @H, @Ptr)) then
-    begin
-      Ed:= PyEditor(H);
-      Str:= string(Ptr);
-      F:= fmMain.GetEditorFrame(Ed);
-
-      F.EncodingName:= Str;
-
-      fmMain.UpdateFrame();
-      fmMain.UpdateStatus;
-      Result:= ReturnNone;
-    end;
-end;
-
-function Py_ed_get_top(Self, Args: PPyObject): PPyObject; cdecl;
-var
-  H: Int64;
-  Ed: TATSynEdit;
-begin
-  with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'L:get_top', @H)) then
-    begin
-      Ed:= PyEditor(H);
-      Result:= PyInt_FromLong(Ed.LineTop);
-    end;
-end;
-
-function Py_ed_set_top(Self, Args: PPyObject): PPyObject; cdecl;
-var
-  H: Int64;
-  Val: integer;
-  Ed: TATSynEdit;
-  F: TEditorFrame;
-begin
-  with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'Li:set_top', @H, @Val)) then
-    begin
-      Ed:= PyEditor(H);
-      F:= fmMain.GetEditorFrame(Ed);
-
-      //more correct than Ed.LineTop:= -that don't work if parsing not done
-      F.TopLineTodo:= Val;
-      Ed.LineTop:= Val;
-
-      fmMain.UpdateFrame;
-      fmMain.UpdateStatus;
-      Result:= ReturnNone;
-    end;
-end;
 
 function Py_ed_cmd(Self, Args: PPyObject): PPyObject; cdecl;
 var
@@ -945,13 +847,25 @@ var
   Ed: TATSynEdit;
   NCode: integer;
   Ptr: PChar;
+  Str: string;
 begin
   with GetPythonEngine do
     if Bool(PyArg_ParseTuple(Args, 'Lis:cmd', @H, @NCode, @Ptr)) then
     begin
       Ed:= PyEditor(H);
-      Ed.DoCommand(NCode, string(Ptr));
-      Ed.Update();
+      Str:= string(Ptr);
+
+      if IsCommandNeedTimer(NCode) then
+      begin
+        fmMain.TimerCmd.Tag:= NCode;
+        fmMain.TimerCmdTimer(nil);
+      end
+      else
+      begin
+        Ed.DoCommand(NCode, Utf8Decode(Str));
+        Ed.Update();
+      end;
+
       fmMain.UpdateStatus;
       Result:= ReturnNone;
     end;
@@ -1011,8 +925,8 @@ end;
 function Py_ed_bookmark(Self, Args: PPyObject): PPyObject; cdecl;
 var
   H: Int64;
-  Ptr: PChar;
-  Str: string;
+  PtrText: PChar;
+  StrText: string;
   Ed: TATSynEdit;
   NId, NLine, NKind, NColor: integer;
   ComArray: Variant;
@@ -1020,10 +934,10 @@ var
   i: Integer;
 begin
   with GetPythonEngine do
-    if Bool(PyArg_ParseTuple(Args, 'Liiiis:bookmark', @H, @NId, @NLine, @NKind, @NColor, @Ptr)) then
+    if Bool(PyArg_ParseTuple(Args, 'Liiiis:bookmark', @H, @NId, @NLine, @NKind, @NColor, @PtrText)) then
     begin
       Ed:= PyEditor(H);
-      Str:= string(Ptr);
+      StrText:= string(PtrText);
       //limit NKind
       NKind:= Max(Low(AppBookmarkSetup), Min(High(AppBookmarkSetup), NKind));
 
@@ -1035,13 +949,13 @@ begin
 
         BOOKMARK_SET:
           begin
-            EditorBookmarkSet(Ed, NLine, NKind, bmOpSet);
+            EditorBookmarkSet(Ed, NLine, NKind, bmOpSet, StrText);
             Result:= ReturnNone;
           end;
 
         BOOKMARK_CLEAR:
           begin
-            EditorBookmarkSet(Ed, NLine, NKind, bmOpClear);
+            EditorBookmarkSet(Ed, NLine, NKind, bmOpClear, '');
             Result:= ReturnNone;
           end;
 
@@ -1053,7 +967,7 @@ begin
 
         BOOKMARK_SETUP:
           begin
-            if (Str<>'') and UpdateImagelistWithIconFromFile(AppBookmarkImagelist, Str) then
+            if (StrText<>'') and UpdateImagelistWithIconFromFile(AppBookmarkImagelist, StrText) then
               AppBookmarkSetup[NKind].ImageIndex:= AppBookmarkImagelist.Count-1
             else
               AppBookmarkSetup[NKind].ImageIndex:= -1;
@@ -1083,6 +997,13 @@ begin
             finally
               FreeAndNil(List);
             end;
+          end;
+
+
+        BOOKMARK_CLEAR_HINTS:
+          begin
+            Ed.Strings.ClearHints;
+            Result:= ReturnNone;
           end;
 
         else
@@ -1200,9 +1121,10 @@ begin
         if Dlg.Execute then
         begin
           if ofAllowMultiSelect in Dlg.Options then
-            Result:= PyString_FromString(PChar(string(utf8decode(Dlg.Files.Text))))
+            StrFilename:= pchar(string(utf8decode(Dlg.Files.Text)));
           else
-            Result:= PyString_FromString(PChar(string(utf8decode(Dlg.FileName))));
+            StrFilename:= pchar(string(utf8decode(Dlg.FileName)));
+          Result:= PyUnicode_FromWideString(Utf8Decode(StrFilename));
         end
         else
           Result:= ReturnNone;
@@ -1213,14 +1135,37 @@ begin
 end;
 
 
-procedure TfmMain.PyCompletionOnGetProp(Sender: TObject;
-  out AText, ASuffix: string; out ACharsLeft, ACharsRight: integer);
+function Py_dlg_dir(Self, Args: PPyObject): PPyObject; cdecl;
+var
+  PtrFolder: PChar;
+  StrFolder: string;
+  Dlg: TSelectDirectoryDialog;
+begin
+  with GetPythonEngine do
+    if Bool(PyArg_ParseTuple(Args, 's:dlg_dir', @PtrFolder)) then
+    begin
+      StrFolder:= string(PtrFolder);
+      Dlg:= TSelectDirectoryDialog.Create(nil);
+      try
+        Dlg.InitialDir:= StrFolder;
+        Dlg.Options:= Dlg.Options-[ofViewDetail]+[ofCreatePrompt]; //Win32: hide editbox, show "create dir" btn
+        if Dlg.Execute then
+          Result:= PyUnicode_FromWideString(Utf8Decode(Dlg.FileName))
+        else
+          Result:= ReturnNone;
+      finally
+        FreeAndNil(Dlg);
+      end;
+    end;
+end;
+
+procedure TfmMain.PyCompletionOnGetProp(Sender: TObject; out AText: string; out
+  ACharsLeft, ACharsRight: integer);
 var
   Caret: TATCaretItem;
   PrevCharsLeft: integer;
 begin
   AText:= '';
-  ASuffix:= '';
   ACharsLeft:= 0;
   ACharsRight:= 0;
 
@@ -1376,7 +1321,6 @@ type
   PAppPanelProps = ^TAppPanelProps;
   TAppPanelProps = record
     Listbox: TATListbox;
-    Items: TStringList;
     RegexStr: string;
     RegexIdLine,
     RegexIdCol,
@@ -1468,14 +1412,14 @@ begin
       case Id of
         LOG_CLEAR:
           begin
-            Prop^.Items.Clear;
+            Prop^.Listbox.Items.Clear;
             Prop^.Listbox.ItemCount:= 0;
             Prop^.Listbox.Invalidate;
           end;
         LOG_ADD:
           begin
-            Prop^.Items.AddObject(Str, TObject(PtrInt(NTag)));
-            Prop^.Listbox.ItemCount:= Prop^.Items.Count;
+            Prop^.Listbox.Items.AddObject(Str, TObject(PtrInt(NTag)));
+            Prop^.Listbox.ItemCount:= Prop^.Listbox.Items.Count;
             Prop^.Listbox.Invalidate;
           end;
         LOG_SET_REGEX:
@@ -1494,9 +1438,9 @@ begin
         LOG_GET_LINES:
           begin
             Str:= '';
-            for i:= 0 to Prop^.Items.Count-1 do
-              Str:= Str + Prop^.Items[i] + #13 + IntToStr(PtrInt(Prop^.Items.Objects[i]))
-                    + IfThen(i<Prop^.Items.Count-1, #10);
+            for i:= 0 to Prop^.Listbox.Items.Count-1 do
+              Str:= Str + Prop^.Listbox.Items[i] + #13 + IntToStr(PtrInt(Prop^.Listbox.Items.Objects[i]))
+                    + IfThen(i<Prop^.Listbox.Items.Count-1, #10);
             Result:= PyString_FromString(PChar(Str));
             exit; //skip ReturnNone
           end;
@@ -1670,6 +1614,9 @@ begin
               Result:= ReturnNone;
           end;
 
+        PROP_LINE_TOP:
+          Result:= PyInt_FromLong(Ed.LineTop);
+
         PROP_LEXER_FILE:
           Result:= PyString_FromString(PChar(F.LexerName));
         PROP_LEXER_POS:
@@ -1684,6 +1631,14 @@ begin
             Pnt.Y:= Ed.Carets[0].PosY;
             Result:= PyString_FromString(PChar(F.LexerNameAtPos(Pnt)));
           end;
+
+        PROP_TAB_COLOR:
+          Result:= PyInt_FromLong(F.TabColor);
+        PROP_TAB_TITLE:
+          Result:= PyUnicode_FromWideString(Utf8Decode(F.TabCaption));
+
+        PROP_ENC:
+          Result:= PyUnicode_FromWideString(Utf8Decode(F.EncodingName));
 
         PROP_INDEX_GROUP:
           begin
@@ -1738,6 +1693,14 @@ begin
           Result:= PyInt_FromLong(Ed.GetVisibleColumns);
         PROP_LINE_BOTTOM:
           Result:= PyInt_FromLong(Ed.LineBottom);
+
+        PROP_LINK_AT_POS:
+          begin
+            Pnt.X:= StrToIntDef(SGetItem(Str), -1);
+            Pnt.Y:= StrToIntDef(SGetItem(Str), -1);
+            Str:= Ed.DoGetLinkAtPos(Pnt.X, Pnt.Y);
+            Result:= PyString_FromString(PChar(Str));
+          end;
 
         PROP_PICTURE:
           begin
@@ -1798,10 +1761,15 @@ begin
           Ed.OptMarginString:= Str;
         PROP_INSERT:
           Ed.ModeOverwrite:= not ValueBool;
+        PROP_MODIFIED:
+          begin
+            Ed.Modified:= ValueBool;
+            F.UpdateModifiedState;
+          end;
         PROP_RULER:
           Ed.OptRulerVisible:= ValueBool;
         PROP_LEXER_FILE:
-          F.Lexer:= Manager.FindAnalyzer(Str);
+          F.Lexer:= AppManager.FindAnalyzer(Str);
 
         PROP_COLOR:
           begin
@@ -1811,6 +1779,18 @@ begin
             if N1<>-1 then
               EditorSetColorById(Ed, Str1, N1);
           end;
+
+        PROP_LINE_TOP:
+          begin
+            F.TopLineTodo:= ValueInt;
+            Ed.LineTop:= ValueInt;
+          end;
+
+        PROP_TAB_COLOR:
+          F.TabColor:= ValueInt;
+
+        PROP_ENC:
+          F.EncodingName:= Str;
 
         PROP_TAG:
           F.TagString:= Str;
@@ -1884,7 +1864,6 @@ var
   Ptr: PChar;
   Str, Str1, Str2, Str3: string;
   StrCaption, StrId, StrCmd, StrIndex: string;
-  mi, miMain: TMenuItem;
   SplitVert, SplitVisible, ok: boolean;
   SplitPos, SplitTotal: integer;
   Num64: Int64;
@@ -1897,7 +1876,8 @@ begin
       case Id of
         APP_PROC_GET_CLIP:
           begin
-            Result:= PyString_FromString(PChar(Clipboard.AsText));
+            Str:= Clipboard.AsText;
+            Result:= PyString_FromString(PChar(Str));
           end;
         APP_PROC_SET_CLIP:
           begin
@@ -1908,8 +1888,8 @@ begin
         APP_PROC_GET_COMMAND:
           begin
             Num:= StrToIntDef(Str, -1);
-            if Keymap.IsIndexValid(Num) then
-              with Keymap[Num] do
+            if AppKeymap.IsIndexValid(Num) then
+              with AppKeymap[Num] do
                 Result:= Py_BuildValue('(isss)',
                   Command,
                   PChar(Name),
@@ -1949,114 +1929,31 @@ begin
           end;
         APP_PROC_SET_SESSION:
           begin
-            fmMain.FSessionFilename:= Str;
+            fmMain.FSessionName:= Str;
             fmMain.UpdateCaption;
             Result:= ReturnNone;
           end;
 
         APP_PROC_MENU_ENUM:
           begin
-            //this updates PopupText items tags
-            fmMain.PopupText.OnPopup(nil);
-
-            mi:= Py_MenuItemFromId(Str);
-            if Assigned(mi) then
-            begin
-              Str:= '';
-              for Num:= 0 to mi.Count-1 do
-                Str:= Str+
-                  mi.Items[Num].Caption+'|'+
-                  IfThen(mi.Items[Num].Tag>0,
-                         IntToStr(mi.Items[Num].Tag),
-                         mi.Items[Num].Hint)
-                         +#10;
-              Result:= PyString_FromString(PChar(Str));
-            end
+            Str:= fmMain.DoMenuEnum(Str);
+            if Str<>'' then
+              Result:= PyString_FromString(PChar(Str))
             else
               Result:= ReturnNone;
           end;
 
         APP_PROC_MENU_CLEAR:
           begin
-            mi:= Py_MenuItemFromId(Str);
-            if Assigned(mi) then
-            begin
-              mi.Clear;
-              if Str=PyMenuId_Top then
-              begin
-                fmMain.mnuFileOpenSub:= nil;
-                fmMain.mnuThemes:= nil;
-                fmMain.mnuPlug:= nil;
-              end;
-              if Str=PyMenuId_TopFile then
-              begin
-                fmMain.mnuFileOpenSub:= nil;
-              end;
-              if Str=PyMenuId_Text then
-              begin
-                fmMain.mnuTextCopy:= nil;
-                fmMain.mnuTextCut:= nil;
-                fmMain.mnuTextDelete:= nil;
-                fmMain.mnuTextPaste:= nil;
-                fmMain.mnuTextUndo:= nil;
-                fmMain.mnuTextRedo:= nil;
-                fmMain.mnuTextSel:= nil;
-                fmMain.mnuTextGotoDef:= nil;
-              end;
-            end;
+            fmMain.DoMenuClear(Str);
             Result:= ReturnNone;
           end;
 
         APP_PROC_MENU_ADD:
           begin
-            StrId:= SGetItem(Str, ';');
-            StrCmd:= SGetItem(Str, ';');
-            StrCaption:= SGetItem(Str, ';');
-            StrIndex:= SGetItem(Str, ';');
-
-            miMain:= Py_MenuItemFromId(StrId);
-            if Assigned(miMain) and (StrCaption<>'') then
-            begin
-              mi:= TMenuItem.Create(fmMain);
-              mi.Caption:= StrCaption;
-
-              Num:= StrToIntDef(StrCmd, 0);
-              if Num>0 then
-                fmMain.UpKey(mi, Num)
-              else
-              if StrCmd=PyMenuCmd_Recents then
-              begin
-                fmMain.mnuFileOpenSub:= mi;
-                fmMain.UpdateMenuRecent(nil);
-              end
-              else
-              if StrCmd=PyMenuCmd_Themes then
-              begin
-                fmMain.mnuThemes:= mi;
-                fmMain.UpdateMenuThemes(mi);
-              end
-              else
-              if StrCmd=PyMenuCmd_Plugins then
-              begin
-                fmMain.mnuPlug:= mi;
-                fmMain.UpdateMenuPlugins;
-              end
-              else
-              begin
-                mi.Tag:= -1;
-                mi.Hint:= StrCmd;
-                if StrCmd<>'0' then
-                  mi.OnClick:= @fmMain.MenuMainClick;
-              end;
-
-              Num:= StrToIntDef(StrIndex, -1);
-              if Num>=0 then
-                miMain.Insert(Num, mi)
-              else
-                miMain.Add(mi);
-
-              Result:= PyString_FromString(PChar(IntToStr(PtrInt(mi))));
-            end
+            Str:= fmMain.DoMenuAdd(Str);
+            if Str<>'' then
+              Result:= PyString_FromString(PChar(Str))
             else
               Result:= ReturnNone;
           end;
@@ -2179,6 +2076,89 @@ begin
               Result:= ReturnNone;
           end;
 
+        APP_PROC_BOTTOMPANEL_GET_CONTROL:
+          begin
+            Num64:= fmMain.DoBottom_GetControlHandle(Str);
+            if Num64<>0 then
+              Result:= PyLong_FromLongLong(Num64)
+            else
+              Result:= ReturnNone;
+          end;
+
+        APP_PROC_TOOLBAR_ENUM:
+          begin
+            Str:= '';
+            for Num:= 0 to fmMain.ToolbarMain.ButtonCount-1 do
+              with fmMain.ToolbarMain do
+                Str:= Str+Format('%s;%s'#10, [Buttons[Num].Hint, Buttons[Num].Caption]);
+            Result:= PyString_FromString(PChar(Str));
+          end;
+
+        APP_PROC_TOOLBAR_ADD:
+          begin
+            fmMain.DoToolbarAddButton(Str);
+            Result:= ReturnNone;
+          end;
+
+        APP_PROC_TOOLBAR_DELETE:
+          begin
+            Num:= StrToIntDef(Str, -1);
+            if (Num>=0) and (Num<fmMain.ToolbarMain.ButtonCount) then
+              fmMain.ToolbarMain.Buttons[Num].Free;
+            Result:= ReturnNone;
+          end;
+
+        APP_PROC_TOOLBAR_DELETE_ALL:
+          begin
+            for Num:= fmMain.ToolbarMain.ButtonCount-1 downto 0 do
+              fmMain.ToolbarMain.Buttons[Num].Free;
+            Result:= ReturnNone;
+          end;
+
+        APP_PROC_TOOLBAR_ICON_ADD:
+          begin
+            if UpdateImagelistWithIconFromFile(fmMain.ImageListBar, Str) then
+              Result:= PyInt_FromLong(fmMain.ImageListBar.Count-1)
+            else
+              Result:= ReturnNone;
+          end;
+
+        APP_PROC_TOOLBAR_ICON_SET:
+          begin
+            Str1:= SGetItem(Str);
+            Str2:= SGetItem(Str);
+            Num:= StrToIntDef(Str1, -1);
+            if (Num>=0) and (Num<fmMain.ToolbarMain.ButtonCount) then
+              fmMain.ToolbarMain.Buttons[Num].ImageIndex:= StrToIntDef(Str2, -1);
+            Result:= ReturnNone;
+          end;
+
+        APP_PROC_TOOLBAR_ICON_GET_SIZE:
+          begin
+            with fmMain.ToolbarMain do
+              Result:= Py_BuildValue('(ii)', Images.Width, Images.Height);
+          end;
+
+        APP_PROC_TOOLBAR_ICON_SET_SIZE:
+          begin
+            Str1:= SGetItem(Str);
+            Str2:= SGetItem(Str);
+            with fmMain.ToolbarMain do
+            begin
+              Images.Width:= StrToIntDef(Str1, 16);
+              Images.Height:= StrToIntDef(Str2, 16);
+              Num:= IfThen(Images.Width<=20, 8, 4); //increment for icon-size
+              ButtonWidth:= Images.Width+Num;
+              ButtonHeight:= Images.Height+Num;
+            end;
+            Result:= ReturnNone;
+          end;
+
+        APP_PROC_GET_LANG:
+          begin
+            Result:= PyString_FromString(PChar(AppLangName));
+          end;
+
         else
           Result:= ReturnNone;
       end;
@@ -2204,7 +2184,7 @@ begin
       case Id of
         LEXER_GET_COMMENT:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               Result:= PyString_FromString(PChar(string(An.LineComment)))
             else
@@ -2213,7 +2193,7 @@ begin
 
         LEXER_GET_ENABLED:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               Result:= PyBool_FromLong(Ord(not An.Internal))
             else
@@ -2222,7 +2202,7 @@ begin
 
         LEXER_GET_EXT:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               Result:= PyString_FromString(PChar(string(An.Extentions)))
             else
@@ -2231,56 +2211,49 @@ begin
 
         LEXER_SET_ENABLED:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               An.Internal:= Str2='0';
             Result:= ReturnNone;
 
-            Manager.Modified:= true;
+            AppManager.Modified:= true;
             fmMain.UpdateMenuLexers;
           end;
 
         LEXER_SET_NAME:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               An.LexerName:= Str2;
             Result:= ReturnNone;
 
-            Manager.Modified:= true;
+            AppManager.Modified:= true;
             fmMain.UpdateMenuLexers;
           end;
 
         LEXER_SET_EXT:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               An.Extentions:= Str2;
             Result:= ReturnNone;
 
-            Manager.Modified:= true;
+            AppManager.Modified:= true;
           end;
 
         LEXER_GET_MODIFIED:
           begin
-            Result:= PyBool_FromLong(Ord(Manager.Modified));
-          end;
-
-        LEXER_SAVE_LIB:
-          begin
-            with Manager do
-              SaveToFile(FileName);
-            Result:= ReturnNone;
+            Result:= PyBool_FromLong(Ord(AppManager.Modified));
           end;
 
         LEXER_DELETE:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
               An.Free;
             Result:= ReturnNone;
 
-            Manager.Modified:= true;
+            AppManager.Modified:= true;
             fmMain.UpdateMenuLexers;
           end;
 
@@ -2288,11 +2261,11 @@ begin
           begin
             if FileExists(Str1) then
             begin
-              An:= Manager.AddAnalyzer;
+              An:= AppManager.AddAnalyzer;
               An.LoadFromFile(Str1);
               Result:= PyString_FromString(PChar(string(An.LexerName)));
 
-              Manager.Modified:= true;
+              AppManager.Modified:= true;
               fmMain.UpdateMenuLexers;
             end
             else
@@ -2301,7 +2274,7 @@ begin
 
         LEXER_EXPORT:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
             begin
               An.SaveToFile(Str2);
@@ -2325,7 +2298,7 @@ begin
 
         LEXER_GET_LINKS:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
             begin
               List:= TStringList.Create;
@@ -2342,7 +2315,7 @@ begin
 
         LEXER_GET_STYLES:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
             begin
               List:= TStringList.Create;
@@ -2359,11 +2332,11 @@ begin
 
         LEXER_SET_LINKS:
           begin
-            An:= Manager.FindAnalyzer(Str1);
+            An:= AppManager.FindAnalyzer(Str1);
             if Assigned(An) then
-              LexerSetSublexers(Manager, An, Str2);
+              LexerSetSublexers(AppManager, An, Str2);
             Result:= ReturnNone;
-            Manager.Modified:= true;
+            AppManager.Modified:= true;
           end;
 
         else
@@ -2614,6 +2587,17 @@ begin
             Result:= PyBool_FromLong(Ord(ok));
           end;
 
+        TREE_LOCK:
+          begin
+            Tree.Items.BeginUpdate;
+            Result:= ReturnNone;
+          end;
+        TREE_UNLOCK:
+          begin
+            Tree.Items.EndUpdate;
+            Result:= ReturnNone;
+          end;
+
         TREE_PROP_SHOW_ROOT:
           begin
             Tree.ShowRoot:= StrText<>'0';
@@ -2688,6 +2672,7 @@ begin
     AddMethod('dlg_input', @Py_dlg_input, '');
     AddMethod('dlg_input_ex', @Py_dlg_input_ex, '');
     AddMethod('dlg_file', @Py_dlg_file, '');
+    AddMethod('dlg_dir', @Py_dlg_dir, '');
     AddMethod('dlg_menu', @Py_dlg_menu, '');
     AddMethod('dlg_color', @Py_dlg_color, '');
     AddMethod('dlg_hotkeys', @Py_dlg_hotkeys, '');
@@ -2711,12 +2696,6 @@ begin
     AddMethod('ed_insert', @Py_ed_insert, '');
 
     Addmethod('ed_get_filename', @Py_ed_get_filename, '');
-    AddMethod('ed_get_tabcolor', @Py_ed_get_tabcolor, '');
-    AddMethod('ed_set_tabcolor', @Py_ed_set_tabcolor, '');
-    AddMethod('ed_get_enc', @Py_ed_get_enc, '');
-    AddMethod('ed_set_enc', @Py_ed_set_enc, '');
-    AddMethod('ed_get_top', @Py_ed_get_top, '');
-    AddMethod('ed_set_top', @Py_ed_set_top, '');
     AddMethod('ed_get_split', @Py_ed_get_split, '');
     AddMethod('ed_set_split', @Py_ed_set_split, '');
     AddMethod('ed_get_prop', @Py_ed_get_prop, '');

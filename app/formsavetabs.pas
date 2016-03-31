@@ -12,8 +12,11 @@ unit formsavetabs;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs,
-  CheckLst, ExtCtrls, StdCtrls;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
+  IniFiles, CheckLst, ExtCtrls, StdCtrls,
+  LazUTF8, LazFileUtils,
+  proc_globdata,
+  proc_msg;
 
 type
   { TfmSaveTabs }
@@ -34,9 +37,33 @@ type
 var
   fmSaveTabs: TfmSaveTabs;
 
+procedure DoLocalize_FormSaveTabs(F: TfmSaveTabs);
+
+
 implementation
 
 {$R *.lfm}
+
+procedure DoLocalize_FormSaveTabs(F: TfmSaveTabs);
+const
+  section = 'd_save_tabs';
+var
+  ini: TIniFile;
+  fn: string;
+begin
+  fn:= GetAppLangFilename;
+  if not FileExists(fn) then exit;
+  ini:= TIniFile.Create(fn);
+  try
+    with F do Caption:= ini.ReadString(section, '_', Caption);
+    with F.btnSave do Caption:= ini.ReadString(section, 'sav', Caption);
+    with F.btnDontSave do Caption:= ini.ReadString(section, 'no', Caption);
+    with F.btnCancel do Caption:= msgButtonCancel;
+  finally
+    FreeAndNil(ini);
+  end;
+end;
+
 
 { TfmSaveTabs }
 

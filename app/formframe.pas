@@ -13,9 +13,8 @@ interface
 
 uses
   Classes, SysUtils, Graphics, Forms, Controls, Dialogs,
-  ExtCtrls, Menus,
-  FileUtil,
-  LCLIntf, LCLProc, LCLType, StdCtrls,
+  ExtCtrls, Menus, StdCtrls,
+  LCLIntf, LCLProc, LCLType, LazUTF8, LazFileUtils, FileUtil,
   ATTabs,
   ATGroups,
   ATSynEdit,
@@ -39,8 +38,13 @@ uses
   proc_msg,
   proc_str,
   proc_py,
+<<<<<<< HEAD
   proc_miscutils,
   ujsonConf,
+=======
+  proc_miscutils, formlexerstylemap,
+  jsonConf,
+>>>>>>> upstream/master
   math;
 
 type
@@ -99,8 +103,7 @@ type
     procedure DoOnUpdateStatus;
     procedure EditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure EditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
-    procedure EditorDrawMicromap(Sender: TObject; C: TCanvas; const ARect: TRect
-      );
+    procedure EditorDrawMicromap(Sender: TObject; C: TCanvas; const ARect: TRect);
     procedure EditorOnChangeCommon(Sender: TObject);
     procedure EditorOnChange1(Sender: TObject);
     procedure EditorOnChange2(Sender: TObject);
@@ -122,7 +125,8 @@ type
     function GetLineEnds: TATLineEnds;
     function GetNotifEnabled: boolean;
     function GetNotifTime: integer;
-    function GetReadonly: boolean;
+    function GetReadOnly: boolean;
+    function GetTabKeyCollectMarkers: boolean;
     function GetUnprintedEnds: boolean;
     function GetUnprintedEndsDetails: boolean;
     function GetUnprintedShow: boolean;
@@ -133,6 +137,7 @@ type
     procedure SetLocked(AValue: boolean);
     procedure SetNotifEnabled(AValue: boolean);
     procedure SetNotifTime(AValue: integer);
+    procedure SetReadOnly(AValue: boolean);
     procedure SetTabColor(AColor: TColor);
     procedure SetUnprintedEnds(AValue: boolean);
     procedure SetUnprintedEndsDetails(AValue: boolean);
@@ -156,10 +161,11 @@ type
     destructor Destroy; override;
     function Editor: TATSynEdit;
     function Editor2: TATSynEdit;
-    property ReadOnly: boolean read GetReadonly;
+    property ReadOnly: boolean read GetReadOnly write SetReadOnly;
     property FileName: string read FFileName write FFileName;
     property TabCaption: string read FTabCaption write SetTabCaption;
     property Modified: boolean read FModified;
+    procedure UpdateModifiedState;
     property NotifEnabled: boolean read GetNotifEnabled write SetNotifEnabled;
     property NotifTime: integer read GetNotifTime write SetNotifTime;
     property Lexer: TecSyntAnalyzer read GetLexer write SetLexer;
@@ -168,7 +174,7 @@ type
     property Locked: boolean read FLocked write SetLocked;
     property CommentString: string read GetCommentString;
     property TabColor: TColor read FTabColor write SetTabColor;
-    property TabKeyCollectMarkers: boolean read FTabKeyCollectMarkers write FTabKeyCollectMarkers;
+    property TabKeyCollectMarkers: boolean read GetTabKeyCollectMarkers write FTabKeyCollectMarkers;
     property TagString: string read FTagString write FTagString;
     property NotInRecents: boolean read FNotInRecents write FNotInRecents;
     property TopLineTodo: integer read FTopLineTodo write FTopLineTodo; //always use it instead of Ed.LineTop
@@ -189,22 +195,25 @@ type
     property SplitHorz: boolean read FSplitHorz write SetSplitHorz;
     property SplitPos: double read FSplitPos write SetSplitPos;
     //file
-    procedure DoFileOpen(const fn: string; AllowFollowTail: boolean=false);
-    function DoFileSave(ASaveAs: boolean; ASaveDlg: TSaveDialog): boolean;
-    procedure DoFileReload(ADetectEnc: boolean);
+    procedure DoFileOpen(const fn: string);
+    function DoFileSave(ASaveAs: boolean; ASaveDlg: TSaveDialog; ACheckFilenameOpened: TStrFunction): boolean;
+    procedure DoFileReload_DisableDetectEncoding;
+    procedure DoFileReload;
     procedure DoSaveHistory;
     procedure DoSaveHistoryEx(c: TJsonConfig; const path: string);
     procedure DoLoadHistory;
     procedure DoLoadHistoryEx(c: TJsonConfig; const path: string);
+    //misc
     function DoPyEvent(AEd: TATSynEdit; AEvent: TAppPyEvent; const AParams: array of string): string;
     procedure DoRestoreFolding;
+    procedure DoFocusEditor;
     //macro
     procedure DoMacroStart;
     procedure DoMacroStop(ACancel: boolean);
     property MacroRecord: boolean read FMacroRecord;
     property MacroString: string read FMacroString write FMacroString;
 
-    //event
+    //events
     property OnFocusEditor: TNotifyEvent read FOnFocusEditor write FOnFocusEditor;
     property OnChangeCaption: TNotifyEvent read FOnChangeCaption write FOnChangeCaption;
     property OnUpdateStatus: TNotifyEvent read FOnUpdateStatus write FOnUpdateStatus;
@@ -248,8 +257,7 @@ const
 procedure TEditorFrame.SetTabCaption(const AValue: string);
 begin
   if AValue='?' then Exit;
-  if FTabCaption= AValue then Exit;
-  FTabCaption:= AValue;
+  FTabCaption:= AValue; //don't check "if FTabCaption=AValue"
   DoOnChangeCaption;
 end;
 
@@ -398,9 +406,14 @@ begin
   Result:= FNotif.Timer.Interval;
 end;
 
-function TEditorFrame.GetReadonly: boolean;
+function TEditorFrame.GetReadOnly: boolean;
 begin
   Result:= Ed1.Strings.ReadOnly;
+end;
+
+function TEditorFrame.GetTabKeyCollectMarkers: boolean;
+begin
+  Result:= FTabKeyCollectMarkers and (Editor.Markers.Count>0);
 end;
 
 function TEditorFrame.GetUnprintedEnds: boolean;
@@ -466,6 +479,11 @@ end;
 procedure TEditorFrame.SetNotifTime(AValue: integer);
 begin
   FNotif.Timer.Interval:= AValue;
+end;
+
+procedure TEditorFrame.SetReadOnly(AValue: boolean);
+begin
+  Ed1.Strings.ReadOnly:= AValue;
 end;
 
 procedure TEditorFrame.UpdateEds;
@@ -585,7 +603,7 @@ begin
   Ed1.Update(true);
 end;
 
-procedure TEditorFrame.EditorOnChangeCommon(Sender: TObject);
+procedure TEditorFrame.UpdateModifiedState;
 begin
   if FModified<>Editor.Modified then
   begin
@@ -594,6 +612,11 @@ begin
   end;
 
   DoOnUpdateStatus;
+end;
+
+procedure TEditorFrame.EditorOnChangeCommon(Sender: TObject);
+begin
+  UpdateModifiedState;
 end;
 
 procedure TEditorFrame.EditorOnEnter(Sender: TObject);
@@ -615,8 +638,48 @@ procedure TEditorFrame.EditorOnCommandAfter(Sender: TObject; ACommand: integer;
   const AText: string);
 var
   Ed: TATSynEdit;
+  Caret: TATCaretItem;
+  Str: atString;
+  SLexerName: string;
 begin
   Ed:= Sender as TATSynEdit;
+
+  //auto-close bracket
+  if UiOps.AutoCloseBrackets and
+    (ACommand=cCommand_TextInsert) and
+    ((AText='(') or (AText='[') or (AText='{')) then
+  begin
+    EditorAutoCloseBracket(Ed, AText[1]);
+    exit
+  end;
+
+  //autoshow autocomplete for HTML/CSS
+  if (ACommand=cCommand_TextInsert) and
+     (Ed.Carets.Count=1) and
+     (Length(AText)=1) and IsCharWord(AText[1], '') then
+  begin
+    Caret:= Ed.Carets[0];
+    if not Ed.Strings.IsIndexValid(Caret.PosY) then exit;
+    SLexerName:= LexerNameAtPos(Point(Caret.PosX, Caret.PosY));
+
+    if UiOps.AutocompleteHtml and (Pos('HTML', SLexerName)>0) then
+    begin
+      Str:= Ed.Strings.Lines[Caret.PosY];
+      if Copy(Str, Caret.PosX-1, 1)='<' then
+        Ed.DoCommand(cmd_AutoComplete);
+      exit;
+    end;
+
+    if UiOps.AutocompleteCss and (SLexerName='CSS') then
+    begin
+      Str:= Ed.Strings.Lines[Caret.PosY];
+      if EditorIsAutocompleteCssPosition(Ed, Caret.PosX-1, Caret.PosY) then
+        Ed.DoCommand(cmd_AutoComplete);
+      exit;
+    end;
+  end;
+
+  //autoshow autocomplete for others, when typed N chars
   if (UiOps.AutocompleteAutoshowChars>0) and
      (UiOps.AutocompleteAutoshowLexers<>'') and
      (ACommand=cCommand_TextInsert) and
@@ -660,8 +723,9 @@ begin
   ed.Font.Size:= EditorOps.OpFontSize;
   ed.Font.Quality:= EditorOps.OpFontQuality;
 
+  ed.DragMode:= dmAutomatic;
   ed.BorderStyle:= bsNone;
-  ed.Keymap:= Keymap;
+  ed.Keymap:= AppKeymap;
   ed.TabStop:= false;
   ed.OptUnprintedVisible:= false;
   ed.OptRulerVisible:= false;
@@ -728,7 +792,7 @@ begin
   Ed1.Strings.Modified:= false;
 
   EncodingName:= UiOps.NewdocEnc;
-  Lexer:= Manager.FindAnalyzer(UiOps.NewdocLexer);
+  Lexer:= AppManager.FindAnalyzer(UiOps.NewdocLexer);
 
   FNotif:= TATFileNotif.Create(Self);
   FNotif.Timer.Interval:= 1000;
@@ -779,6 +843,8 @@ end;
 
 procedure TEditorFrame.SetLexer(an: TecSyntAnalyzer);
 begin
+  if not DoApplyLexerStylesMap(an) then
+    DoDialogLexerStylesMap(an);
   Adapter.Lexer:= an;
 
   if Assigned(an) then
@@ -786,9 +852,7 @@ begin
       FOnSetLexer(Self);
 end;
 
-procedure TEditorFrame.DoFileOpen(const fn: string; AllowFollowTail: boolean=false);
-var
-  bTail: boolean;
+procedure TEditorFrame.DoFileOpen(const fn: string);
 begin
   if not FileExistsUTF8(fn) then Exit;
   SetLexer(nil);
@@ -823,17 +887,12 @@ begin
     FImagePanel.BevelOuter:= bvNone;
     FImagePanel.Color:= clSkyBlue;
     FImage.Parent:= FImagePanel;
+
     FrameResize(Self);
+    DoOnChangeCaption;
 
     exit
   end;
-
-  bTail:=
-    AllowFollowTail and
-    UiOps.ReloadFollowTail and
-    (Editor.Strings.Count>0) and
-    (Editor.Carets.Count>0) and
-    (Editor.Carets[0].PosY=Editor.Strings.Count-1);
 
   try
     Editor.LoadFromFile(fn);
@@ -845,21 +904,12 @@ begin
     Editor.Strings.LineAdd('');
     Editor.DoCaretSingle(0, 0);
     Editor.Update(true);
-    TabCaption:= GetUntitlesStr;
+    TabCaption:= GetUntitledCaption;
     exit
   end;
 
   SetLexer(AppFindLexer(fn));
   DoLoadHistory;
-
-  if bTail then
-    if Editor.Strings.Count>0 then
-    begin
-      Editor.DoCaretSingle(0, Editor.Strings.Count-1);
-      Editor.Update;
-      Editor.LineTop:= Editor.Strings.Count-1; //no lexer
-      FTopLineTodo:= Editor.Strings.Count-1; //lexer active, must use this instead of Ed.LineTop
-    end;
 
   if IsFileReadonly(fn) then
     Editor.ModeReadOnly:= true;
@@ -867,7 +917,8 @@ begin
   NotifEnabled:= NotifEnabled;
 end;
 
-function TEditorFrame.DoFileSave(ASaveAs: boolean; ASaveDlg: TSaveDialog): boolean;
+function TEditorFrame.DoFileSave(ASaveAs: boolean; ASaveDlg: TSaveDialog;
+  ACheckFilenameOpened: TStrFunction): boolean;
 var
   an: TecSyntAnalyzer;
   attr: integer;
@@ -896,6 +947,14 @@ begin
     end;
 
     if not ASaveDlg.Execute then Exit;
+    if Assigned(ACheckFilenameOpened) and ACheckFilenameOpened(ASaveDlg.FileName) then
+    begin
+      MsgBox(
+        msgStatusFilenameAlreadyOpened+#10+
+        ExtractFileName(ASaveDlg.FileName)+#10#10+
+        msgStatusNeedToCloseTabSavedOrDup, MB_OK or MB_ICONWARNING);
+    end;
+
     FFileName:= ASaveDlg.FileName;
     Lexer:= AppFindLexer(FFileName);
 
@@ -932,13 +991,53 @@ begin
   Result:= true;
 end;
 
-procedure TEditorFrame.DoFileReload(ADetectEnc: boolean);
+procedure TEditorFrame.DoFileReload_DisableDetectEncoding;
 begin
-  if FileName='' then Exit;
-  Editor.Strings.EncodingDetect:= ADetectEnc;
+  if FileName='' then exit;
+  Editor.Strings.EncodingDetect:= false;
   Editor.Strings.LoadFromFile(FileName);
   Editor.Strings.EncodingDetect:= true;
   UpdateEds;
+end;
+
+procedure TEditorFrame.DoFileReload;
+var
+  NLineTop, NCaretX, NCaretY: integer;
+  bTail: boolean;
+begin
+  if FileName='' then exit;
+
+  //remember LineTop, caret
+  NCaretX:= 0;
+  NCaretY:= 0;
+  NLineTop:= Editor.LineTop;
+  if Editor.Carets.Count>0 then
+    with Editor.Carets[0] do
+      begin NCaretX:= PosX; NCaretY:= PosY; end;
+
+  bTail:= UiOps.ReloadFollowTail and
+    (Editor.Strings.Count>0) and
+    (NCaretY=Editor.Strings.Count-1);
+
+  //reopen
+  DoFileOpen(FileName);
+  if Editor.Strings.Count=0 then exit;
+
+  //restore LineTop, caret
+  NCaretY:= Min(NCaretY, Editor.Strings.Count-1);
+  if bTail then
+  begin
+    NCaretX:= 0;
+    NCaretY:= Editor.Strings.Count-1;
+    NLineTop:= NCaretY-Abs(UiOps.FindIndentVert);
+  end;
+  Editor.LineTop:= NLineTop;
+  FTopLineTodo:= NLineTop;
+  Editor.Update;
+
+  Editor.DoCaretSingle(NCaretX, NCaretY);
+  Editor.Update;
+  OnUpdateStatus(Self);
 end;
 
 procedure TEditorFrame.SetLineEnds(Value: TATLineEnds);
@@ -981,7 +1080,7 @@ var
 begin
   ed:= Sender as TATSynEdit;
   if ABand=ed.GutterBandBm then
-    EditorBookmarkSet(ed, ALine, 1, bmOpToggle);
+    EditorBookmarkSet(ed, ALine, 1, bmOpToggle, '');
 end;
 
 procedure TEditorFrame.EditorOnDrawBookmarkIcon(Sender: TObject; C: TCanvas; ALineNum: integer;
@@ -1240,7 +1339,7 @@ begin
     for i:= 0 to Editor.Strings.Count-1 do
     begin
       N:= Editor.Strings.LinesBm[i];
-      if (N>0) and AppBookmarkKindStandard(N) then
+      if (N>0) and EditorBookmarkIsStandard(N) then
         items.Add(Inttostr(i));
     end;
     c.SetValue(path+cSavBookmark, items);
@@ -1289,7 +1388,7 @@ begin
   if Lexer=nil then str0:= '' else str0:= Lexer.LexerName;
   str:= c.GetValue(path+cSavLexer, str0);
   if str<>str0 then
-    Lexer:= Manager.FindAnalyzer(str);
+    Lexer:= AppManager.FindAnalyzer(str);
 
   //enc
   str0:= EncodingName;
@@ -1390,16 +1489,15 @@ procedure TEditorFrame.NotifChanged(Sender: TObject);
 begin
   if not Modified then
   begin
-    DoFileOpen(FileName, true);
+    DoFileReload;
     exit
   end;
 
-  case MsgBox('File was changed outside:'#13+FileName+
-         #13#13'Reload?'#13+
-        '(Yes: reload. No: don''t reload. Cancel [Esc]: no more notifications about this file.)',
-        MB_YESNOCANCEL or MB_ICONQUESTION) of
+  case MsgBox(msgConfirmFileChangedOutside+#10+FileName+
+         #10#10+msgConfirmReloadIt+#10+msgConfirmReloadItHotkeys,
+         MB_YESNOCANCEL or MB_ICONQUESTION) of
     ID_YES:
-      DoFileOpen(FileName, true);
+      DoFileReload;
     ID_CANCEL:
       NotifEnabled:= false;
   end;
@@ -1411,6 +1509,12 @@ begin
     Result:= Point(FImage.Picture.Width, FImage.Picture.Height)
   else
     Result:= Point(0, 0);
+end;
+
+procedure TEditorFrame.DoFocusEditor;
+begin
+  if Visible and Enabled and Editor.CanFocus then
+    Application.MainForm.FocusControl(Editor);
 end;
 
 end.

@@ -48,11 +48,22 @@ begin
   Result:=
     (C is TLabel) or
     (C is TButton) or
+    (C is TToggleBox) or
     (C is TEdit) or
     (C is TComboBox) or
     (C is TCheckBox) or
     (C is TRadioButton) or
     (C is TSpinEdit);
+end;
+
+procedure DoFixButtonHeight(Ctl: TControl);
+begin
+  {$ifdef windows}
+  Ctl.Height:= 23; //smaller
+  {$endif}
+  {$ifdef darwin}
+  Ctl.Height:= 21; //smaller
+  {$endif}
 end;
 
 function DoGetListviewState(C: TListView): string; forward;
@@ -67,6 +78,9 @@ begin
 
   if C is TCheckBox then
     Result:= IntToStr(Ord((C as TCheckBox).Checked));
+
+  if C is TToggleBox then
+    Result:= IntToStr(Ord((C as TToggleBox).Checked));
 
   if C is TRadioButton then
     Result:= IntToStr(Ord((C as TRadioButton).Checked));
@@ -295,12 +309,12 @@ begin
         begin
           Ctl:= TButton.Create(AForm);
           (Ctl as TButton).ModalResult:= cButtonResultStart+ AForm.ControlCount;
-          {$ifdef windows}
-          Ctl.Height:= 23; //smaller
-          {$endif}
-          {$ifdef darwin}
-          Ctl.Height:= 21; //smaller
-          {$endif}
+          DoFixButtonHeight(Ctl);
+        end;
+      if SValue='checkbutton' then
+        begin
+          Ctl:= TToggleBox.Create(AForm);
+          DoFixButtonHeight(Ctl);
         end;
       if SValue='radiogroup' then
         Ctl:= TRadioGroup.Create(AForm);
@@ -450,6 +464,7 @@ begin
     if SName='val' then
     begin
       if Ctl is TCheckBox then (Ctl as TCheckBox).Checked:= StrToBool(SValue);
+      if Ctl is TToggleBox then (Ctl as TToggleBox).Checked:= StrToBool(SValue);
       if Ctl is TRadioButton then (Ctl as TRadioButton).Checked:= StrToBool(SValue);
       if Ctl is TEdit then (Ctl as TEdit).Text:= SValue;
       if Ctl is TComboBox then
@@ -490,7 +505,7 @@ begin
   Dummy:= TDummyClass.Create;
   try
     F.BorderStyle:= bsDialog;
-    F.Position:= poDesktopCenter;
+    F.Position:= poScreenCenter;
     F.Width:= ASizeX;
     F.Height:= ASizeY;
     F.Caption:= ATitle;

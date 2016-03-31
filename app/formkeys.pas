@@ -12,10 +12,12 @@ unit formkeys;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ButtonPanel,
-  StdCtrls, Menus,
-  LclType, LclProc, ExtCtrls,
-  ATSynEdit_Keymap;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ButtonPanel,
+  StdCtrls, Menus, ExtCtrls, IniFiles,
+  LclType, LclProc, LazUTF8, LazFileUtils,
+  ATSynEdit_Keymap,
+  proc_globdata,
+  proc_msg;
 
 type
   { TfmKeys }
@@ -51,9 +53,37 @@ type
 var
   fmKeys: TfmKeys;
 
+procedure DoLocalize_FormKeys(F: TfmKeys);
+
+
 implementation
 
 {$R *.lfm}
+
+procedure DoLocalize_FormKeys(F: TfmKeys);
+const
+  section = 'd_keys';
+var
+  ini: TIniFile;
+  fn: string;
+begin
+  fn:= GetAppLangFilename;
+  if not FileExists(fn) then exit;
+  ini:= TIniFile.Create(fn);
+  try
+    with F do Caption:= ini.ReadString(section, '_', Caption);
+    with F.ButtonPanel1.OKButton do Caption:= msgButtonOk;
+    with F.ButtonPanel1.CancelButton do Caption:= msgButtonCancel;
+
+    with F.bClear1 do Caption:= ini.ReadString(section, 'clr', Caption);
+    with F.bAdd1 do Caption:= ini.ReadString(section, 'add', Caption);
+    F.bClear2.Caption:= F.bClear1.Caption;
+    F.bAdd2.Caption:= F.bAdd1.Caption;
+    with F.panelPress do Caption:= ini.ReadString(section, 'wait', Caption);
+  finally
+    FreeAndNil(ini);
+  end;
+end;
 
 { TfmKeys }
 

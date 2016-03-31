@@ -15,10 +15,20 @@ uses
   Classes, SysUtils, Forms, FileUtil,
   ecSyntAnal;
 
-function DoInstallAddonFromZip(const fn_zip: string;
+type
+  TAppAddonType = (
+    cAddonTypeUnknown,
+    cAddonTypePlugin,
+    cAddonTypeLexer,
+    cAddonTypeData
+    );
+
+procedure DoInstallAddonFromZip(const fn_zip: string;
   Manager: TecSyntaxManager;
   const dir_acp: string;
-  out s_report: string): boolean;
+  out s_report: string;
+  out IsInstalled: boolean;
+  out NAddonType: TAppAddonType);
 
 var
   cInstallLexerZipTitle: string = 'Install addon';
@@ -32,7 +42,8 @@ uses
   ujsonConf,
   Zipper,
   proc_files,
-  proc_globdata;
+  proc_globdata,
+  proc_msg;
 
 const
   cTypeLexer = 'lexer';
@@ -69,71 +80,42 @@ procedure DoInstallPlugin(
   var s_report: string);
 var
   ini: TIniFile;
-  cfg: TJSONConfig;
-  s_section, s_caption, s_module, s_method, s_hotkey, s_lexers,
-  s_events, s_keys, path: string;
-  s_inmenu: boolean;
+  s_section, s_caption, s_module, s_method,
+  s_events: string;
   i: integer;
 begin
   s_report:= '';
 
   ini:= TIniFile.Create(fn_inf);
-  cfg:= TJSONConfig.Create(nil);
   try
     s_module:= ini.ReadString('info', 'subdir', '');
     if s_module='' then exit;
 
-    try
-      cfg.Filename:= string(utf8decode(GetAppPath(cFileOptPlugins)));
-      cfg.Formatted:= true;
-    except
-      exit;
-    end;
-
     FCopyDir(ExtractFileDir(fn_inf), GetAppPath(cDirPy)+DirectorySeparator+s_module);
 
-    for i:= 1 to 200 do
+    for i:= 1 to cMaxItemsInInstallInf do
     begin
       s_section:= ini.ReadString('item'+Inttostr(i), 'section', '');
       s_caption:= ini.ReadString('item'+Inttostr(i), 'caption', '');
       s_method:= ini.ReadString('item'+Inttostr(i), 'method', '');
-      s_hotkey:= ini.ReadString('item'+Inttostr(i), 'hotkey', '');
-      s_lexers:= ini.ReadString('item'+Inttostr(i), 'lexers', '');
       s_events:= ini.ReadString('item'+Inttostr(i), 'events', '');
-      s_keys:= ini.ReadString('item'+Inttostr(i), 'keys', '');
-      s_inmenu:= ini.ReadBool('item'+Inttostr(i), 'menu', true);
 
       if s_section='commands' then
       begin
         if s_caption='' then Continue;
         if s_method='' then Continue;
-
-        path:= '/'+s_section+'/'+s_module+'/'+Format('%2.2d', [i-1])+'/';
-        cfg.SetValue(path+'caption', s_caption);
-        cfg.SetValue(path+'proc', s_method);
-        cfg.SetDeleteValue(path+'lexers', s_lexers, '');
-        cfg.SetDeleteValue(path+'hotkey', s_hotkey, '');
-        cfg.SetDeleteValue(path+'menu', s_inmenu, true);
-
-        s_report:= s_report+'command: '+s_caption+#13;
+        s_report:= s_report+msgStatusPackageCommand+' '+s_caption+#13;
       end;
 
       if s_section='events' then
       begin
         if s_events='' then Continue;
-
-        path:= '/'+s_section+'/'+s_module+'/';
-        cfg.SetValue(path+'events', s_events);
-        cfg.SetDeleteValue(path+'lexers', s_lexers, '');
-        cfg.SetDeleteValue(path+'keys', s_keys, '');
-
-        s_report:= s_report+'events: '+s_events+#13;
+        s_report:= s_report+msgStatusPackageEvents+' '+s_events+#13;
       end;
     end;
 
-    s_report:= s_report+#13+'Program should be restarted to see new plugin';
+    s_report:= s_report+#13+msgStatusInstalledNeedRestart;
   finally
-    FreeAndNil(cfg);
     FreeAndNil(ini);
   end;
 end;
@@ -144,8 +126,9 @@ procedure DoInstallLexer(
   var s_report: string);
 var
   i_lexer, i_sub: integer;
-  s_lexer, fn_lexer, fn_acp, _fn_inf : string;
+  s_lexer, dir_lexlib, fn_lexer, fn_acp, fn_lexmap, _fn_inf: string;
   an, an_sub: TecSyntAnalyzer;
+  ini_lexmap: TIniFile;
 begin
   s_report:= '';
   _fn_inf:=utf8encode(unicodestring(fn_inf));
@@ -156,19 +139,26 @@ begin
       s_lexer:= ReadString('lexer'+Inttostr(i_lexer), 'file', '');
       if s_lexer='' then Break;
 
-      //lexer file - utf-8
-      fn_lexer:= pchar(ExtractFileDir(_fn_inf))+DirectorySeparator+s_lexer+'.lcf';
-      if not FileExistsUTF8(fn_lexer) then
+      //lexer file
+      dir_lexlib:= GetAppPath(cDirDataLexlib);
+      fn_lexer:= ExtractFileDir(fn_inf)+DirectorySeparator+s_lexer+'.lcf';
+      fn_lexmap:= ExtractFileDir(fn_inf)+DirectorySeparator+s_lexer+'.cuda-lexmap';
+      fn_acp:= ExtractFileDir(fn_inf)+DirectorySeparator+s_lexer+'.acp';
+
+      if not FileExists(fn_lexer) then
       begin
-        MsgBox('Cannot find lexer file: '+fn_lexer, mb_ok or mb_iconerror);
+        MsgBox(msgCannotFindLexerFile+' '+fn_lexer, mb_ok or mb_iconerror);
         exit
       end;
 
-      fn_acp:= pchar(ExtractFileDir(_fn_inf))+DirectorySeparator+s_lexer+'.acp';
+      // copyfile <= utf-8
+      if FileExists(fn_lexer) then
+        CopyFile(fn_lexer, dir_lexlib+DirectorySeparator+ExtractFileName(fn_lexer));
+      if FileExists(fn_lexmap) then
+        CopyFile(fn_lexmap, dir_lexlib+DirectorySeparator+ExtractFileName(fn_lexmap));
       if FileExists(fn_acp) then
         if dir_acp<>'' then
-          // utf-8
-          CopyFile(fn_acp, pchar(dir_acp)+DirectorySeparator+s_lexer+'.acp');
+          CopyFile(fn_acp, dir_acp+DirectorySeparator+ExtractFileName(fn_acp));
 
       an:= Manager.FindAnalyzer(s_lexer);
       if an=nil then
@@ -184,6 +174,14 @@ begin
         if s_lexer='Style sheets' then s_lexer:= 'CSS';
         if s_lexer='Assembler' then s_lexer:= 'Assembly';
 
+        //write [ref] section in cuda-lexmap
+        ini_lexmap:= TIniFile.Create(dir_lexlib+DirectorySeparator+ExtractFileName(fn_lexmap));
+        try
+          ini_lexmap.WriteString('ref', IntToStr(i_sub), s_lexer);
+        finally
+          FreeAndNil(ini_lexmap);
+        end;
+
         an_sub:= Manager.FindAnalyzer(s_lexer);
         if an_sub<>nil then
         begin
@@ -192,7 +190,7 @@ begin
         end
         else
         begin
-          MsgBox('Cannot find linked sublexer in library: '+s_lexer, MB_OK or MB_ICONWARNING);
+          MsgBox(msgCannotFindSublexerInLibrary+' '+s_lexer, MB_OK or MB_ICONWARNING);
           Continue;
         end;
       end;
@@ -213,24 +211,24 @@ begin
   end;
 end;
 
-function DoInstallAddonFromZip(const fn_zip: string; // utf-8
-  Manager: TecSyntaxManager;
-  const dir_acp: string;                             // utf-8
-  out s_report: string): boolean;
+procedure DoInstallAddonFromZip(const fn_zip: string; // fn_zip <= utf-8, dir_acp <= utf8
+  Manager: TecSyntaxManager; const dir_acp: string; out s_report: string; out
+  IsInstalled: boolean; out NAddonType: TAppAddonType);
 var
   unzip: TUnZipper;
   list: TStringlist;
   dir, fn_inf: string;
   s_title, s_type, s_desc: string;
 begin
-  Result:= false;
+  IsInstalled:= false;
+  NAddonType:= cAddonTypeUnknown;
   dir:= GetTempDirCounted;
 
   if not DirectoryExists(dir) then
     CreateDir(dir);
   if not DirectoryExists(dir) then
   begin
-    MsgBox('Cannot create dir:'#13+dir, mb_ok or mb_iconerror);
+    MsgBox(msgCannotCreateDir+#13+dir, mb_ok or mb_iconerror);
     exit
   end;
 
@@ -254,7 +252,7 @@ begin
 
     if not FileExists(fn_inf) then
     begin
-      MsgBox('Cannot find install.inf in zip', mb_ok or mb_iconerror);
+      MsgBox(msgCannotFindInstallInfInZip, mb_ok or mb_iconerror);
       exit
     end;
 
@@ -275,7 +273,7 @@ begin
 
   if (s_title='') or (s_type='') then
   begin
-    MsgBox('Incorrect install.inf in zip', mb_ok or mb_iconerror);
+    MsgBox(msgStatusIncorrectInstallInfInZip, mb_ok or mb_iconerror);
     exit
   end;
 
@@ -283,24 +281,38 @@ begin
     (s_type<>cTypePlugin) and
     (s_type<>cTypeData) then
   begin
-    MsgBox('Unsupported addon type: '+s_type, mb_ok or mb_iconerror);
+    MsgBox(msgStatusUnsupportedAddonType+' '+s_type, mb_ok or mb_iconerror);
     exit
   end;
 
-  if MsgBox('This package contains:'#13#13+
-    'name: '+s_title+#13+
-    IfThen(s_desc<>'', 'description: '+s_desc+#13)+
-    'type: '+s_type+#13+
+  if MsgBox(msgStatusPackageContains+#13#13+
+    msgStatusPackageName+' '+s_title+#13+
+    IfThen(s_desc<>'', msgStatusPackageDesc+' '+s_desc+#13)+
+    msgStatusPackageType+' '+s_type+#13+
     #13+
-    'Do you want to install it?',
+    msgConfirmInstallIt,
     MB_OKCANCEL or MB_ICONQUESTION)<>id_ok then exit;
 
   s_report:= '';
-  if s_type=cTypeLexer then DoInstallLexer(fn_inf, dir_acp, Manager, s_report) else
-   if s_type=cTypePlugin then DoInstallPlugin(fn_inf, s_report) else
-    if s_type=cTypeData then DoInstallData(fn_inf, s_report);
+  if s_type=cTypeLexer then
+  begin
+    NAddonType:= cAddonTypeLexer;
+    DoInstallLexer(fn_inf, dir_acp, Manager, s_report)
+  end
+  else
+  if s_type=cTypePlugin then
+  begin
+    NAddonType:= cAddonTypePlugin;
+    DoInstallPlugin(fn_inf, s_report)
+  end
+  else
+  if s_type=cTypeData then
+  begin
+    NAddonType:= cAddonTypeData;
+    DoInstallData(fn_inf, s_report)
+  end;
 
-  Result:= true;
+  IsInstalled:= true;
 end;
 
 

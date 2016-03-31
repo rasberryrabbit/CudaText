@@ -40,3 +40,10 @@ cuda_lorem/
 cuda_kv*/
 cuda_lint*/
 cuda_num*/
+cuda_find*/
+cuda_config*/
+cuda_openfiles/
+cuda_tabs*/
+cuda_spell*/
+cuda_hex*/
+_test/

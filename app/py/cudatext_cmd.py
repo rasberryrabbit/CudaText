@@ -178,7 +178,7 @@ cmd_OpsOpenLexerOvr    = 2523
 cmd_OpsOpenFileTypes   = 2524
 cmd_OpsFontText        = 2525
 cmd_OpsFontUi          = 2526
-cmd_DialogSaveTabs     = 2527
+cmd_OptFontOutput      = 2527
 cmd_ToggleFullScreen   = 2528
 cmd_OpsReloadAndApply  = 2529
 cmd_DialogLexerProp    = 2530
@@ -190,6 +190,7 @@ cmd_ShowPanelConsole   = 2535
 cmd_ShowPanelOutput    = 2536
 cmd_ShowPanelValidate  = 2537
 cmd_ToggleFindDialog   = 2538
+cmd_ShowPanelSearchRes = 2539
 cmd_DialogLoadLexerStyles = 2540
 cmd_ToggleToolbar      = 2541
 cmd_ToggleStatusbar    = 2542
@@ -199,6 +200,9 @@ cmd_RunLastCommandPlugin = 2545
 cmd_ShowSidePanelAsIs = 2546
 cmd_ShowSidePanelAndSyntaxTree = 2547
 cmd_HideSidePanel = 2548
+cmd_DialogSaveTabs = 2549
+cmd_DialogLexerStyleMap = 2550
+cmd_RescanPythonPluginsInfFiles = 2551
 
 cmd_DialogGoto       = 2580
 cmd_DialogGotoBookmark = 2581
@@ -286,6 +290,8 @@ cmd_HelpWiki      = 2702
 cmd_HelpMouse     = 2703
 cmd_HelpChangelog = 2704
 cmd_HelpLexers    = 2705
+cmd_HelpIssues    = 2706
+cmd_HelpHotkeys   = 2707
 
 cmd_Encoding_ansi_NoReload      = 2710
 cmd_Encoding_utf8bom_NoReload   = 2711
@@ -346,6 +352,11 @@ cmd_Markers_GotoLastNoDelete   = 2801
 cmd_Markers_GotoLastAndDelete  = 2802
 cmd_Markers_ClearAll           = 2803
 cmd_Markers_SwapCaretAndMarker = 2804
+
+cmd_LinkAtCaret_Open           = 2806
+cmd_LinkAtCaret_Copy           = 2807
+cmd_LinkAtPopup_Open           = 2808
+cmd_LinkAtPopup_Copy           = 2809
 
 cmd_MacroStart                 = 2810
 cmd_MacroStop                  = 2811

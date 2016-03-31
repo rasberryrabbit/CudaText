@@ -1,6 +1,8 @@
 import os
 import shutil
 import json
+import collections
+import webbrowser
 from cudatext import *
 from .work_local import *
 from .work_remote import *
@@ -12,10 +14,12 @@ CONFIG_FILE = os.path.join(app_path(APP_DIR_SETTINGS), 'cuda_addonman.json')
 
 ch_user = []
 ch_def = [
-  'http://sourceforge.net/projects/cudatext/files/addons/plugins/',
-  'http://sourceforge.net/projects/cudatext/files/addons/linters/',
-  'http://sourceforge.net/projects/cudatext/files/addons/snippets/',
-  'http://sourceforge.net/projects/synwrite-addons/files/Lexers/'
+  'http://tenet.dl.sourceforge.net/project/cudatext/addons/plugins/',
+  'http://tenet.dl.sourceforge.net/project/cudatext/addons/linters/',
+  'http://tenet.dl.sourceforge.net/project/cudatext/addons/snippets/',
+  'http://tenet.dl.sourceforge.net/project/cudatext/addons/themes/',
+  'http://tenet.dl.sourceforge.net/project/cudatext/addons/translations/',
+  'http://iweb.dl.sourceforge.net/project/synwrite-addons/Lexers/'
   ]
   
 
@@ -23,7 +27,7 @@ class Command:
     def __init__(self):
         global ch_user
         if os.path.isfile(CONFIG_FILE):
-            op = json.loads(open(CONFIG_FILE).read())
+            op = json.loads(open(CONFIG_FILE).read(), object_pairs_hook=collections.OrderedDict)
             ch_user = op.get('channels_user', ch_user)
         
 
@@ -140,7 +144,6 @@ class Command:
             return
         if msg_box('Remove plugin: '+get_name_of_module(m), MB_OKCANCEL+MB_ICONQUESTION)!=ID_OK:
             return
-        do_remove_registering(m)
         if do_remove_module(m)==True:
             msg_box('Removed, restart program to see changes', MB_OK+MB_ICONINFO)
 
@@ -151,3 +154,13 @@ class Command:
         file_open(fn)
         msg_status('Opened: '+fn)
         
+    def do_homepage(self):
+        m = get_installed_choice()
+        if m is None: return
+        s = get_homepage_of_module(m)
+        if s:
+            webbrowser.open_new_tab(s)
+            msg_status('Opened browser: '+s)
+        else:
+            msg_box('Plugin "%s" doesn\'t have "homepage" field in install.inf' % \
+              get_name_of_module(m), MB_OK+MB_ICONWARNING)

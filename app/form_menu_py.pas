@@ -93,10 +93,11 @@ begin
   edit.Colors.TextBG:= GetAppColor('EdTextBg');
   edit.Colors.TextSelFont:= GetAppColor('EdSelFont');
   edit.Colors.TextSelBG:= GetAppColor('EdSelBg');
+  edit.Colors.BorderLine:= GetAppColor('EdBorder');
   list.Color:= GetAppColor('ListBg');
 
   ResultCode:= -1;
-  list.ItemHeight:= GetDefaultListItemHeight;
+  list.ItemHeight:= GetListboxItemHeight(UiOps.VarFontName, UiOps.VarFontSize);;
   self.Width:= UiOps.ListboxWidth;
 
   listItems:= TStringlist.Create;
@@ -205,13 +206,18 @@ var
   r1: TRect;
 begin
   if AIndex=list.ItemIndex then
-    cl:= GetAppColor('ListSelBg')
+  begin
+    c.Font.Color:= GetAppColor('ListSelFont');
+    cl:= GetAppColor('ListSelBg');
+  end
   else
+  begin
+    c.Font.Color:= GetAppColor('ListFont');
     cl:= list.Color;
+  end;
   c.Brush.Color:= cl;
   c.Pen.Color:= cl;
   c.FillRect(ARect);
-  c.Font.Color:= GetAppColor('ListFont');
 
   str:= listItems[PtrInt(listFiltered[AIndex])]; //ansi
   strname:= Utf8Decode(SGetItem(str, #9)); //uni
@@ -265,7 +271,7 @@ begin
     if not Multiline then
       pnt:= Point(ARect.Right-cIndent-c.TextWidth(Utf8Encode(strkey)), pnt.y)
     else
-      pnt:= Point(ARect.Left+cIndent2, pnt.y+list.ItemHeight div 2-2);
+      pnt:= Point(ARect.Left+cIndent2, pnt.y+list.ItemHeight div 2);
 
     c.Font.Color:= GetAppColor('ListFontHotkey');
     c.TextOut(pnt.x, pnt.y, Utf8Encode(strkey));
@@ -312,7 +318,9 @@ procedure TfmMenuApi.SetMultiline(AValue: boolean);
 begin
   if FMultiline=AValue then Exit;
   FMultiline:=AValue;
-  list.ItemHeight:= Trunc(GetDefaultListItemHeight*IfThen(FMultiline, 1.8, 1));
+  list.ItemHeight:= Trunc(
+    GetListboxItemHeight(UiOps.VarFontName, UiOps.VarFontSize) *
+    IfThen(FMultiline, 1.85, 1));
   list.Invalidate;
 end;
 

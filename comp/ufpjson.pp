@@ -14,7 +14,7 @@
  **********************************************************************}
 {$mode objfpc}
 {$h+}
-unit ufpjson;
+unit fpjson;
 
 interface
 
@@ -30,7 +30,7 @@ type
   TJSONInstanceType = (jitUnknown, jitNumberInteger,jitNumberInt64,jitNumberQWord,jitNumberFloat,
                        jitString, jitBoolean, jitNull, jitArray, jitObject);
   TJSONFloat = Double;
-  TJSONStringType = AnsiString;
+  TJSONStringType = UTF8String;
   TJSONUnicodeStringType = Unicodestring;
   TJSONCharType = AnsiChar;
   PJSONCharType = ^TJSONCharType;
@@ -100,8 +100,8 @@ Type
     function GetAsJSON: TJSONStringType; virtual; abstract;
     function GetAsString: TJSONStringType; virtual; abstract;
     procedure SetAsString(const AValue: TJSONStringType); virtual; abstract;
-    function GetAsUnicodeString: TJSONUnicodeStringType; virtual; abstract;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); virtual; abstract;
+    function GetAsUnicodeString: TJSONUnicodeStringType; virtual; 
+    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); virtual;
     function GetValue: variant; virtual; abstract;
     procedure SetValue(const AValue: variant); virtual; abstract;
     function GetItem(Index : Integer): TJSONData; virtual;
@@ -164,8 +164,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
   public
@@ -195,9 +193,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-      override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
   public
@@ -227,9 +222,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-      override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
   public
@@ -259,9 +251,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-      override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
   public
@@ -294,8 +283,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); override;
   public
     Constructor Create(const AValue : TJSONStringType); reintroduce;
     Constructor Create(const AValue : TJSONUnicodeStringType); reintroduce;
@@ -326,8 +313,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); override;
   public
     Constructor Create(AValue : Boolean); reintroduce;
     class function JSONType: TJSONType; override;
@@ -355,8 +340,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
   public
@@ -410,8 +393,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
     function GetCount: Integer; override;
@@ -534,8 +515,6 @@ Type
     function GetAsJSON: TJSONStringType; override;
     function GetAsString: TJSONStringType; override;
     procedure SetAsString(const AValue: TJSONStringType); override;
-    function GetAsUnicodeString: TJSONUnicodeStringType; override;
-    procedure SetAsUnicodeString(const AValue: TJSONUnicodeStringType); override;
     function GetValue: variant; override;
     procedure SetValue(const AValue: variant); override;
     function GetCount: Integer; override;
@@ -689,6 +668,7 @@ function StringToJSONString(const S: TJSONStringType): TJSONStringType;
 Var
   I,J,L : Integer;
   P : PJSONCharType;
+  C : AnsiChar;
 
 begin
   I:=1;
@@ -698,10 +678,11 @@ begin
   P:=PJSONCharType(S);
   While I<=L do
     begin
-    if (AnsiChar(P^) in ['"','/','\',#8,#9,#10,#12,#13]) then
+    C:=AnsiChar(P^);
+    if (C in ['"','/','\',#0..#31]) then
       begin
       Result:=Result+Copy(S,J,I-J);
-      Case P^ of
+      Case C of
         '\' : Result:=Result+'\\';
         '/' : Result:=Result+'\/';
         '"' : Result:=Result+'\"';
@@ -710,6 +691,8 @@ begin
         #10 : Result:=Result+'\n';
         #12 : Result:=Result+'\f';
         #13 : Result:=Result+'\r';
+      else
+        Result:=Result+'\u'+HexStr(Ord(C),4);
       end;
       J:=I+1;
       end;
@@ -960,17 +943,6 @@ begin
   FValue:=StrToQWord(AValue);
 end;
 
-function TJSONQWordNumber.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  Result:=IntToStr(FValue);
-end;
-
-procedure TJSONQWordNumber.SetAsUnicodeString(
-  const AValue: TJSONUnicodeStringType);
-begin
-  FValue:=StrToQWord(AValue);
-end;
-
 function TJSONQWordNumber.GetValue: variant;
 begin
   Result:=FValue;
@@ -1065,6 +1037,17 @@ end;
 
 { TJSONData }
 
+function TJSONData.GetAsUnicodeString: TJSONUnicodeStringType; 
+
+begin
+  Result:=UTF8Decode(AsString);
+end;
+
+procedure TJSONData.SetAsUnicodeString(const AValue: TJSONUnicodeStringType); 
+
+begin
+  AsString:=UTF8Encode(AValue);
+end;
 
 function TJSONData.GetItem(Index : Integer): TJSONData;
 begin
@@ -1190,7 +1173,7 @@ end;
 function TJSONData.FindPath(const APath: TJSONStringType): TJSONdata;
 
 Var
-  M : String;
+  M : TJSONStringType;
 
 begin
   Result:=DoFindPath(APath,M);
@@ -1199,7 +1182,7 @@ end;
 function TJSONData.GetPath(const APath: TJSONStringType): TJSONdata;
 
 Var
-  M : String;
+  M : TJSONStringType;
 begin
   Result:=DoFindPath(APath,M);
   If Result=Nil then
@@ -1335,20 +1318,6 @@ begin
   FValue:=AValue;
 end;
 
-function TJSONString.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  Result:=UTF8Decode(FValue);
-end;
-
-procedure TJSONString.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-begin
-  FValue:=UTF8Encode(AValue);
-  {$if FPC_FULLVERSION >= 20701}
-  // pass string encoding problem on concation
-  SetCodePage(Rawbytestring(FValue),DefaultSystemCodePage,False);
-  {$endif}
-end;
-
 constructor TJSONString.Create(const AValue: TJSONStringType);
 begin
   FValue:=AValue;
@@ -1357,10 +1326,6 @@ end;
 constructor TJSONString.Create(const AValue: TJSONUnicodeStringType);
 begin
   FValue:=UTF8Encode(AValue);
-  {$if FPC_FULLVERSION >= 20701}
-  // pass string encoding problem on concation
-  SetCodePage(Rawbytestring(FValue),DefaultSystemCodePage,False);
-  {$endif}
 end;
 
 { TJSONboolean }
@@ -1460,15 +1425,6 @@ begin
   FValue:=StrToBool(AValue);
 end;
 
-function TJSONBoolean.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  Result:=BoolToStr(FValue, True);
-end;
-
-procedure TJSONBoolean.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-begin
-  FValue:=StrToBool(AValue);
-end;
 
 constructor TJSONBoolean.Create(AValue: Boolean);
 begin
@@ -1556,15 +1512,6 @@ begin
   ConvertError(True);
 end;
 
-function TJSONNull.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  ConvertError(True);
-end;
-
-procedure TJSONNull.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-begin
-  ConvertError(True);
-end;
 
 function TJSONNull.GetValue: variant;
 begin
@@ -1669,25 +1616,6 @@ begin
     Raise EConvertError.CreateFmt(SErrInvalidFloat,[AValue]);
 end;
 
-function TJSONFloatNumber.GetAsUnicodeString: TJSONUnicodeStringType;
-var
-  Res : string;
-begin
-  Str(FValue,Res);
-  // Str produces a ' ' in front where the - can go.
-  if (Res<>'') and (Res[1]=' ') then
-    Delete(Res,1,1);
-  Result:=Res;
-end;
-
-procedure TJSONFloatNumber.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-Var
-  C : Integer;
-begin
-  Val(AValue,FValue,C);
-  If (C<>0) then
-    Raise EConvertError.CreateFmt(SErrInvalidFloat,[AValue]);
-end;
 
 function TJSONFloatNumber.GetValue: variant;
 begin
@@ -1787,16 +1715,6 @@ begin
   FValue:=StrToInt(AValue);
 end;
 
-function TJSONIntegerNumber.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  Result:=IntToStr(FValue);
-end;
-
-procedure TJSONIntegerNumber.SetAsUnicodeString(
-  const AValue: TJSONUnicodeStringType);
-begin
-  FValue:=StrToInt(AValue);
-end;
 
 function TJSONIntegerNumber.GetValue: variant;
 begin
@@ -1892,17 +1810,6 @@ begin
 end;
 
 procedure TJSONInt64Number.SetAsString(const AValue: TJSONStringType);
-begin
-  FValue:=StrToInt64(AValue);
-end;
-
-function TJSONInt64Number.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  Result:=IntToStr(FValue)
-end;
-
-procedure TJSONInt64Number.SetAsUnicodeString(
-  const AValue: TJSONUnicodeStringType);
 begin
   FValue:=StrToInt64(AValue);
 end;
@@ -2209,16 +2116,6 @@ end;
 procedure TJSONArray.SetAsString(const AValue: TJSONStringType);
 begin
   ConvertError(False);
-end;
-
-function TJSONArray.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  ConvertError(True);
-end;
-
-procedure TJSONArray.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
-begin
-  ConvertError(True);
 end;
 
 function TJSONArray.GetValue: variant;
@@ -2797,16 +2694,6 @@ begin
 end;
 
 procedure TJSONObject.SetAsString(const AValue: TJSONStringType);
-begin
-  ConvertError(False);
-end;
-
-function TJSONObject.GetAsUnicodeString: TJSONUnicodeStringType;
-begin
-  ConvertError(True);
-end;
-
-procedure TJSONObject.SetAsUnicodeString(const AValue: TJSONUnicodeStringType);
 begin
   ConvertError(False);
 end;

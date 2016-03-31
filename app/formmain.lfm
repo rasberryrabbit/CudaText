@@ -1,7 +1,7 @@
 object fmMain: TfmMain
-  Left = 447
+  Left = 339
   Height = 526
-  Top = 180
+  Top = 190
   Width = 788
   AllowDropFiles = True
   Caption = 'App'
@@ -124,6 +124,15 @@ object fmMain: TfmMain
         OnDrawItem = ListboxOutDrawItem
         OnKeyDown = ListboxOutKeyDown
       end
+      object TreeRes: TTreeView
+        Left = 552
+        Height = 97
+        Top = 0
+        Width = 121
+        Images = ImageListTreeRes
+        TabOrder = 2
+        Visible = False
+      end
     end
     object SplitterHorz: TSplitter
       Cursor = crVSplit
@@ -158,7 +167,7 @@ object fmMain: TfmMain
       Left = 1
       Hint = 'Create new tab'
       Top = 0
-      Caption = 'tbNew'
+      Caption = 'f_new'
       DropdownMenu = PopupNewdoc
       ImageIndex = 0
       OnClick = tbNewClick
@@ -168,7 +177,7 @@ object fmMain: TfmMain
       Left = 37
       Hint = 'Open file'
       Top = 0
-      Caption = 'tbOpen'
+      Caption = 'f_open'
       DropdownMenu = PopupRecents
       ImageIndex = 1
       OnClick = tbOpenClick
@@ -178,73 +187,79 @@ object fmMain: TfmMain
       Left = 73
       Hint = 'Save file'
       Top = 0
-      Caption = 'tbSave'
+      Caption = 'f_save'
       ImageIndex = 2
       OnClick = tbSaveClick
+    end
+    object tbSplit1: TToolButton
+      Left = 97
+      Height = 24
+      Top = 0
+      Width = 12
+      Style = tbsDivider
     end
     object tbFind: TToolButton
       Left = 109
       Hint = 'Dialog "Find"'
       Top = 0
-      Caption = 'tbFind'
+      Caption = 'find'
       DropdownMenu = PopupFind
       ImageIndex = 3
       OnClick = tbFindClick
       Style = tbsDropDown
     end
-    object ToolButton5: TToolButton
-      Left = 97
-      Height = 24
-      Top = 0
-      Width = 12
-      Caption = 'ToolButton5'
-      Style = tbsDivider
-    end
     object tbGoto: TToolButton
       Left = 145
       Hint = 'Dialog "Go to"'
       Top = 0
-      Caption = 'tbGoto'
+      Caption = 'goto'
       ImageIndex = 4
       OnClick = tbGotoClick
+    end
+    object tbSplit2: TToolButton
+      Left = 169
+      Height = 24
+      Top = 0
+      Width = 12
+      Style = tbsDivider
     end
     object tbCut: TToolButton
       Left = 181
       Hint = 'Cut'
       Top = 0
-      Caption = 'tbCut'
+      Caption = 'e_cut'
       ImageIndex = 7
       OnClick = tbCutClick
-    end
-    object tbPaste: TToolButton
-      Left = 229
-      Hint = 'Paste'
-      Top = 0
-      Caption = 'tbPaste'
-      ImageIndex = 8
-      OnClick = tbPasteClick
-    end
-    object ToolButton9: TToolButton
-      Left = 169
-      Height = 24
-      Top = 0
-      Width = 12
-      Caption = 'ToolButton9'
-      Style = tbsDivider
     end
     object tbCopy: TToolButton
       Left = 205
       Hint = 'Copy'
       Top = 0
-      Caption = 'tbCopy'
+      Caption = 'e_copy'
       ImageIndex = 6
       OnClick = tbCopyClick
+    end
+    object tbPaste: TToolButton
+      Left = 229
+      Hint = 'Paste'
+      Top = 0
+      Caption = 'e_paste'
+      ImageIndex = 8
+      OnClick = tbPasteClick
+    end
+    object tbDel: TToolButton
+      Left = 253
+      Hint = 'Delete selection'
+      Top = 0
+      Caption = 'e_del'
+      ImageIndex = 9
+      OnClick = tbDelClick
     end
     object tbSelAll: TToolButton
       Left = 277
       Hint = 'Select all'
       Top = 0
-      Caption = 'tbSelAll'
+      Caption = 'e_sel'
       ImageIndex = 10
       OnClick = tbSelAllClick
     end
@@ -252,7 +267,7 @@ object fmMain: TfmMain
       Left = 301
       Hint = 'Undo'
       Top = 0
-      Caption = 'tbUndo'
+      Caption = 'e_undo'
       ImageIndex = 11
       OnClick = tbUndoClick
     end
@@ -260,47 +275,30 @@ object fmMain: TfmMain
       Left = 325
       Hint = 'Redo'
       Top = 0
-      Caption = 'tbRedo'
+      Caption = 'e_redo'
       ImageIndex = 12
       OnClick = tbRedoClick
     end
-    object ToolButton15: TToolButton
+    object tbSplit3: TToolButton
       Left = 349
       Height = 24
       Top = 0
       Width = 12
-      Caption = 'ToolButton15'
       Style = tbsDivider
     end
     object tbUnpri: TToolButton
       Left = 361
       Hint = 'Toggle unprinted chars'
       Top = 0
-      Caption = 'tbUnpri'
+      Caption = 'unpri'
       ImageIndex = 14
       OnClick = tbUnpriClick
-    end
-    object tbDel: TToolButton
-      Left = 253
-      Hint = 'Delete selection'
-      Top = 0
-      Caption = 'tbDel'
-      ImageIndex = 9
-      OnClick = tbDelClick
-    end
-    object tbMinimap: TToolButton
-      Left = 433
-      Hint = 'Toggle minimap'
-      Top = 0
-      Caption = 'tbMinimap'
-      ImageIndex = 15
-      OnClick = tbMinimapClick
     end
     object tbSidePanel: TToolButton
       Left = 385
       Hint = 'Toggle side-panel'
       Top = 0
-      Caption = 'tbSidePanel'
+      Caption = 'p_side'
       ImageIndex = 17
       OnClick = tbSidePanelClick
     end
@@ -308,9 +306,17 @@ object fmMain: TfmMain
       Left = 409
       Hint = 'Toggle bottom-panel'
       Top = 0
-      Caption = 'tbBtmPanel'
+      Caption = 'p_btm'
       ImageIndex = 16
       OnClick = tbBtmPanelClick
+    end
+    object tbMinimap: TToolButton
+      Left = 433
+      Hint = 'Toggle minimap'
+      Top = 0
+      Caption = 'map'
+      ImageIndex = 15
+      OnClick = tbMinimapClick
     end
   end
   object PythonEngine: TPythonEngine
@@ -353,6 +359,7 @@ object fmMain: TfmMain
     top = 32
     object mnuFile: TMenuItem
       Caption = '&File'
+      Hint = 'top-file'
       object mnuFileNew: TMenuItem
         Caption = 'New file'
       end
@@ -361,6 +368,7 @@ object fmMain: TfmMain
       end
       object mnuFileOpenSub: TMenuItem
         Caption = 'Open recent'
+        Hint = '_recents'
       end
       object mnuFileReopen: TMenuItem
         Caption = 'Reopen'
@@ -397,20 +405,19 @@ object fmMain: TfmMain
       end
       object mnuFileEnc: TMenuItem
         Caption = 'Encoding'
+        Hint = '_enc'
       end
       object mnuFileEnds: TMenuItem
         Caption = 'Line ends'
+        Hint = 'ends'
         object mnuFileEndWin: TMenuItem
           Caption = 'Win'
-          OnClick = mnuEndsWinClick
         end
         object mnuFileEndUn: TMenuItem
           Caption = 'Unix'
-          OnClick = mnuEndsUnixClick
         end
         object mnuFileEndMac: TMenuItem
-          Caption = 'Mac'
-          OnClick = mnuEndsMacClick
+          Caption = 'MacOS9'
         end
       end
       object SepFile4: TMenuItem
@@ -425,6 +432,7 @@ object fmMain: TfmMain
     end
     object mnuEdit: TMenuItem
       Caption = '&Edit'
+      Hint = 'top-edit'
       object mnuEditUndo: TMenuItem
         Caption = 'Undo'
       end
@@ -449,8 +457,9 @@ object fmMain: TfmMain
       object SepEd2: TMenuItem
         Caption = '-'
       end
-      object mnuEditClipSub: TMenuItem
+      object mnuEditCopySub: TMenuItem
         Caption = 'Copy to clipboard'
+        Hint = 'copy'
         object mnuEditCopyLine: TMenuItem
           Caption = 'Copy current line'
         end
@@ -472,6 +481,7 @@ object fmMain: TfmMain
       end
       object mnuEditLineOp: TMenuItem
         Caption = 'Line operations'
+        Hint = 'lineop'
         object mnuEditLineDel: TMenuItem
           Caption = 'Delete line(s)'
         end
@@ -490,6 +500,7 @@ object fmMain: TfmMain
       end
       object mnuEditIndentSub: TMenuItem
         Caption = 'Blank operations'
+        Hint = 'blankop'
         object mnuEditIndent: TMenuItem
           Caption = 'Indent'
         end
@@ -520,6 +531,7 @@ object fmMain: TfmMain
       end
       object mnuCaseSub: TMenuItem
         Caption = 'Convert case'
+        Hint = 'case'
         object mnuCaseUp: TMenuItem
           Caption = 'Upper case'
         end
@@ -538,6 +550,7 @@ object fmMain: TfmMain
       end
       object mnuSortSub: TMenuItem
         Caption = 'Sort lines'
+        Hint = 'sort'
         object mnuSortAsc: TMenuItem
           Caption = 'Sort lines asc'
         end
@@ -545,8 +558,9 @@ object fmMain: TfmMain
           Caption = 'Sort lines desc'
         end
       end
-      object mnuEditCmtSub: TMenuItem
+      object mnuCmtSub: TMenuItem
         Caption = 'Comments'
+        Hint = 'cmt'
         object mnuCmtAdd: TMenuItem
           Caption = 'Add line comment'
         end
@@ -566,6 +580,7 @@ object fmMain: TfmMain
     end
     object mnuSel: TMenuItem
       Caption = 'Select&ion'
+      Hint = 'top-sel'
       object mnuSelAll: TMenuItem
         Caption = 'Select all'
       end
@@ -586,6 +601,7 @@ object fmMain: TfmMain
       end
       object mnuCaretsExtSub: TMenuItem
         Caption = 'More carets'
+        Hint = 'carets'
         object mnuCaretsUp1Line: TMenuItem
           Caption = 'More carets, up, 1 line'
         end
@@ -611,6 +627,7 @@ object fmMain: TfmMain
     end
     object mnuSr: TMenuItem
       Caption = '&Search'
+      Hint = 'top-sr'
       object mnuFindDlg: TMenuItem
         Caption = 'Find...'
       end
@@ -641,8 +658,9 @@ object fmMain: TfmMain
       object mnuGotoBm: TMenuItem
         Caption = 'Go to bookmark...'
       end
-      object mnuBookmarksSub: TMenuItem
+      object mnuBmSub: TMenuItem
         Caption = 'Bookmarks'
+        Hint = 'bm'
         object mnuBmNext: TMenuItem
           Caption = 'Go to next bookmark'
         end
@@ -665,8 +683,10 @@ object fmMain: TfmMain
     end
     object mnuView: TMenuItem
       Caption = '&View'
+      Hint = 'top-view'
       object mnuGroups: TMenuItem
         Caption = 'Groups'
+        Hint = 'groups'
         object mnuGr1: TMenuItem
           Caption = 'One group'
         end
@@ -703,11 +723,12 @@ object fmMain: TfmMain
       end
       object mnuViewSplitSub: TMenuItem
         Caption = 'Split tab'
+        Hint = 'split'
         object mnuViewSplitDo: TMenuItem
-          Caption = 'Split'
+          Caption = 'Toggle split'
         end
         object mnuViewSplitHorz: TMenuItem
-          Caption = 'Split horizontal'
+          Caption = 'Toggle horizontal/vertical'
         end
       end
       object SepV1: TMenuItem
@@ -730,6 +751,7 @@ object fmMain: TfmMain
       end
       object mnuViewUnpri: TMenuItem
         Caption = 'Toggle unprinted chars'
+        Hint = 'unpri'
         object mnuViewUnpriShow: TMenuItem
           Caption = 'Show'
         end
@@ -767,9 +789,11 @@ object fmMain: TfmMain
     end
     object mnuPlug: TMenuItem
       Caption = '&Plugins'
+      Hint = 'plugins'
     end
     object mnuOp: TMenuItem
       Caption = '&Options'
+      Hint = 'top-op'
       object mnuOpDefault: TMenuItem
         Caption = 'Settings - default'
       end
@@ -778,6 +802,7 @@ object fmMain: TfmMain
       end
       object mnuOpMore: TMenuItem
         Caption = 'Settings - more'
+        Hint = 'set_more'
         object mnuOpLexer: TMenuItem
           Caption = 'Settings - lexer'
         end
@@ -789,40 +814,56 @@ object fmMain: TfmMain
         end
         object mnuOpKeys: TMenuItem
           Caption = 'Settings - keys'
-          OnClick = mnuOpKeysClick
         end
       end
       object SepOp1: TMenuItem
         Caption = '-'
       end
-      object mnuFonts: TMenuItem
+      object mnuFontSub: TMenuItem
         Caption = 'Fonts'
+        Hint = 'set_font'
         object mnuFontText: TMenuItem
           Caption = 'Select text font...'
         end
         object mnuFontUi: TMenuItem
           Caption = 'Select UI font...'
         end
+        object mnuFontOutput: TMenuItem
+          Caption = 'Select output-panel font...'
+        end
       end
       object mnuOpLexSub: TMenuItem
         Caption = 'Lexers'
+        Hint = 'set_lex'
         object mnuOpLexProp: TMenuItem
           Caption = 'Lexer properties...'
         end
         object mnuOpLexLib: TMenuItem
           Caption = 'Lexer library...'
         end
+        object mnuOpLexMap: TMenuItem
+          Caption = 'Lexer styles mapping...'
+        end
       end
       object mnuThemes: TMenuItem
         Caption = 'Color themes'
-        object MenuItem26: TMenuItem
+        Hint = '_themes'
+        object mnuTst1: TMenuItem
           Caption = '--'
           Visible = False
+        end
+      end
+      object mnuLang: TMenuItem
+        Caption = 'Translations'
+        Hint = '_langs'
+        object mnuTst2: TMenuItem
+          Caption = '--'
         end
       end
     end
     object mnuHelp: TMenuItem
       Caption = '&Help'
+      Hint = 'top-help'
       object mnuHelpCmd: TMenuItem
         Caption = 'Commands...'
       end
@@ -839,10 +880,13 @@ object fmMain: TfmMain
         Caption = 'Mouse usage'
       end
       object mnuHelpLexers: TMenuItem
-        Caption = 'Install lexers'
+        Caption = 'Lexers'
       end
       object mnuHelpChangelog: TMenuItem
-        Caption = 'Change log'
+        Caption = 'Changelog'
+      end
+      object mnuHelpIssues: TMenuItem
+        Caption = 'Issue report'
       end
       object SepHelp2: TMenuItem
         Caption = '-'
@@ -872,15 +916,12 @@ object fmMain: TfmMain
     top = 32
     object mnuEndsWin: TMenuItem
       Caption = 'Win'
-      OnClick = mnuEndsWinClick
     end
     object mnuEndsUnix: TMenuItem
       Caption = 'Unix'
-      OnClick = mnuEndsUnixClick
     end
     object mnuEndsMac: TMenuItem
-      Caption = 'Mac'
-      OnClick = mnuEndsMacClick
+      Caption = 'MacOS9'
     end
   end
   object SaveDlg: TSaveDialog
@@ -1611,7 +1652,7 @@ object fmMain: TfmMain
       OnClick = mnuFind2NextClick
     end
     object mnuFind2Prev: TMenuItem
-      Caption = 'Find prev'
+      Caption = 'Find previous'
       OnClick = mnuFind2PrevClick
     end
     object MenuItem20: TMenuItem
@@ -1622,7 +1663,7 @@ object fmMain: TfmMain
       OnClick = mnuFind2WordNextClick
     end
     object mnuFind2WordPrev: TMenuItem
-      Caption = 'Find current word prev'
+      Caption = 'Find current word previous'
       OnClick = mnuFind2WordPrevClick
     end
   end
@@ -2354,6 +2395,9 @@ object fmMain: TfmMain
     object mnuTextGotoDef: TMenuItem
       Caption = 'Go to definition'
     end
+    object mnuTextOpenUrl: TMenuItem
+      Caption = 'Open URL'
+    end
   end
   object TimerStatusAlt: TTimer
     Enabled = False
@@ -2361,5 +2405,10 @@ object fmMain: TfmMain
     OnTimer = TimerStatusAltTimer
     left = 328
     top = 144
+  end
+  object ImageListTreeRes: TImageList
+    AllocBy = 10
+    left = 600
+    top = 272
   end
 end

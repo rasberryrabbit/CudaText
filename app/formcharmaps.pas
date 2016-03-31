@@ -13,8 +13,13 @@ unit formcharmaps;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ExtCtrls,
-  StdCtrls, Grids, LclType, LclProc, LCLUnicodeData;
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ExtCtrls,
+  StdCtrls, Grids, IniFiles,
+  LclType, LclProc, LCLUnicodeData, LConvEncoding,
+  LazUTF8, LazFileUtils,
+  {$ifdef windows} Windows, {$endif}
+  proc_msg,
+  proc_globdata;
 
 type
   TCharmapInsertEvent = procedure(const Str: string) of object;
@@ -25,6 +30,7 @@ type
     btnAnsi: TButton;
     btnClose: TButton;
     btnUnicode: TButton;
+    comboAnsi: TComboBox;
     comboUnicode: TComboBox;
     LabelInfo: TLabel;
     PanelInfo: TPanel;
@@ -33,6 +39,7 @@ type
     procedure btnAnsiClick(Sender: TObject);
     procedure btnCloseClick(Sender: TObject);
     procedure btnUnicodeClick(Sender: TObject);
+    procedure comboAnsiChange(Sender: TObject);
     procedure comboUnicodeChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -52,10 +59,13 @@ type
     procedure DoFormAutosize;
     procedure DoInsert(aCol, aRow: integer);
     procedure DoShowStatus(aCol, aRow: integer);
+    function GetCodepage: string;
     { private declarations }
   public
     { public declarations }
     AllowUnicodeAfterFFFF: boolean;
+    MsgStatusAnsi: string;
+    MsgStatusUnicode: string;
     InitialStr: string;
     property OnInsert: TCharmapInsertEvent read FOnInsert write FOnInsert;
   end;
@@ -63,11 +73,36 @@ type
 var
   fmCharmaps: TfmCharmaps;
 
-function DoDialogCharmapModal: string;
+function DoDialogCharmapModal(const ALangFilename: string): string;
+procedure DoLocalize_FormCharmap(F: TfmCharmaps);
+
 
 implementation
 
 {$R *.lfm}
+
+procedure DoLocalize_FormCharmap(F: TfmCharmaps);
+const
+  section = 'd_charmap';
+var
+  ini: TIniFile;
+  fn: string;
+begin
+  fn:= GetAppLangFilename;
+  if not FileExists(fn) then exit;
+  ini:= TIniFile.Create(fn);
+  try
+    with F do Caption:= ini.ReadString(section, '_', Caption);
+    with F.btnClose do Caption:= msgButtonClose;
+    with F.btnAnsi do Caption:= ini.ReadString(section, 'mod1', Caption);
+    with F.btnUnicode do Caption:= ini.ReadString(section, 'mod2', Caption);
+    F.MsgStatusAnsi:= ini.ReadString(section, 'stat1', F.MsgStatusAnsi);
+    F.MsgStatusUnicode:= ini.ReadString(section, 'stat2', F.MsgStatusUnicode);
+  finally
+    FreeAndNil(ini);
+  end;
+end;
+
 
 type
   TDummy = class
@@ -83,7 +118,7 @@ begin
   if Assigned(Form) then Form.Close;
 end;
 
-function DoDialogCharmapModal: string;
+function DoDialogCharmapModal(const ALangFilename: string): string;
 var
   F: TfmCharmaps;
   Dummy: TDummy;
@@ -93,6 +128,7 @@ begin
   Dummy.Form:= F;
 
   try
+    DoLocalize_FormCharmap(F);
     F.OnInsert:= @Dummy.OnInsert;
     F.ShowModal;
     Result:= Dummy.StrVal;
@@ -107,8 +143,24 @@ end;
 procedure TfmCharmaps.FormShow(Sender: TObject);
 var
   str: string;
-  i, j: integer;
+  cp, i, j: integer;
 begin
+  {$ifdef windows}
+  //select comboAnsi item for system codepage
+  cp:= Windows.GetACP;
+  case cp of
+    437..1258: str:= 'cp'+IntToStr(cp)+' ';
+    else str := '?';
+  end;
+  for i:= 0 to comboAnsi.Items.Count-1 do
+    if Pos(str, comboAnsi.Items[i])=1 then
+    begin
+      comboAnsi.ItemIndex:= i;
+      comboAnsiChange(nil);
+      break;
+    end;
+  {$endif}
+
   if not FUnicode then
     if InitialStr<>'' then
       for i:= 1 to 16 do
@@ -157,7 +209,7 @@ begin
     Result:= UnicodeToUTF8(code)
   else
   if code>=0 then
-    Result:= AnsiToUtf8(Chr(code))
+    Result:= ConvertEncoding(Chr(code), GetCodepage, 'utf8')
   else
     Result:= '';
 end;
@@ -168,13 +220,13 @@ var
   str: string;
 begin
   code:= DoGetCode(aCol, aRow);
-  if not FUnicode then
-    LabelInfo.Caption:= Format('Decimal %d, Hex %s', [code, IntToHex(code, 2)])
-  else
-    LabelInfo.Caption:= Format('U+%s', [IntToHex(code, 4)]);
-
   str:= CodeToString(code);
-  LabelInfo.Caption:= LabelInfo.Caption+Format(', Char "%s"', [str]);
+  if code=0 then str:= '';
+
+  if not FUnicode then
+    LabelInfo.Caption:= Format(MsgStatusAnsi, [code, IntToHex(code, 2), str])
+  else
+    LabelInfo.Caption:= Format(MsgStatusUnicode, [IntToHex(code, 4), str]);
 end;
 
 procedure TfmCharmaps.GridSelectCell(Sender: TObject; aCol, aRow: Integer;
@@ -183,12 +235,22 @@ begin
   DoShowStatus(aCol, aRow);
 end;
 
+function TfmCharmaps.GetCodepage: string;
+var
+  n: integer;
+begin
+  Result:= comboAnsi.Items[comboAnsi.ItemIndex];
+  n:= Pos(' ', Result);
+  if n>0 then SetLength(Result, n-1);
+end;
+
 procedure TfmCharmaps.DoShowAnsi;
 var
   i, j, code: integer;
 begin
   FUnicode:= false;
-  PanelInfo.Hide;
+  comboAnsi.Visible:= not FUnicode;
+  comboUnicode.Visible:= FUnicode;
 
   Grid.Clear;
   Grid.RowCount:= 17;
@@ -207,7 +269,7 @@ begin
     begin
       code:= i-1 + (j-1)*16;
       if (code=0) or (code=8) or (code=9) then Continue;
-      Grid.Cells[i, j]:= AnsiToUtf8(Chr(code));
+      Grid.Cells[i, j]:= CodeToString(code);
     end;
 
   DoShowStatus(Grid.Col, Grid.Row);
@@ -221,7 +283,10 @@ var
   nBegin, nEnd, i: integer;
 begin
   FUnicode:= true;
-  PanelInfo.Show;
+  comboAnsi.Visible:= not FUnicode;
+  comboUnicode.Visible:= FUnicode;
+
+  PanelInfo.Top:= 10;
   Grid.Clear;
 
   if comboUnicode.ItemIndex<0 then exit;
@@ -247,6 +312,9 @@ procedure TfmCharmaps.FormCreate(Sender: TObject);
 var
   i: integer;
 begin
+  MsgStatusAnsi:= 'Decimal %d, Hex %s, Char "%s"';
+  MsgStatusUnicode:= 'U+%s, Char "%s"';
+
   comboUnicode.Items.Clear;
   for i:= Low(UnicodeBlocks) to High(UnicodeBlocks) do
     if AllowUnicodeAfterFFFF or (UnicodeBlocks[i].E<=$FFFF) then
@@ -292,7 +360,7 @@ end;
 procedure TfmCharmaps.DoFormAutosize;
 begin
   Grid.AutoSizeColumns;
-  ClientHeight:= 17{fixed}*(Grid.RowHeights[1]+1) + 6 + PanelBtm.Height;
+  //ClientHeight:= 17{fixed}*(Grid.RowHeights[1]+1) + 6 + PanelBtm.Height;
 end;
 
 procedure TfmCharmaps.btnCloseClick(Sender: TObject);
@@ -303,6 +371,12 @@ end;
 procedure TfmCharmaps.btnUnicodeClick(Sender: TObject);
 begin
   DoShowUnicode;
+end;
+
+procedure TfmCharmaps.comboAnsiChange(Sender: TObject);
+begin
+  if not FUnicode then
+    DoShowAnsi;
 end;
 
 procedure TfmCharmaps.comboUnicodeChange(Sender: TObject);

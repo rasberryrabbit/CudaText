@@ -12,7 +12,8 @@ unit proc_editor;
 interface
 
 uses
-  Classes, SysUtils, Graphics,
+  Classes, SysUtils, Graphics, StrUtils,
+  Dialogs,
   ATSynEdit,
   ATSynEdit_CanvasProc,
   ATSynEdit_Carets,
@@ -30,10 +31,11 @@ procedure EditorMarkerClearAll(Ed: TATSynEdit);
 procedure EditorMarkerSwap(Ed: TATSynEdit);
 
 type TAppBookmarkOp = (bmOpClear, bmOpSet, bmOpToggle);
-procedure EditorBookmarkSet(ed: TATSynEdit; ALine, ABmKind: integer; AOp: TAppBookmarkOp);
+procedure EditorBookmarkSet(ed: TATSynEdit; ALine, ABmKind: integer; AOp: TAppBookmarkOp; const AHint: string);
 procedure EditorBookmarkInvertAll(ed: TATSynEdit);
 procedure EditorBookmarkClearAll(ed: TATSynEdit);
 procedure EditorBookmarkGotoNext(ed: TATSynEdit; ANext: boolean);
+function EditorBookmarkIsStandard(NKind: integer): boolean;
 
 procedure EditorConvertTabsToSpaces(ed: TATSynEdit);
 procedure EditorConvertSpacesToTabsLeading(Ed: TATSynEdit);
@@ -46,20 +48,28 @@ procedure EditorFoldUnfoldRangeAtCurLine(Ed: TATSynEdit; AFold: boolean);
 function EditorGetFoldString(Ed: TATSynEdit): string;
 procedure EditorSetFoldString(Ed: TATSynEdit; S: string);
 
+function EditorGetLinkAtScreenCoord(Ed: TATSynEdit; P: TPoint): atString;
+function EditorGetLinkAtCaret(Ed: TATSynEdit): atString;
+
 type
   TEdSelType = (selNo, selSmall, selStream, selCol, selCarets);
 
 function EditorGetStatusType(ed: TATSynEdit): TEdSelType;
 function EditorFormatStatus(ed: TATSynEdit; const str: string): string;
+function EditorFormatTabsize(ed: TATSynEdit; const str: string): string;
 
 procedure EditorApplyTheme(Ed: TATSynedit);
 procedure EditorSetColorById(Ed: TATSynEdit; const Id: string; AColor: TColor);
 function EditorGetColorById(Ed: TATSynEdit; const Id: string): TColor;
 
+function EditorIsAutocompleteCssPosition(Ed: TATSynEdit; AX, AY: integer): boolean;
+procedure EditorAutoCloseBracket(Ed: TATSynEdit; ch: char);
+
 
 implementation
 
-procedure EditorBookmarkSet(ed: TATSynEdit; ALine, ABmKind: integer; AOp: TAppBookmarkOp);
+procedure EditorBookmarkSet(ed: TATSynEdit; ALine, ABmKind: integer;
+  AOp: TAppBookmarkOp; const AHint: string);
 var
   i: integer;
 begin
@@ -69,15 +79,27 @@ begin
 
   case AOp of
     bmOpSet:
-      ed.Strings.LinesBm[i]:= ABmKind;
+      begin
+        ed.Strings.LinesBm[i]:= ABmKind;
+        ed.Strings.LinesHint[i]:= AHint;
+      end;
     bmOpClear:
-      ed.Strings.LinesBm[i]:= 0;
+      begin
+        ed.Strings.LinesBm[i]:= 0;
+        ed.Strings.LinesHint[i]:= '';
+      end;
     bmOpToggle:
       begin
         if ed.Strings.LinesBm[i]=0 then
-          ed.Strings.LinesBm[i]:= ABmKind
+        begin
+          ed.Strings.LinesBm[i]:= ABmKind;
+          ed.Strings.LinesHint[i]:= AHint;
+        end
         else
+        begin
           ed.Strings.LinesBm[i]:= 0;
+          ed.Strings.LinesHint[i]:= '';
+        end;
       end;
   end;
 
@@ -138,8 +160,8 @@ begin
   Ed.Font.Size:= Op.OpFontSize;
   Ed.Font.Quality:= Op.OpFontQuality;
 
-  Ed.OptCharSpacingX:= Op.OpSpaceX;
-  Ed.OptCharSpacingY:= Op.OpSpaceY;
+  Ed.OptCharSpacingX:= Op.OpSpacingX;
+  Ed.OptCharSpacingY:= Op.OpSpacingY;
 
   Ed.OptTabSize:= Op.OpTabSize;
   Ed.OptTabSpaces:= Op.OpTabSpaces;
@@ -172,11 +194,15 @@ begin
   Ed.OptMinimapShowSelAlways:= Op.OpMinimapShowSelAlways;
   Ed.OptMinimapShowSelBorder:= Op.OpMinimapShowSelBorder;
   Ed.OptMinimapCharWidth:= Op.OpMinimapCharWidth;
+  Ed.OptMinimapAtLeft:= Op.OpMinimapAtLeft;
   Ed.OptMicromapVisible:= Op.OpMicromapShow;
   Ed.OptMicromapWidth:= Op.OpMicromapWidth;
 
   Ed.OptMarginRight:= Op.OpMargin;
   Ed.OptMarginString:= Op.OpMarginString;
+
+  Ed.OptShowURLs:= Op.OpLinks;
+  Ed.OptShowURLsRegex:= Op.OpLinksRegex;
 
   if ForceApply then
   begin
@@ -184,7 +210,6 @@ begin
     Ed.OptUnprintedSpaces:= Op.OpUnprintedSpaces;
     Ed.OptUnprintedEnds:= Op.OpUnprintedEnds;
     Ed.OptUnprintedEndsDetails:= Op.OpUnprintedEndDetails;
-    Ed.OptUnprintedReplaceSpec:= Op.OpUnprintedReplaceSpec;
   end;
 
   OptUnprintedEndArrowOrDot:= Op.OpUnprintedEndArrow;
@@ -193,6 +218,7 @@ begin
   OptUnprintedEndDotScale:= Op.OpUnprintedEndDotScale;
   OptUnprintedEndFontScale:= Op.OpUnprintedEndFontScale;
   OptUnprintedTabPointerScale:= Op.OpUnprintedTabPointerScale;
+  OptUnprintedReplaceSpec:= Op.OpUnprintedReplaceSpec;
 
   if ForceApply then
   begin
@@ -214,6 +240,9 @@ begin
     Ed.OptCaretShapeOvr:= TATSynCaretShape(Op.OpCaretShapeOvr);
   if Op.OpCaretShapeRO<=Ord(High(TATSynCaretShape)) then
     Ed.OptCaretShapeRO:= TATSynCaretShape(Op.OpCaretShapeRO);
+
+  if Op.OpCaretAfterPasteColumn<=Ord(High(TATPasteCaret)) then
+    Ed.OptCaretPosAfterPasteColumn:= TATPasteCaret(Op.OpCaretAfterPasteColumn);
 
   Ed.OptCaretVirtual:= Op.OpCaretVirtual;
   Ed.OptCaretManyAllowed:= Op.OpCaretMulti;
@@ -240,6 +269,7 @@ begin
 
   Ed.OptMouse2ClickDragSelectsWords:= Op.OpMouse2ClickDragSelectsWords;
   Ed.OptMouseDragDrop:= Op.OpMouseDragDrop;
+  ATSynEdit.OptMouseDragDropFocusesTargetEditor:= Op.OpMouseDragDropFocusTarget;
   Ed.OptMouseNiceScroll:= Op.OpMouseNiceScroll;
   Ed.OptMouseRightClickMovesCaret:= Op.OpMouseRightClickMovesCaret;
   Ed.OptMouseEnableColumnSelection:= Op.OpMouseEnableColumnSelection;
@@ -371,12 +401,14 @@ end;
 function EditorFormatStatus(ed: TATSynEdit; const str: string): string;
 var
   caret: TATCaretItem;
-  cols: integer;
-  n: integer;
+  cols, n, x_b, y_b, x_e, y_e: integer;
+  bSel: boolean;
 begin
   result:= '';
   if ed.Carets.Count=0 then exit;
   caret:= ed.Carets[0];
+
+  caret.GetRange(x_b, y_b, x_e, y_e, bSel);
 
   //make {cols} work for column-sel and small-sel
   cols:= 0;
@@ -392,6 +424,8 @@ begin
   result:= stringreplace(result, '{x}', inttostr(caret.PosX+1), []);
   result:= stringreplace(result, '{y}', inttostr(caret.PosY+1), []);
   result:= stringreplace(result, '{y2}', inttostr(ed.carets[ed.carets.count-1].PosY+1), []);
+  result:= stringreplace(result, '{yb}', inttostr(y_b+1), []);
+  result:= stringreplace(result, '{ye}', inttostr(y_e+1), []);
   result:= stringreplace(result, '{count}', inttostr(ed.strings.count), []);
   result:= stringreplace(result, '{carets}', inttostr(ed.carets.count), []);
   result:= stringreplace(result, '{cols}', inttostr(cols), []);
@@ -405,6 +439,13 @@ begin
       n:= SCharPosToColumnPos(ed.Strings.Lines[caret.PosY], caret.PosX, ed.OptTabSize)+1;
       result:= stringreplace(result, '{xx}', inttostr(n), []);
     end;
+end;
+
+function EditorFormatTabsize(ed: TATSynEdit; const str: string): string;
+begin
+  Result:= str;
+  SReplaceAll(Result, '{tab}', IntToStr(Ed.OptTabSize));
+  SReplaceAll(Result, '{_}', IfThen(Ed.OptTabSpaces, '_'));
 end;
 
 function EditorGetStatusType(ed: TATSynEdit): TEdSelType;
@@ -453,6 +494,7 @@ begin
   Ed.Colors.StateSaved:= GetAppColor('EdStateSaved');
   Ed.Colors.BlockStaple:= GetAppColor('EdBlockStaple');
   Ed.Colors.BlockSepLine:= GetAppColor('EdBlockSepLine');
+  Ed.Colors.Links:= GetAppColor('EdLinks');
   Ed.Colors.LockedBG:= GetAppColor('EdLockedBg');
   Ed.Colors.ComboboxArrow:= GetAppColor('EdComboArrow');
   Ed.Colors.ComboboxArrowBG:= GetAppColor('EdComboArrowBg');
@@ -463,6 +505,7 @@ begin
 
   Ed.Colors.GutterFont:= GetAppColor('EdGutterFont');
   Ed.Colors.GutterBG:= GetAppColor('EdGutterBg');
+  Ed.Colors.GutterCaretFont:= GetAppColor('EdGutterCaretFont');
   Ed.Colors.GutterCaretBG:= GetAppColor('EdGutterCaretBg');
 
   Ed.Colors.BookmarkBG:= GetAppColor('EdBookmarkBg');
@@ -504,6 +547,7 @@ begin
   if Id='EdStateSaved' then Ed.Colors.StateSaved:= AColor else
   if Id='EdBlockStaple' then Ed.Colors.BlockStaple:= AColor else
   if Id='EdBlockSepLine' then Ed.Colors.BlockSepLine:= AColor else
+  if Id='EdLinks' then Ed.Colors.Links:= AColor else
   if Id='EdLockedBg' then Ed.Colors.LockedBG:= AColor else
   if Id='EdComboArrow' then Ed.Colors.ComboboxArrow:= AColor else
   if Id='EdComboArrowBg' then Ed.Colors.ComboboxArrowBG:= AColor else
@@ -513,6 +557,7 @@ begin
   if Id='EdFoldMarkBg' then Ed.Colors.CollapseMarkBG:= AColor else
   if Id='EdGutterFont' then Ed.Colors.GutterFont:= AColor else
   if Id='EdGutterBg' then Ed.Colors.GutterBG:= AColor else
+  if Id='EdGutterCaretFont' then Ed.Colors.GutterCaretFont:= AColor else
   if Id='EdGutterCaretBg' then Ed.Colors.GutterCaretBG:= AColor else
   if Id='EdBookmarkBg' then Ed.Colors.BookmarkBG:= AColor else
   if Id='EdRulerFont' then Ed.Colors.RulerFont:= AColor else
@@ -552,6 +597,7 @@ begin
   if Id='EdStateSaved' then exit(Ed.Colors.StateSaved);
   if Id='EdBlockStaple' then exit(Ed.Colors.BlockStaple);
   if Id='EdBlockSepLine' then exit(Ed.Colors.BlockSepLine);
+  if Id='EdLinks' then exit(Ed.Colors.Links);
   if Id='EdLockedBg' then exit(Ed.Colors.LockedBG);
   if Id='EdComboArrow' then exit(Ed.Colors.ComboboxArrow);
   if Id='EdComboArrowBg' then exit(Ed.Colors.ComboboxArrowBG);
@@ -561,6 +607,7 @@ begin
   if Id='EdFoldMarkBg' then exit(Ed.Colors.CollapseMarkBG);
   if Id='EdGutterFont' then exit(Ed.Colors.GutterFont);
   if Id='EdGutterBg' then exit(Ed.Colors.GutterBG);
+  if Id='EdGutterCaretFont' then exit(Ed.Colors.GutterCaretFont);
   if Id='EdGutterCaretBg' then exit(Ed.Colors.GutterCaretBG);
   if Id='EdBookmarkBg' then exit(Ed.Colors.BookmarkBG);
   if Id='EdRulerFont' then exit(Ed.Colors.RulerFont);
@@ -823,6 +870,93 @@ begin
   Ed.Update;
 end;
 
+
+function EditorGetLinkAtScreenCoord(Ed: TATSynEdit; P: TPoint): atString;
+var
+  bEnd: boolean;
+begin
+  Result:= '';
+  P:= Ed.ScreenToClient(P);
+  P:= Ed.ClientPosToCaretPos(P, bEnd);
+  Result:= Ed.DoGetLinkAtPos(P.X, P.Y);
+  if SBeginsWith(Result, 'www') then
+    Result:= 'http://'+Result;
+end;
+
+function EditorGetLinkAtCaret(Ed: TATSynEdit): atString;
+begin
+  Result:= '';
+  if Ed.Carets.Count=0 then exit;
+  Result:= Ed.DoGetLinkAtPos(Ed.Carets[0].PosX, Ed.Carets[0].PosY);
+end;
+
+function EditorBookmarkIsStandard(NKind: integer): boolean;
+begin
+  Result:= (NKind<=1) or (NKind>=240);
+end;
+
+function EditorIsAutocompleteCssPosition(Ed: TATSynEdit; AX, AY: integer): boolean;
+//function finds 1st nonspace char before AX:AY and if it's ";" or "{" then it's OK position
+  //
+  function IsSepChar(ch: Widechar): boolean;
+  begin
+    Result:= (ch=';') or (ch='{');
+  end;
+  function IsSpaceChar(ch: Widechar): boolean;
+  begin
+    Result:= (ch=' ') or (ch=#9);
+  end;
+  //
+var
+  str: atString;
+  ch: Widechar;
+  i: integer;
+begin
+  Result:= false;
+  if not Ed.Strings.IsIndexValid(AY) then exit;
+
+  //find char in line AY before AX
+  str:= Ed.Strings.Lines[AY];
+  for i:= AX downto 1 do
+  begin
+    ch:= str[i];
+    if IsSpaceChar(ch) then Continue;
+    exit(IsSepChar(ch));
+  end;
+
+  //find char in line AY-1 from end
+  if AY=0 then exit;
+  str:= Ed.Strings.Lines[AY-1];
+  for i:= Length(str) downto 1 do
+  begin
+    ch:= str[i];
+    if IsSpaceChar(ch) then Continue;
+    exit(IsSepChar(ch));
+  end;
+end;
+
+
+procedure EditorAutoCloseBracket(Ed: TATSynEdit; ch: char);
+var
+  Caret: TATCaretItem;
+  Str: atString;
+  NPos: integer;
+begin
+  Caret:= Ed.Carets[0];
+  if not Ed.Strings.IsIndexValid(Caret.PosY) then exit;
+  Str:= Ed.Strings.Lines[Caret.PosY];
+
+  //skip escaped bracket: \(
+  NPos:= Caret.PosX-1;
+  if (NPos>=1) and (NPos<=Length(Str)) and (Str[NPos]='\') then exit;
+
+  if ch='(' then Str:= ')' else
+    if ch='[' then Str:= ']' else
+      if ch='{' then Str:= '}' else exit;
+
+  Ed.DoCommand(cCommand_TextInsert, Str);
+  Ed.DoCommand(cCommand_KeyLeft);
+end;
 
 end.
 

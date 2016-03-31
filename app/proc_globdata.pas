@@ -13,9 +13,9 @@ interface
 
 uses
   Classes, SysUtils, Forms, Controls, Menus,
-  FileUtil, Dialogs, Graphics, ExtCtrls, ComCtrls,
-  LclProc, LclType,
-  ujsonConf,
+  Dialogs, Graphics, ExtCtrls, ComCtrls,
+  LclProc, LclType, LazFileUtils, LazUTF8,
+  jsonConf,
   Process,
   ATSynEdit,
   ATSynEdit_Keymap,
@@ -43,17 +43,15 @@ type
     cDirDataThemes,
     cDirDataAcp,
     cDirDataAcpSpec,
+    cDirDataLangs,
     cDirReadme,
     cDirPy,
-    cFileLexlib,
     cFileOptHistory,
     cFileOptDefault,
     cFileOptUser,
     cFileOptFiletypes,
     cFileOptKeymap,
-    cFileOptPlugins,
     cFileHistoryList,
-    cFileHistorySession,
     cFileLexerStyles,
     cFileReadmeHist,
     cFileReadmeMouse,
@@ -65,14 +63,19 @@ type
     VarFontName: string;
     VarFontSize: integer;
 
+    OutputFontName: string;
+    OutputFontSize: integer;
+
     PyLibrary: string;
     LexerLibFilename: string;
+    LexerThemes: boolean;
     PictureTypes: string;
 
     AutocompleteCss: boolean;
     AutocompleteHtml: boolean;
     AutocompleteAutoshowChars: integer;
     AutocompleteAutoshowLexers: string;
+    AutoCloseBrackets: boolean;
 
     ListboxWidth: integer;
     ListboxItemCountCmd: integer;
@@ -82,9 +85,11 @@ type
     ListboxCompleteSizeY: integer;
     ListboxFuzzySearch: boolean;
 
-    TabSizeX: integer;
-    TabSizeY: integer;
-    TabIndentX: integer;
+    TabWidth: integer;
+    TabHeight: integer;
+    TabHeightInner: integer;
+    TabIndentTop: integer;
+    TabIndentInit: integer;
     TabAngle: integer;
     TabBottom: boolean;
     TabColorFull: boolean;
@@ -93,6 +98,7 @@ type
     TabDblClickClose: boolean;
     TabNumbers: boolean;
 
+    MaxHistoryEdits: integer;
     MaxHistoryMenu: integer;
     MaxHistoryFiles: integer;
 
@@ -130,6 +136,7 @@ type
     StatusHeight: integer;
     StatusTime: integer;
     StatusAltTime: integer;
+    StatusTabsize: string;
 
     ShowTitlePath: boolean;
     ShowLastFiles: boolean;
@@ -145,14 +152,27 @@ type
 var
   UiOps: TUiOps;
 
+const
+  str_OsSuffix =
+    {$ifdef windows} '' {$endif}
+    {$ifdef linux} '__linux' {$endif}
+    {$ifdef darwin} '__osx' {$endif} ;
+  str_FontName = 'font_name'+str_OsSuffix;
+  str_FontSize = 'font_size'+str_OsSuffix;
+  str_FontQuality = 'font_quality'+str_OsSuffix;
+  str_UiFontName = 'ui_font_name'+str_OsSuffix;
+  str_UiFontSize = 'ui_font_size'+str_OsSuffix;
+  str_UiFontOutputName = 'ui_font_output_name'+str_OsSuffix;
+  str_UiFontOutputSize = 'ui_font_output_size'+str_OsSuffix;
+
 type
   TEditorOps = record
     OpFontName: string;
     OpFontSize: integer;
     OpFontQuality: TFontQuality;
 
-    OpSpaceX: integer;
-    OpSpaceY: integer;
+    OpSpacingX: integer;
+    OpSpacingY: integer;
     OpTabSize: integer;
     OpTabSpaces: boolean;
 
@@ -160,6 +180,8 @@ type
     OpOvrOnPaste: boolean;
     OpUnderlineColorFiles: string;
     OpUnderlineColorSize: integer;
+    OpLinks: boolean;
+    OpLinksRegex: string;
 
     //view
     OpGutterShow: boolean;
@@ -179,6 +201,7 @@ type
     OpMinimapShowSelAlways: boolean;
     OpMinimapShowSelBorder: boolean;
     OpMinimapCharWidth: integer;
+    OpMinimapAtLeft: boolean;
     OpMicromapShow: boolean;
     OpMicromapWidth: integer;
     OpMargin: integer;
@@ -215,6 +238,7 @@ type
     OpCaretShapeRO: integer;
     OpCaretVirtual: boolean;
     OpCaretMulti: boolean;
+    OpCaretAfterPasteColumn: integer;
 
     //general
     OpShowCurLine: boolean;
@@ -242,6 +266,7 @@ type
     //mouse
     OpMouse2ClickDragSelectsWords: boolean;
     OpMouseDragDrop: boolean;
+    OpMouseDragDropFocusTarget: boolean;
     OpMouseNiceScroll: boolean;
     OpMouseRightClickMovesCaret: boolean;
     OpMouseEnableColumnSelection: boolean;
@@ -265,26 +290,31 @@ var
   EditorOps: TEditorOps;
 
 function GetAppPath(id: TAppPathId): string;
-function GetLexerOverrideFN(AName: string): string;
+function GetAppLangFilename: string;
+function GetAppLexerFilename(const ALexName: string): string;
+function GetAppLexerMapFilename(const ALexName: string): string;
+function GetAppLexerOverrideFilename(AName: string): string;
 function GetActiveControl(Form: TWinControl): TWinControl;
-function GetDefaultListItemHeight: integer;
-function AppBookmarkKindStandard(N: integer): boolean;
+function GetListboxItemHeight(const AFontName: string; AFontSize: integer): integer;
 
-function MsgBox(const Str: string; Flags: integer): integer;
+function MsgBox(const Str: string; Flags: Longint): integer;
 function AppFindLexer(const fn: string): TecSyntAnalyzer;
 procedure DoSaveKeyItem(K: TATKeymapItem; const path: string);
 procedure DoEnumLexers(L: TStringList; AlsoDisabled: boolean = false);
+procedure DoLexerExportFromLibToFile(an: TecSyntAnalyzer);
 
 function CommandPlugins_GetIndexFromModuleAndMethod(AStr: string): integer;
 procedure CommandPlugins_UpdateSubcommands(AStr: string);
 
 var
-  Manager: TecSyntaxManager = nil;
-  Keymap: TATKeymap = nil;
-  cShortcutEscape: TShortcut = 0;
+  AppManager: TecSyntaxManager = nil;
+  AppKeymap: TATKeymap = nil;
+  AppShortcutEscape: TShortcut = 0;
+  AppLangName: string = '';
 
 type
   TStrEvent = procedure(Sender: TObject; const ARes: string) of object;
+  TStrFunction = function(const AStr: string): boolean of object;
 
 const
   cEncNameUtf8 = 'UTF-8';
@@ -334,6 +364,7 @@ type
     cEventOnComplete,
     cEventOnGotoDef,
     cEventOnFuncHint,
+    cEventOnTabMove,
     cEventOnPanel,
     cEventOnConsole,
     cEventOnConsoleNav,
@@ -361,12 +392,16 @@ const
     'on_complete',
     'on_goto_def',
     'on_func_hint',
+    'on_tab_move',
     'on_panel',
     'on_console',
     'on_console_nav',
     'on_output_nav',
     'on_macro'
     );
+
+const
+  cMaxItemsInInstallInf = 200;
 
 type
   TAppPluginCmd = record
@@ -408,6 +443,11 @@ var
 
 implementation
 
+function MsgBox(const Str: string; Flags: Longint): integer;
+begin
+  Result:= Application.MessageBox(PChar(Str), PChar(msgTitle), Flags);
+end;
+
 function InitPyLibraryPath: string;
 begin
   {$ifdef windows}
@@ -436,11 +476,6 @@ begin
   {$ifdef windows} '' {$endif}
   {$ifdef linux} '/usr/share/cudatext' {$endif}
   {$ifdef darwin} ExtractFileDir(OpDirExe)+'/Resources' {$endif}
-end;
-
-function MsgBox(const Str: string; Flags: integer): integer;
-begin
-  Result:= Application.MessageBox(PChar(Str), PChar(msgTitle), Flags);
 end;
 
 // return path encoded utf-8
@@ -480,6 +515,10 @@ begin
       begin
         Result:= OpDirLocal+DirectorySeparator+'data'+DirectorySeparator+'autocompletespec';
       end;
+    cDirDataLangs:
+      begin
+        Result:= OpDirLocal+DirectorySeparator+'data'+DirectorySeparator+'lang';
+      end;
     cDirReadme:
       begin
         Result:= OpDirLocal+DirectorySeparator+'readme';
@@ -487,10 +526,6 @@ begin
     cDirPy:
       begin
         Result:= OpDirLocal+DirectorySeparator+'py';
-      end;
-    cFileLexlib:
-      begin
-        Result:= GetAppPath(cDirDataLexlib)+DirectorySeparator+UiOps.LexerLibFilename;
       end;
 
     cFileOptDefault:
@@ -513,20 +548,9 @@ begin
       begin
         Result:= GetAppPath(cDirSettings)+DirectorySeparator+'keys.json';
       end;
-    cFileOptPlugins:
-      begin
-        Result:= GetAppPath(cDirSettings)+DirectorySeparator+'plugins.json';
-      end;
     cFileHistoryList:
       begin
         Result:= GetAppPath(cDirSettings)+DirectorySeparator+'history files.json';
-      end;
-    cFileHistorySession:
-      begin
-        Result:=
-          ////GetAppPath(cDirSettings)+DirectorySeparator+
-          //no path: this is saved to history, need w/o path
-          'history session.json';
       end;
     cFileLexerStyles:
       begin
@@ -575,7 +599,11 @@ begin
       RunCommand(Format('cp -R -u -t %s /usr/share/cudatext/py /usr/share/cudatext/data /usr/share/cudatext/readme /usr/share/cudatext/settings_default', [OpDirLocal]), S);
       {$endif}
       {$ifdef darwin}
-      RunCommand(Format('rsync -av "%s/" "%s"', [OpDirPrecopy, OpDirLocal]), S);
+      //see rsync help. need options:
+      // -u (update)
+      // -r (recursive)
+      // -t (preserve times)
+      RunCommand(Format('rsync -urt "%s/" "%s"', [OpDirPrecopy, OpDirLocal]), S);
       {$endif}
     end;
   end;
@@ -589,8 +617,8 @@ begin
     OpFontSize:= {$ifndef darwin} 9 {$else} 11 {$endif};
     OpFontQuality:= fqDefault;
 
-    OpSpaceX:= 0;
-    OpSpaceY:= 0;
+    OpSpacingX:= 0;
+    OpSpacingY:= 1;
 
     OpTabSize:= 8;
     OpTabSpaces:= false;
@@ -600,6 +628,8 @@ begin
 
     OpUnderlineColorFiles:= '*';
     OpUnderlineColorSize:= 3;
+    OpLinks:= true;
+    OpLinksRegex:= ATSynEdit.cUrlRegexInitial;
 
     OpGutterShow:= true;
     OpGutterFold:= true;
@@ -621,6 +651,7 @@ begin
     OpMinimapShowSelAlways:= false;
     OpMinimapShowSelBorder:= false;
     OpMinimapCharWidth:= 0;
+    OpMinimapAtLeft:= false;
 
     OpMicromapShow:= false;
     OpMicromapWidth:= 12;
@@ -655,6 +686,7 @@ begin
     OpCaretShapeRO:= Ord(cInitCaretShapeRO);
     OpCaretVirtual:= true;
     OpCaretMulti:= true;
+    OpCaretAfterPasteColumn:= Ord(cPasteCaretColumnRight);
 
     OpShowCurLine:= false;
     OpShowCurLineMin:= true;
@@ -679,6 +711,7 @@ begin
 
     OpMouse2ClickDragSelectsWords:= true;
     OpMouseDragDrop:= true;
+    OpMouseDragDropFocusTarget:= true;
     OpMouseNiceScroll:= true;
     OpMouseRightClickMovesCaret:= false;
     OpMouseEnableColumnSelection:= true;
@@ -707,14 +740,19 @@ begin
     VarFontName:= 'default';
     VarFontSize:= {$ifdef windows} 9 {$else} 10 {$endif};
 
-    LexerLibFilename:= 'lib.lxl';
+    OutputFontName:= VarFontName;
+    OutputFontSize:= VarFontSize;
+
+    LexerLibFilename:= GetAppPath(cDirDataLexlib)+DirectorySeparator+'lib.lxl';
+    LexerThemes:= true;
     PyLibrary:= InitPyLibraryPath;
-    PictureTypes:= 'bmp,png,jpg,jpeg,ico';
+    PictureTypes:= 'bmp,png,jpg,jpeg,gif,ico';
 
     AutocompleteCss:= true;
     AutocompleteHtml:= true;
     AutocompleteAutoshowChars:= 0;
     AutocompleteAutoshowLexers:= '';
+    AutoCloseBrackets:= true;
 
     ListboxWidth:= 450;
     ListboxItemCountCmd:= 15;
@@ -724,9 +762,11 @@ begin
     ListboxCompleteSizeY:= 200;
     ListboxFuzzySearch:= true;
 
-    TabSizeX:= 170;
-    TabSizeY:= 25;
-    TabIndentX:= 5;
+    TabWidth:= 170;
+    TabHeight:= 25;
+    TabHeightInner:= TabHeight-1;
+    TabIndentTop:= 0;
+    TabIndentInit:= 5;
     TabAngle:= 3;
     TabBottom:= false;
     TabColorFull:= false;
@@ -735,6 +775,7 @@ begin
     TabDblClickClose:= false;
     TabNumbers:= false;
 
+    MaxHistoryEdits:= 20;
     MaxHistoryMenu:= 10;
     MaxHistoryFiles:= 25;
 
@@ -769,9 +810,10 @@ begin
     StatusColSel:= '{sel}x{cols} column';
     StatusCarets:= '{carets} carets, {sel} lines sel';
     StatusPanels:= 'caret,C,170|enc,C,105|ends,C,50|lexer,C,140|tabsize,C,80|msg,L,4000';
-    StatusHeight:= TabSizeY;
+    StatusHeight:= TabHeight;
     StatusTime:= 5;
     StatusAltTime:= 7;
+    StatusTabsize:= 'Tab size {tab}{_}';
 
     ShowTitlePath:= false;
     ShowLastFiles:= true;
@@ -786,7 +828,7 @@ begin
   end;
 end;
 
-function GetLexerOverrideFN(AName: string): string;
+function GetAppLexerOverrideFilename(AName: string): string;
 begin
   AName:= StringReplace(AName, '/', '_', [rfReplaceAll]);
   AName:= StringReplace(AName, '\', '_', [rfReplaceAll]);
@@ -810,7 +852,7 @@ begin
       s:= c.GetValue(ExtractFileName(fn), '');
       if s<>'' then
       begin
-        Result:= Manager.FindAnalyzer(s);
+        Result:= AppManager.FindAnalyzer(s);
         Exit
       end;
 
@@ -821,7 +863,7 @@ begin
         s:= c.GetValue('*'+ext, '');
         if s<>'' then
         begin
-          Result:= Manager.FindAnalyzer(s);
+          Result:= AppManager.FindAnalyzer(s);
           Exit
         end;
       end;
@@ -830,7 +872,7 @@ begin
     end;
   end;
 
-  Result:= DoFindLexerForFilename(Manager, fn);
+  Result:= DoFindLexerForFilename(AppManager, fn);
 end;
 
 
@@ -887,15 +929,18 @@ begin
   end;
 end;
 
-function GetDefaultListItemHeight: integer;
+function GetListboxItemHeight(const AFontName: string; AFontSize: integer): integer;
 var
   bmp: TBitmap;
 begin
   bmp:= TBitmap.Create;
-  bmp.Canvas.Font.Name:= UiOps.VarFontName;
-  bmp.Canvas.Font.Size:= UiOps.VarFontSize;
-  Result:= bmp.Canvas.TextHeight('Pyj')+3;
-  bmp.Free;
+  try
+    bmp.Canvas.Font.Name:= AFontName;
+    bmp.Canvas.Font.Size:= AFontSize;
+    Result:= bmp.Canvas.TextHeight('Pyj')+3;
+  finally
+    FreeAndNil(bmp);
+  end;
 end;
 
 
@@ -903,11 +948,18 @@ procedure DoEnumLexers(L: TStringList; AlsoDisabled: boolean = false);
 var
   i: Integer;
 begin
-  with Manager do
+  with AppManager do
     for i:= 0 to AnalyzerCount-1 do
       if AlsoDisabled or not Analyzers[i].Internal then
         L.Add(Analyzers[i].LexerName);
 end;
+
+procedure DoLexerExportFromLibToFile(an: TecSyntAnalyzer);
+begin
+  if Assigned(an) then
+    an.SaveToFile(GetAppLexerFilename(an.LexerName));
+end;
+
 
 procedure CommandPlugins_DeleteItem(AIndex: integer);
 var
@@ -1004,9 +1056,36 @@ begin
 end;
 
 
-function AppBookmarkKindStandard(N: integer): boolean;
+function GetAppLangFilename: string;
 begin
-  Result:= (N<=1) or (N>=240);
+  if AppLangName='' then
+    Result:= ''
+  else
+    Result:= GetAppPath(cDirDataLangs)+DirectorySeparator+AppLangName+'.ini';
+end;
+
+function GetLexerFilenameWithExt(ALexName, AExt: string): string;
+begin
+  if ALexName<>'' then
+  begin
+    ALexName:= StringReplace(ALexName, ':', '_', [rfReplaceAll]);
+    ALexName:= StringReplace(ALexName, '/', '_', [rfReplaceAll]);
+    ALexName:= StringReplace(ALexName, '\', '_', [rfReplaceAll]);
+    ALexName:= StringReplace(ALexName, '*', '_', [rfReplaceAll]);
+    Result:= GetAppPath(cDirDataLexlib)+DirectorySeparator+ALexName+AExt;
+  end
+  else
+    Result:= '';
+end;
+
+function GetAppLexerMapFilename(const ALexName: string): string;
+begin
+  Result:= GetLexerFilenameWithExt(ALexName, '.cuda-lexmap');
+end;
+
+function GetAppLexerFilename(const ALexName: string): string;
+begin
+  Result:= GetLexerFilenameWithExt(ALexName, '.lcf');
 end;
 
 
@@ -1015,19 +1094,20 @@ initialization
   InitEditorOps(EditorOps);
   InitUiOps(UiOps);
 
-  Keymap:= TATKeymap.Create;
-  InitKeymapFull(Keymap);
-  InitKeymapForApplication(Keymap);
+  AppKeymap:= TATKeymap.Create;
+  InitKeymapFull(AppKeymap);
+  InitKeymapForApplication(AppKeymap);
 
   FillChar(AppBookmarkSetup, SizeOf(AppBookmarkSetup), 0);
   AppBookmarkImagelist:= TImageList.Create(nil);
 
   FillChar(FAppSidePanels, SizeOf(FAppSidePanels), 0);
 
-  cShortcutEscape:= ShortCut(vk_escape, []);
+  AppShortcutEscape:= ShortCut(vk_escape, []);
+  Mouse.DragImmediate:= false;
 
 finalization
-  FreeAndNil(Keymap);
+  FreeAndNil(AppKeymap);
   FreeAndNil(AppBookmarkImagelist);
 
 end.

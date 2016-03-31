@@ -55,6 +55,7 @@ BOOKMARK_CLEAR = 2
 BOOKMARK_CLEAR_ALL = 3
 BOOKMARK_SETUP = 4
 BOOKMARK_GET_LIST = 5
+BOOKMARK_CLEAR_HINTS = 6
 
 MARKERS_GET = 0
 MARKERS_ADD = 1
@@ -103,6 +104,10 @@ PROP_MODIFIED       = 12
 PROP_RULER          = 13
 PROP_LINE_STATE     = 14
 PROP_COLOR          = 15
+PROP_LINE_TOP       = 16
+PROP_ENC            = 17
+PROP_TAB_TITLE      = 18
+PROP_TAB_COLOR      = 19
 PROP_LEXER_FILE     = 20
 PROP_LEXER_POS      = 21
 PROP_LEXER_CARET    = 22
@@ -126,6 +131,7 @@ PROP_LINE_BOTTOM = 42
 PROP_PICTURE = 43
 PROP_MINIMAP = 44
 PROP_MICROMAP = 45
+PROP_LINK_AT_POS = 46
 
 PROC_GET_CLIP = 0
 PROC_SET_CLIP = 1
@@ -154,6 +160,16 @@ PROC_SIDEPANEL_ADD = 24
 PROC_SIDEPANEL_ACTIVATE = 25
 PROC_SIDEPANEL_ENUM = 26
 PROC_SIDEPANEL_GET_CONTROL = 27
+PROC_BOTTOMPANEL_GET_CONTROL = 28
+PROC_TOOLBAR_ENUM = 30
+PROC_TOOLBAR_ADD = 31
+PROC_TOOLBAR_DELETE = 32
+PROC_TOOLBAR_DELETE_ALL = 33
+PROC_TOOLBAR_ICON_ADD = 34
+PROC_TOOLBAR_ICON_SET = 35
+PROC_TOOLBAR_ICON_GET_SIZE = 36
+PROC_TOOLBAR_ICON_SET_SIZE = 38
+PROC_GET_LANG = 40
 
 TREE_ITEM_ENUM = 1
 TREE_ITEM_ADD = 2
@@ -171,6 +187,8 @@ TREE_ITEM_GET_PARENT = 13
 TREE_ICON_ADD = 20
 TREE_ICON_DELETE = 21
 TREE_PROP_SHOW_ROOT = 30
+TREE_LOCK = 31
+TREE_UNLOCK = 32
 
 LEXER_GET_LIST    = 0
 LEXER_GET_ENABLED = 1
@@ -183,7 +201,6 @@ LEXER_SET_NAME    = 10
 LEXER_SET_ENABLED = 11
 LEXER_SET_EXT     = 12
 LEXER_SET_LINKS   = 13
-LEXER_SAVE_LIB    = 20
 LEXER_DELETE      = 21
 LEXER_IMPORT      = 22
 LEXER_EXPORT      = 23
@@ -256,6 +273,8 @@ def dlg_file(is_open, init_filename, init_dir, filters):
         res=res[0]
     return res
 
+def dlg_dir(init_dir):
+    return ct.dlg_dir(init_dir)
 
 def dlg_hotkeys(text):
     return ct.dlg_hotkeys(text)
@@ -342,28 +361,14 @@ class Editor:
     def get_filename(self):
         return ct.ed_get_filename(self.h)
 
-    def get_tabcolor(self):
-        return ct.ed_get_tabcolor(self.h)
-    def set_tabcolor(self, value):
-        return ct.ed_set_tabcolor(self.h, value)
-
-    def get_enc(self):
-        return ct.ed_get_enc(self.h)
-    def set_enc(self, value):
-        return ct.ed_set_enc(self.h, value)
-    def get_top(self):
-        return ct.ed_get_top(self.h)
-    def set_top(self, value):
-        return ct.ed_set_top(self.h, value)
-
     def save(self, filename=''):
         return ct.ed_save(self.h, filename)
     def cmd(self, code, text=''):
         return ct.ed_cmd(self.h, code, text)
     def focus(self):
         return ct.ed_focus(self.h)
-    def bookmark(self, id, nline, nkind=1, ncolor=-1, icon=''):
-        return ct.ed_bookmark(self.h, id, nline, nkind, ncolor, icon)
+    def bookmark(self, id, nline, nkind=1, ncolor=-1, text=''):
+        return ct.ed_bookmark(self.h, id, nline, nkind, ncolor, text)
 
     def lock(self):
         return ct.ed_lock(self.h)

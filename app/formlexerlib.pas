@@ -12,12 +12,14 @@ unit formlexerlib;
 interface
 
 uses
-  Classes, SysUtils, FileUtil, Forms, Controls, Graphics, Dialogs, ButtonPanel,
-  StdCtrls, ComCtrls, CheckLst,
+  Classes, SysUtils, Forms, Controls, Graphics, Dialogs, ButtonPanel,
+  StdCtrls, ComCtrls, CheckLst, IniFiles,
   LCLIntf, LCLType, LCLProc,
+  LazUTF8, LazFileUtils,
   ecSyntAnal,
   formlexerprop,
-  proc_install_zip,
+  proc_globdata,
+  proc_msg,
   math;
 
 type
@@ -26,21 +28,18 @@ type
   TfmLexerLib = class(TForm)
     ButtonPanel1: TButtonPanel;
     List: TCheckListBox;
-    OpenDlg: TOpenDialog;
     ToolBar1: TToolBar;
     bProp: TToolButton;
     bDel: TToolButton;
-    bAdd: TToolButton;
-    procedure bAddClick(Sender: TObject);
     procedure bDelClick(Sender: TObject);
     procedure bPropClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure ListClickCheck(Sender: TObject);
   private
     { private declarations }
     procedure UpdateList;
   public
-    FManager: TecSyntaxManager;
     FFontName: string;
     FFontSize: integer;
     FDirAcp: string;
@@ -51,7 +50,7 @@ type
 var
   fmLexerLib: TfmLexerLib;
 
-function DoShowDialogLexerLib(ALexerManager: TecSyntaxManager;
+function DoShowDialogLexerLib(
   const ADirAcp: string;
   const AFontName: string;
   AFontSize: integer;
@@ -61,21 +60,41 @@ implementation
 
 {$R *.lfm}
 
-function DoShowDialogLexerLib(ALexerManager: TecSyntaxManager;
-  const ADirAcp: string; const AFontName: string; AFontSize: integer;
-  const AStylesFilename: string): boolean;
+procedure DoLocalize_FormLexerLib(F: TfmLexerLib);
+const
+  section = 'd_lex_lib';
+var
+  ini: TIniFile;
+  fn: string;
+begin
+  fn:= GetAppLangFilename;
+  if not FileExists(fn) then exit;
+  ini:= TIniFile.Create(fn);
+  try
+    with F do Caption:= ini.ReadString(section, '_', Caption);
+    with F.ButtonPanel1.CloseButton do Caption:= msgButtonClose;
+    with F.bProp do Caption:= ini.ReadString(section, 'cfg', Caption);
+    with F.bDel do Caption:= ini.ReadString(section, 'del', Caption);
+  finally
+    FreeAndNil(ini);
+  end;
+end;
+
+
+function DoShowDialogLexerLib(const ADirAcp: string; const AFontName: string;
+  AFontSize: integer; const AStylesFilename: string): boolean;
 var
   F: TfmLexerLib;
 begin
   F:= TfmLexerLib.Create(nil);
   try
-    F.FManager:= ALexerManager;
+    DoLocalize_FormLexerLib(F);
     F.FFontName:= AFontName;
     F.FFontSize:= AFontSize;
     F.FDirAcp:= ADirAcp;
     F.FStylesFilename:= AStylesFilename;
     F.ShowModal;
-    Result:= F.FManager.Modified;
+    Result:= AppManager.Modified;
   finally
     F.Free;
   end;
@@ -113,7 +132,9 @@ begin
   an:= List.Items.Objects[n] as TecSyntAnalyzer;
 
   an.Internal:= not List.Checked[n];
-  FManager.Modified:= true;
+  AppManager.Modified:= true;
+
+  DoLexerExportFromLibToFile(an);
 end;
 
 procedure TfmLexerLib.bPropClick(Sender: TObject);
@@ -127,10 +148,14 @@ begin
 
   if DoShowDialogLexerProp(an, FFontName, FFontSize, FStylesFilename) then
   begin
-    FManager.Modified:= true;
+    DoLexerExportFromLibToFile(an);
     UpdateList;
     List.ItemIndex:= n;
   end;
+end;
+
+procedure TfmLexerLib.FormCreate(Sender: TObject);
+begin
 end;
 
 procedure TfmLexerLib.bDelClick(Sender: TObject);
@@ -142,30 +167,14 @@ begin
   if n<0 then exit;
   an:= List.Items.Objects[n] as TecSyntAnalyzer;
 
-  if Application.MessageBox(
-    PChar(Format('Delete lexer "%s"?', [an.LexerName])),
-    PChar(Caption),
-    MB_OKCANCEL or MB_ICONWARNING)=id_ok then
+  if MsgBox(
+    Format(msgConfirmDeleteLexer, [an.LexerName]),
+    MB_OKCANCEL or MB_ICONWARNING)=ID_OK then
   begin
+    DeleteFile(GetAppLexerFilename(an.LexerName));
     an.Free;
-    FManager.Modified:= true;
     UpdateList;
     List.ItemIndex:= Min(n, List.Count-1);
-  end;
-end;
-
-procedure TfmLexerLib.bAddClick(Sender: TObject);
-var
-  msg: string;
-begin
-  OpenDlg.Filename:= '';
-  if not OpenDlg.Execute then exit;
-  if DoInstallAddonFromZip(OpenDlg.FileName, FManager, FDirAcp, msg) then
-  begin
-    UpdateList;
-    Application.MessageBox(
-      PChar('Installed:'#13+msg),
-      PChar(Caption), MB_OK or MB_ICONINFORMATION);
   end;
 end;
 
@@ -182,9 +191,9 @@ begin
 
   sl:= tstringlist.create;
   try
-    for i:= 0 to FManager.AnalyzerCount-1 do
+    for i:= 0 to AppManager.AnalyzerCount-1 do
     begin
-      an:= FManager.Analyzers[i];
+      an:= AppManager.Analyzers[i];
       sl.AddObject(an.LexerName, an);
     end;
     sl.sort;

@@ -36,7 +36,7 @@ begin
   F.Splitter.OnPaint:= @SplitterOnPaint_Gr;
 end;
 
-function TfmMain.DoTabAdd(Pages: TATPages): TATTabData;
+function TfmMain.DoTabAdd(Pages: TATPages; const ACaption: string): TATTabData;
 var
   F: TEditorFrame;
   NTab: integer;
@@ -44,10 +44,11 @@ begin
   F:= TEditorFrame.Create(Self);
   F.Name:= '';
   F.Visible:= false;
+  F.TabCaption:= ACaption;
 
   InitFrameEvents(F);
 
-  Pages.AddTab(F, 'tab', false);
+  Pages.AddTab(F, F.TabCaption, false);
   NTab:= Pages.Tabs.TabCount-1;
   Result:= Pages.Tabs.GetTabData(NTab);
   Pages.Tabs.TabIndex:= NTab;
@@ -55,15 +56,10 @@ end;
 
 procedure TfmMain.DoOnTabAdd(Sender: TObject);
 var
-  D: TATTabData;
+  Pages: TATPages;
 begin
-  D:= DoTabAdd((Sender as TATTabs).Parent as TATPages);
-  DoTabUntitled(D);
-end;
-
-procedure TfmMain.DoTabUntitled(D: TATTabData);
-begin
-  (D.TabObject as TEditorFrame).TabCaption:= GetUntitlesStr;
+  Pages:= (Sender as TATTabs).Parent as TATPages;
+  DoTabAdd(Pages, GetUntitledCaption);
 end;
 
 procedure TfmMain.DoOnTabFocus(Sender: TObject);
@@ -128,7 +124,7 @@ begin
     Msg:= Format(msgConfirmSaveModifiedTab, [D.TabCaption]);
     Res:= MsgBox(Msg, Btn or mb_iconquestion);
     if (Res=idok) or (Res=idyes) then
-      Frame.DoFileSave(false, SaveDlg);
+      Frame.DoFileSave(false, SaveDlg, nil);
   end;
 
   ACanClose:= Res<>idcancel;
@@ -137,7 +133,8 @@ begin
   if ACanClose then
   begin
     UpdateMenuRecent(Frame);
-    D.TabObject.Free;
+    Frame.Adapter.Stop;
+    Frame.Free;
   end;
 
   if NeedTreeUpd then
@@ -239,7 +236,7 @@ var
 begin
   F:= FrameOfPopup;
   if F=nil then exit;
-  F.DoFileSave(true, SaveDlg);
+  F.DoFileSave(true, SaveDlg, @DoCheckFilenameOpened);
 end;
 
 procedure TfmMain.mnuTabSaveClick(Sender: TObject);
@@ -248,7 +245,7 @@ var
 begin
   F:= FrameOfPopup;
   if F=nil then exit;
-  F.DoFileSave(false, SaveDlg);
+  F.DoFileSave(false, SaveDlg, nil);
 end;
 
 procedure TfmMain.mnuTabsizeSpaceClick(Sender: TObject);
@@ -345,6 +342,7 @@ begin
       ItemTreeview.OnClick:= @DoPanel_OnClick;
       ItemTreeview.OnDblClick:= @DoPanel_OnDblClick;
       ItemTreeview.OnSelectionChanged:= @DoPanel_OnSelChanged;
+      ItemTreeview.OnContextPopup:=@DoPanel_OnContextPopup;
 
       fmMain.DoApplyThemeToTreeview(ItemTreeview);
       //just to see it ok
@@ -376,4 +374,18 @@ begin
   else
     Result:= PtrInt(FAppSidePanels[Num].ItemTreeview)
 end;
+
+function TfmMain.DoBottom_GetControlHandle(const ACaption: string): PtrInt;
+begin
+  Result:= 0;
+
+  if ACaption='Search Results' then
+    Exit(PtrInt(TreeRes));
+end;
+
+procedure TfmMain.DoOnTabMove(Sender: TObject; NFrom, NTo: Integer);
+begin
+  DoPyEvent(CurrentEditor, cEventOnTabMove, []);
+end;
+
 

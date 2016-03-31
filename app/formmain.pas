@@ -16,8 +16,9 @@ uses
   Classes, SysUtils, Forms, Controls, Graphics, Dialogs,
   StdCtrls, Buttons, ComCtrls, ExtCtrls, Menus,
   Clipbrd, StrUtils, Variants, IniFiles,
-  FileUtil, LazFileUtils, LazUTF8, LclType, LclProc, LclIntf,
-  ujsonConf,
+  LclType, LclProc, LclIntf,
+  LazFileUtils, LazUTF8, FileUtil,
+  jsonConf,
   PythonEngine,
   UniqueInstance,
   ecSyntAnal,
@@ -71,6 +72,7 @@ uses
   formlexerprop,
   formlexerlib,
   formlexerstylesload,
+  formlexerstylemap,
   formpalette,
   formcolorsetup,
   formabout,
@@ -82,6 +84,7 @@ type
   { TfmMain }
   TfmMain = class(TForm)
     AppProps: TApplicationProperties;
+    ImageListTreeRes: TImageList;
     ListboxOut: TATListbox;
     ListboxVal: TATListbox;
     ButtonCancel: TATButton;
@@ -91,6 +94,12 @@ type
     ImageListBar: TImageList;
     ImageListTree: TImageList;
     MainMenu: TMainMenu;
+    mnuHelpIssues: TMenuItem;
+    mnuOpLexMap: TMenuItem;
+    mnuTst2: TMenuItem;
+    mnuLang: TMenuItem;
+    mnuTextOpenUrl: TMenuItem;
+    mnuFontOutput: TMenuItem;
     mnuGr1p2H: TMenuItem;
     mnuEditSpToTab: TMenuItem;
     SepEd7: TMenuItem;
@@ -106,7 +115,7 @@ type
     MenuItem23: TMenuItem;
     MenuItem24: TMenuItem;
     MenuItem25: TMenuItem;
-    MenuItem26: TMenuItem;
+    mnuTst1: TMenuItem;
     SepEd6: TMenuItem;
     mnuFileEndUn: TMenuItem;
     mnuFileEndMac: TMenuItem;
@@ -165,7 +174,7 @@ type
     mnuCmtAdd: TMenuItem;
     mnuCmtRemove: TMenuItem;
     mnuCmtToggle: TMenuItem;
-    mnuEditCmtSub: TMenuItem;
+    mnuCmtSub: TMenuItem;
     mnuFileCloseDel: TMenuItem;
     mnuOpLexer: TMenuItem;
     mnuOpMore: TMenuItem;
@@ -185,7 +194,7 @@ type
     mnuViewToolbar: TMenuItem;
     mnuFontText: TMenuItem;
     mnuFontUi: TMenuItem;
-    mnuFonts: TMenuItem;
+    mnuFontSub: TMenuItem;
     mnuFileReopen: TMenuItem;
     mnuOpUser: TMenuItem;
     SepOp1: TMenuItem;
@@ -193,7 +202,7 @@ type
     mnuOpDefault: TMenuItem;
     mnuFileOpenSub: TMenuItem;
     mnuHelpAbout: TMenuItem;
-    mnuBookmarksSub: TMenuItem;
+    mnuBmSub: TMenuItem;
     mnuFindRepDialog: TMenuItem;
     mnuFindNext: TMenuItem;
     mnuFindDlg: TMenuItem;
@@ -225,7 +234,7 @@ type
     mnuEditCopyFFull: TMenuItem;
     mnuEditCopyFName: TMenuItem;
     mnuEditCopyFDir: TMenuItem;
-    mnuEditClipSub: TMenuItem;
+    mnuEditCopySub: TMenuItem;
     mnuGotoLine: TMenuItem;
     mnuSr: TMenuItem;
     mnuTabMove1: TMenuItem;
@@ -354,17 +363,18 @@ type
     tbMinimap: TToolButton;
     tbSidePanel: TToolButton;
     tbBtmPanel: TToolButton;
-    ToolButton15: TToolButton;
+    tbSplit3: TToolButton;
     tbUnpri: TToolButton;
     tbOpen: TToolButton;
     tbSave: TToolButton;
     tbFind: TToolButton;
-    ToolButton5: TToolButton;
+    tbSplit1: TToolButton;
     tbGoto: TToolButton;
     tbCut: TToolButton;
     tbPaste: TToolButton;
-    ToolButton9: TToolButton;
+    tbSplit2: TToolButton;
     Tree: TTreeView;
+    TreeRes: TTreeView;
     UniqInstance: TUniqueInstance;
     procedure ButtonCancelClick(Sender: TObject);
     procedure DoOnTabOver(Sender: TObject; ATabIndex: Integer);
@@ -387,12 +397,9 @@ type
     procedure ListboxOutClick(Sender: TObject);
     procedure ListboxOutDrawItem(Sender: TObject; C: TCanvas; AIndex: integer;
       const ARect: TRect);
-    procedure DoHelpWiki;
     procedure ListboxOutKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure MenuThemesClick(Sender: TObject);
-    procedure DoHelpLexers;
-    procedure mnuOpKeysClick(Sender: TObject);
     procedure mnuTabColorClick(Sender: TObject);
     procedure mnuTabsize1Click(Sender: TObject);
     procedure mnuTabsize2Click(Sender: TObject);
@@ -408,10 +415,12 @@ type
     procedure DoHelpForum;
     procedure DoHelpChangelog;
     procedure DoHelpMouse;
+    procedure DoHelpWiki;
+    procedure DoHelpLexers;
+    procedure DoHelpIssues;
+    procedure DoHelpHotkeys;
+
     procedure MenuWindowClick(Sender: TObject);
-    procedure mnuEndsMacClick(Sender: TObject);
-    procedure mnuEndsUnixClick(Sender: TObject);
-    procedure mnuEndsWinClick(Sender: TObject);
     procedure mnuTabCloseAllAllClick(Sender: TObject);
     procedure mnuTabCloseAllSameClick(Sender: TObject);
     procedure mnuTabCloseLeftClick(Sender: TObject);
@@ -480,10 +489,9 @@ type
     FListRecents: TStringList;
     FListNewdoc: TStringList;
     FListThemes: TStringList;
-    FListOut: TStringlist;
-    FListVal: TStringlist;
+    FListLangs: TStringList;
     FThemeName: string;
-    FSessionFilename: string;
+    FSessionName: string;
     FColorDialog: TColorDialog;
     Status: TATStatus;
     StatusAlt: TATStatus;
@@ -507,9 +515,21 @@ type
     FPyComplete_CharsRight: integer;
     FPyComplete_CaretPos: TPoint;
 
+    function GetSessionFilename: string;
     procedure CharmapOnInsert(const AStr: string);
+    procedure DoLocalize;
+    procedure DoLocalize_FormFind;
+    procedure DoLocalize_FormGoto;
+    function DoCheckFilenameOpened(const AStr: string): boolean;
     procedure DoInvalidateEditors;
+    function DoMenuAdd(AStr: string): string;
+    procedure DoMenuClear(const AStr: string);
+    function DoMenuEnum(const AStr: string): string;
+    procedure DoOnTabMove(Sender: TObject; NFrom, NTo: Integer);
+    procedure DoOps_LoadPluginFromInf(const fn_inf: string);
     procedure DoPanel_Event(const AEvent: string);
+    procedure DoPanel_OnContextPopup(Sender: TObject; MousePos: TPoint;
+      var Handled: Boolean);
     procedure DoPanel_OnSelChanged(Sender: TObject);
     function DoSidebar_ActivateTab(const ACaption: string): boolean;
     function DoSidebar_AddTab(const ACaption, AControlType: string; ATabIndex: integer): boolean;
@@ -524,12 +544,14 @@ type
       out NPos, NTotal: integer);
     function DoSidebar_GetControlHandle(const ACaption: string): PtrInt;
     function DoSidebar_GetTabIndexOfCaption(const Str: string): integer;
+    function DoBottom_GetControlHandle(const ACaption: string): PtrInt;
     procedure DoGotoDefinition;
     procedure DoShowFuncHint;
     procedure DoApplyFrameOps(F: TEditorFrame; const Op: TEditorOps;
       AForceApply: boolean);
-    procedure DoApplyFontFixed;
-    procedure DoApplyFontVar;
+    procedure DoApplyFont_Text;
+    procedure DoApplyFont_Ui;
+    procedure DoApplyFont_Output;
     procedure DoApplyAllOps;
     procedure DoApplyTheme;
     procedure DoClearRecentFileHistory;
@@ -537,31 +559,37 @@ type
     function DoOnConsoleNav(const Str: string): boolean;
     function DoOnMacro(const Str: string): boolean;
     procedure DoOps_ShowEventPlugins;
-    function DoDialogConfColors(var AColors: TAppTheme): boolean;
+    function DoDialogConfColors(var AData: TAppTheme): boolean;
     function DoDialogMenuApi(const AText: string; AMultiline: boolean; AInitIndex: integer): integer;
     procedure DoFileExportHtml;
     procedure DoFileInstallZip(const fn: string);
     procedure DoFileCloseAndDelete;
     procedure DoFileNewFrom(const fn: string);
+    procedure DoFileSave;
+    procedure DoFileSaveAs;
     function DoPyPanelAdd(AParams: string): boolean;
     function DoPyPanelDelete(const ACaption: string): boolean;
     function DoPyPanelFocus(const ACaption: string): boolean;
     procedure DoPyRunLastPlugin;
     procedure DoPyResetPlugins;
+    procedure DoPyRescanPlugins;
     procedure DoPyStringToEvents(const AEventStr: string; var AEvents: TAppPyEvents);
     procedure DoPyUpdateEvents(const AModuleName, AEventStr, ALexerStr, AKeyStr: string);
     procedure DoSetSplitInfo(const Id: string; NPos: integer);
     procedure DoPanel_OnClick(Sender: TObject);
     procedure DoPanel_OnDblClick(Sender: TObject);
+    procedure DoToolbarAddButton(AStr: string);
+    procedure DoToolbarClick(Sender: TObject);
     procedure FrameLexerChange(Sender: TObject);
     procedure FrameOnEditorClickEndSelect(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure FrameOnEditorClickMoveCaret(Sender: TObject; APrevPnt, ANewPnt: TPoint);
     procedure MenuEncWithReloadClick(Sender: TObject);
+    procedure MenuLangClick(Sender: TObject);
     procedure MsgStatusAlt(const S: string; const NSeconds: integer);
     function SFindOptionsToTextHint: string;
+    procedure StatusResize(Sender: TObject);
     procedure UpdateMenuPlugins;
     procedure DoOps_LoadLexlib;
-    procedure DoOps_SaveLexlib(Cfm: boolean);
     procedure DoOps_SaveHistory;
     procedure DoOps_SaveHistory_GroupView(c: TJsonConfig);
     procedure DoOps_LoadHistory;
@@ -572,12 +600,12 @@ type
     procedure DoOps_LoadOptionsOverride(F: TEditorFrame);
     procedure DoOps_OpenFile_FileTypes;
     procedure DoOps_OpenFile_LexerOvr;
-    procedure DoOps_PreinstallPlugins;
     procedure DoOps_LoadPlugins;
-    procedure DoOps_DlgFont(var OpName: string; var OpSize: integer;
-      const ConfStrName, ConfStrSize: string);
-    procedure DoOps_DlgFontText;
-    procedure DoOps_DlgFontUi;
+    procedure DoOps_DialogFont(var OpName: string; var OpSize: integer;
+      const AConfigStrName, AConfigStrSize: string);
+    procedure DoOps_DialogFont_Text;
+    procedure DoOps_DialogFont_Ui;
+    procedure DoOps_DialogFont_Output;
     procedure DoOps_OpenFile_Default;
     procedure DoOps_OpenFile_User;
     procedure DoOps_LoadOptions(const fn: string; var Op: TEditorOps);
@@ -594,11 +622,13 @@ type
     function DoDialogSaveTabs: boolean;
     procedure DoDialogLexerProp(an: TecSyntAnalyzer);
     procedure DoDialogLexerLib;
+    procedure DoDialogLexerMap;
     procedure DoDialogLoadLexerStyles;
     procedure DoDialogColors;
     procedure DoShowConsole;
     procedure DoShowOutput;
     procedure DoShowValidate;
+    procedure DoShowSearchResults;
     procedure DoShowSidePanel(const ATabCaption: string);
     procedure DoTreeCollapseLevel(ALevel: integer);
     function FrameOfPopup: TEditorFrame;
@@ -610,13 +640,12 @@ type
     procedure DoFindNext(ANext: boolean);
     procedure DoMoveTabTo(Num: Integer);
     procedure DoOnTabPopup(Sender: TObject);
-    function DoFileOpen(AFilename: string): TEditorFrame;
+    function DoFileOpen(AFilename: string; APages: TATPages=nil): TEditorFrame;
     procedure DoFileOpenDialog;
     procedure DoFileSaveAll;
     procedure DoFileReopen;
     procedure DoLoadParamstr;
     procedure DoSortSel(ed: TATSynEdit; Asc, ANocase: boolean);
-    procedure DoTabUntitled(D: TATTabData);
     procedure DoToggleFullScreen;
     procedure DoToggleSidePanel;
     procedure DoToggleBottomPanel;
@@ -645,8 +674,8 @@ type
     function IsLexerMatches(const ANameList: string): boolean;
     procedure MenuPluginClick(Sender: TObject);
     procedure MenuThemeDefClick(Sender: TObject);
-    procedure PyCompletionOnGetProp(Sender: TObject; out AText,
-      ASuffix: string; out ACharsLeft, ACharsRight: integer);
+    procedure PyCompletionOnGetProp(Sender: TObject; out AText: string;
+      out ACharsLeft, ACharsRight: integer);
     procedure Py_RunPlugin_Index(Num: integer);
     procedure SetFrameEncoding(Frame: TEditorFrame; const AEnc: string;
       AAlsoReloadFile: boolean);
@@ -663,7 +692,7 @@ type
     procedure InitPyEngine;
     procedure FrameOnChangeCaption(Sender: TObject);
     procedure FrameOnUpdateStatus(Sender: TObject);
-    function DoTabAdd(Pages: TATPages): TATTabData;
+    function DoTabAdd(Pages: TATPages; const ACaption: string): TATTabData;
     procedure DoOnTabFocus(Sender: TObject);
     procedure DoOnTabAdd(Sender: TObject);
     procedure DoOnTabClose(Sender: TObject; ATabIndex: Integer;
@@ -680,7 +709,9 @@ type
     procedure MsgStatus(const S: string);
     procedure SetShowStatus(AValue: boolean);
     procedure SetShowToolbar(AValue: boolean);
+    procedure UpdateMenuLangs(sub: TMenuItem);
     procedure UpdateMenuThemes(sub: TMenuItem);
+    procedure UpdateStatusbarPanelAutosize;
     procedure UpdateStatusbarPanelsFromString(AStr: string);
     procedure UpdateTabsActiveColor(F: TEditorFrame);
     procedure UpdateTree(AFill: boolean; AConsiderTreeVisible: boolean=true);
@@ -728,6 +759,7 @@ var
   cStatusEnds: integer = 2;
   cStatusLexer: integer = 3;
   cStatusTabsize: integer = 4;
+  cStatusInsOvr: integer = -1;
   cStatusMsg: integer = 5;
 
 { TfmMain }
@@ -928,6 +960,18 @@ begin
   FormStyle:= FStyle;
 end;
 
+function TfmMain.GetSessionFilename: string;
+begin
+  if FSessionName<>'' then
+  begin
+    Result:= FSessionName;
+    if ExtractFileDir(Result)='' then
+      Result:= GetAppPath(cDirSettings)+DirectorySeparator+Result;
+  end
+  else
+    Result:= '';
+end;
+
 
 procedure TfmMain.FormCreate(Sender: TObject);
 var
@@ -941,29 +985,28 @@ begin
   end;
 
   PanelAll.Align:= alClient;
-  Manager:= TecSyntaxManager.Create(Self);
-  FSessionFilename:= GetAppPath(cFileHistorySession);
+  AppManager:= TecSyntaxManager.Create(Self);
+  FSessionName:= 'history session.json';
 
   FPanelCaptions:= TStringList.Create;
   FListRecents:= TStringList.Create;
   FListNewdoc:= TStringList.Create;
   FListThemes:= TStringlist.Create;
-  FListOut:= TStringlist.Create;
-  FListVal:= TStringlist.Create;
+  FListLangs:= TStringList.Create;
 
   FillChar(AppPanelProp_Out, SizeOf(AppPanelProp_Out), 0);
   FillChar(AppPanelProp_Val, SizeOf(AppPanelProp_Val), 0);
   AppPanelProp_Out.Listbox:= ListboxOut;
-  AppPanelProp_Out.Items:= FListOut;
   AppPanelProp_Val.Listbox:= ListboxVal;
-  AppPanelProp_Val.Items:= FListVal;
 
   Status:= TATStatus.Create(Self);
   Status.Parent:= Self;
   Status.Align:= alBottom;
   Status.Top:= Height;
   Status.Height:= 23;
+  Status.IndentLeft:= 2;
   Status.OnPanelClick:= @StatusPanelClick;
+  Status.OnResize:= @StatusResize;
 
   Status.AddPanel(170, saMiddle, '?');
   Status.AddPanel(105, saMiddle, '?');
@@ -988,6 +1031,7 @@ begin
 
   ListboxOut.Align:= alClient;
   ListboxVal.Align:= alClient;
+  TreeRes.Align:= alClient;
 
   Groups:= TATGroups.Create(Self);
   Groups.Parent:= PanelMain;
@@ -996,21 +1040,25 @@ begin
   Groups.OnTabFocus:= @DoOnTabFocus;
   Groups.OnTabAdd:= @DoOnTabAdd;
   Groups.OnTabClose:= @DoOnTabClose;
+  Groups.OnTabMove:= @DoOnTabMove;
   Groups.OnTabPopup:= @DoOnTabPopup;
   Groups.OnTabOver:= @DoOnTabOver;
 
   TabsBottom:= TATTabs.Create(Self);
   TabsBottom.Parent:= PanelBottom;
   TabsBottom.Align:= alBottom;
+  TabsBottom.TabDragEnabled:= false;
 
   TabsBottom.AddTab(-1, 'Console', nil);
   TabsBottom.AddTab(-1, 'Output', nil);
   TabsBottom.AddTab(-1, 'Validate', nil);
+  TabsBottom.AddTab(-1, 'Search Results', nil);
   TabsBottom.OnTabClick:= @DoOnTabsBottomClick;
 
   TabsLeft:= TATTabs.Create(Self);
   TabsLeft.Parent:= PanelLeft;
   TabsLeft.Align:= alTop;
+  TabsLeft.TabDragEnabled:= false;
 
   TabsLeft.AddTab(-1, 'Tree', nil);
   TabsLeft.OnTabClick:= @DoOnTabsLeftClick;
@@ -1055,6 +1103,8 @@ begin
   fmConsole.Hide;
   ListboxOut.Hide;
   ListboxVal.Hide;
+  TreeRes.Hide;
+  //hide api-added panels
   for N:= 0 to FPanelCaptions.Count-1 do
     (FPanelCaptions.Objects[N] as TAppPanelPropsClass).Data.Listbox.Hide;
 
@@ -1073,6 +1123,11 @@ begin
       begin
         ListboxVal.Show;
         ListboxVal.SetFocus;
+      end;
+    3:
+      begin
+        TreeRes.Show;
+        TreeRes.SetFocus;
       end;
     else
       begin
@@ -1118,7 +1173,8 @@ end;
 
 procedure TfmMain.FormColorsApply(const AColors: TAppTheme);
 begin
-  Theme:= AColors;
+  AppTheme:= AColors;
+  DoClearLexersAskedList;
   DoApplyTheme;
 end;
 
@@ -1127,20 +1183,30 @@ begin
   FreeAndNil(FListRecents);
   FreeAndNil(FListNewdoc);
   FreeAndNil(FListThemes);
-  FreeAndNil(FListOut);
-  FreeAndNil(FListVal);
+  FreeAndNil(FListLangs);
   FreeAndNil(FPanelCaptions);
 end;
 
 procedure TfmMain.FormDropFiles(Sender: TObject;
   const FileNames: array of String);
 var
+  Pages: TATPages;
   i: integer;
 begin
+  //set group according to mouse cursor
+  Pages:= nil;
+  for i in [Low(TATGroupsNums)..High(TATGroupsNums)] do
+    if fmMain.Groups.Pages[i].Visible then
+      if PtInControl(fmMain.Groups.Pages[i], Mouse.CursorPos) then
+      begin
+        Pages:= fmMain.Groups.Pages[i];
+        Break;
+      end;
+
   for i:= 0 to Length(Filenames)-1 do
     if FileExistsUTF8(FileNames[i]) and
       not DirectoryExistsUTF8(FileNames[i]) then
-      DoFileOpen(FileNames[i]);
+        DoFileOpen(FileNames[i], Pages);
 end;
 
 procedure TfmMain.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -1192,20 +1258,21 @@ begin
   TabsBottom.TabIndex:= 0;
 
   DoOps_LoadOptions(GetAppPath(cFileOptUser), EditorOps);
-  DoApplyFontFixed;
-  DoApplyFontVar;
-  DoOps_LoadLexlib;
+  DoApplyFont_Text;
+  DoApplyFont_Ui;
+  DoApplyFont_Output;
   DoApplyUiOps;
   InitPyEngine;
+  DoOps_LoadLexlib;
 
   DoFileOpen('');
   DoOps_LoadPlugins;
   DoOps_LoadHistory;
   DoOps_LoadKeymap;
-  DoOps_PreinstallPlugins;
 
   UpdateMenuPlugins;
   UpdateMenuThemes(mnuThemes);
+  UpdateMenuLangs(mnuLang);
   UpdateMenuHotkeys;
 
   DoPyEvent(CurrentEditor, cEventOnFocus, []);
@@ -1273,12 +1340,30 @@ end;
 procedure TfmMain.DoFileInstallZip(const fn: string);
 var
   msg: string;
+  IsOk: boolean;
+  AddonType: TAppAddonType;
 begin
-  if DoInstallAddonFromZip(fn, Manager, GetAppPath(cDirDataAcp), msg) then
+  DoInstallAddonFromZip(fn, AppManager, GetAppPath(cDirDataAcp), msg, IsOk, AddonType);
+  if IsOk then
   begin
-    DoOps_SaveLexlib(false);
-    UpdateMenuLexers;
-    MsgBox('Installed:'#13+msg, MB_OK or MB_ICONINFORMATION);
+    if AddonType=cAddonTypeLexer then
+    begin
+      UpdateMenuLexers;
+    end;
+
+    if AddonType=cAddonTypeData then
+    begin
+      UpdateMenuLangs(mnuLang);
+      UpdateMenuThemes(mnuThemes);
+    end;
+
+    if AddonType=cAddonTypePlugin then
+    begin
+      DoOps_LoadPlugins;
+      UpdateMenuPlugins;
+    end;
+
+    MsgBox(msgStatusInstalled+#10+msg, MB_OK or MB_ICONINFORMATION);
   end;
 end;
 
@@ -1345,10 +1430,13 @@ var
   i: integer;
   F: TEditorFrame;
   res: TModalResult;
+  Form: TfmSaveTabs;
 begin
   Result:= false;
-  with TfmSaveTabs.Create(nil) do
+  Form:= TfmSaveTabs.Create(nil);
+  with Form do
   try
+    DoLocalize_FormSaveTabs(Form);
     List.Clear;
     for i:= 0 to FrameCount-1 do
     begin
@@ -1370,7 +1458,7 @@ begin
           begin
             F:= Frames[i];
             if List.Checked[i] then
-              F.DoFileSave(false, SaveDlg);
+              F.DoFileSave(false, SaveDlg, nil);
           end;
         end;
     end;
@@ -1386,16 +1474,16 @@ begin
     EditorOps.OpFontSize,
     GetAppPath(cFileLexerStyles)) then
   begin
+    DoLexerExportFromLibToFile(an);
     UpdateMenuLexers;
     UpdateStatus;
     UpdateFrame;
-    DoOps_SaveLexlib(true);
   end;
 end;
 
 procedure TfmMain.DoDialogLexerLib;
 begin
-  if DoShowDialogLexerLib(Manager,
+  if DoShowDialogLexerLib(
     GetAppPath(cDirDataAcp),
     EditorOps.OpFontName,
     EditorOps.OpFontSize,
@@ -1404,8 +1492,17 @@ begin
     UpdateMenuLexers;
     UpdateStatus;
     UpdateFrame;
-    DoOps_SaveLexlib(true);
   end;
+end;
+
+procedure TfmMain.DoDialogLexerMap;
+var
+  i: integer;
+begin
+  if DoDialogLexerStylesMap(CurrentFrame.Lexer) then
+    for i:= 0 to FrameCount-1 do
+      with Frames[i] do
+        Lexer:= Lexer;
 end;
 
 procedure TfmMain.DoCopyFilenameFull;
@@ -1438,9 +1535,13 @@ begin
 end;
 
 procedure TfmMain.DoHelpAbout;
+var
+  Form: TfmAbout;
 begin
-  with TfmAbout.Create(Self) do
+  Form:= TfmAbout.Create(Self);
+  with Form do
   try
+    DoLocalize_FormAbout(Form);
     labelVer.Caption:= cAppExeVersion;
     ShowModal;
   finally
@@ -1468,20 +1569,6 @@ begin
   SetFrame(Frames[(Sender as TMenuItem).Tag]);
 end;
 
-procedure TfmMain.mnuEndsWinClick(Sender: TObject);
-begin
-  SetLineEnds(cEndWin);
-end;
-
-procedure TfmMain.mnuEndsUnixClick(Sender: TObject);
-begin
-  SetLineEnds(cEndUnix);
-end;
-
-procedure TfmMain.mnuEndsMacClick(Sender: TObject);
-begin
-  SetLineEnds(cEndMac);
-end;
 
 procedure TfmMain.SetLineEnds(Val: TATLineEnds);
 begin
@@ -1520,10 +1607,10 @@ begin
   TabsBottom.TabMiddleClickClose:= false;
   TabsBottom.TabAngle:= UiOps.TabAngle;
   TabsBottom.TabIndentTop:= 0;
-  TabsBottom.TabIndentInit:= UiOps.TabIndentX;
-  TabsBottom.Height:= UiOps.TabSizeY;
-  TabsBottom.TabHeight:= UiOps.TabSizeY-1;
-  TabsBottom.TabWidthMax:= UiOps.TabSizeX;
+  TabsBottom.TabIndentInit:= UiOps.TabIndentInit;
+  TabsBottom.Height:= UiOps.TabHeight;
+  TabsBottom.TabHeight:= UiOps.TabHeightInner;
+  TabsBottom.TabWidthMax:= UiOps.TabWidth;
 
   TabsLeft.TabBottom:= UiOps.TabBottom;
   TabsLeft.TabShowPlus:= false;
@@ -1532,11 +1619,11 @@ begin
   TabsLeft.TabDoubleClickClose:= false;
   TabsLeft.TabMiddleClickClose:= false;
   TabsLeft.TabAngle:= UiOps.TabAngle;
-  TabsLeft.TabIndentTop:= 0;
-  TabsLeft.TabIndentInit:= UiOps.TabIndentX;
-  TabsLeft.Height:= UiOps.TabSizeY;
-  TabsLeft.TabHeight:= UiOps.TabSizeY-1;
-  TabsLeft.TabWidthMax:= UiOps.TabSizeX;
+  TabsLeft.TabIndentTop:= IfThen(UiOps.TabBottom, 0, UiOps.TabIndentTop);
+  TabsLeft.TabIndentInit:= UiOps.TabIndentInit;
+  TabsLeft.Height:= UiOps.TabHeight;
+  TabsLeft.TabHeight:= UiOps.TabHeightInner;
+  TabsLeft.TabWidthMax:= UiOps.TabWidth;
   if UiOps.TabBottom then
     TabsLeft.Align:= alBottom
   else
@@ -1548,10 +1635,11 @@ begin
   Groups.SetTabOption(tabOptionShowEntireColor, Ord(UiOps.TabColorFull));
   Groups.SetTabOption(tabOptionDoubleClickClose, Ord(UiOps.TabDblClickClose));
   Groups.SetTabOption(tabOptionAngle, UiOps.TabAngle);
-  Groups.SetTabOption(tabOptionWidthMax, UiOps.TabSizeX);
-  Groups.SetTabOption(tabOptionHeight1, UiOps.TabSizeY);
-  Groups.SetTabOption(tabOptionHeight2, UiOps.TabSizeY-2);
-  Groups.SetTabOption(tabOptionIndentInit, UiOps.TabIndentX);
+  Groups.SetTabOption(tabOptionWidthMax, UiOps.TabWidth);
+  Groups.SetTabOption(tabOptionHeight, UiOps.TabHeight);
+  Groups.SetTabOption(tabOptionHeightInner, UiOps.TabHeightInner);
+  Groups.SetTabOption(tabOptionIndentTop, IfThen(UiOps.TabBottom, 0, UiOps.TabIndentTop));
+  Groups.SetTabOption(tabOptionIndentInit, UiOps.TabIndentInit);
   Groups.SetTabOption(tabOptionIndentColor, 4);
   Groups.SetTabOption(tabOptionWidecharModified, Ord('*'));
   Groups.SetTabOption(tabOptionShowNums, Ord(UiOps.TabNumbers));
@@ -1582,9 +1670,8 @@ begin
 end;
 
 
-function TfmMain.DoFileOpen(AFilename: string): TEditorFrame;
+function TfmMain.DoFileOpen(AFilename: string; APages: TATPages = nil): TEditorFrame;
 var
-  Pages: TATPages;
   D: TATTabData;
   F: TEditorFrame;
   i: integer;
@@ -1593,12 +1680,14 @@ begin
   Result:= nil;
   if Application.Terminated then exit;
 
+  if APages=nil then
+    APages:= Groups.PagesCurrent;
+
   if AFilename='' then
   begin
-    Pages:= Groups.PagesCurrent;
-    D:= DoTabAdd(Pages);
-    DoTabUntitled(D);
+    D:= DoTabAdd(APages, GetUntitledCaption);
     Result:= D.TabObject as TEditorFrame;
+    Result.DoFocusEditor;
     Exit
   end;
 
@@ -1640,6 +1729,7 @@ begin
     begin
       SetFrame(F);
       Result:= F;
+      Result.DoFocusEditor;
       UpdateStatus;
       UpdateTree(true);
       Exit
@@ -1647,26 +1737,29 @@ begin
   end;
 
   //is current frame empty? use it
-  F:= CurrentFrame;
-  if F.IsEmpty then
+  if APages=Groups.PagesCurrent then
   begin
-    F.DoFileOpen(AFilename);
-    Result:= F;
-    UpdateStatus;
-    MsgStatus('Opened: '+pchar(ExtractFileName(AFilename)));
-    DoPyEvent(F.Editor, cEventOnOpen, []);
-    Exit
+    F:= CurrentFrame;
+    if F.IsEmpty then
+    begin
+      F.DoFileOpen(AFilename);
+      Result:= F;
+      UpdateStatus;
+      MsgStatus(msgStatusOpened+' '+pchar(ExtractFileName(AFilename)));
+      DoPyEvent(F.Editor, cEventOnOpen, []);
+      Exit
+    end;
   end;
 
-  Pages:= Groups.PagesCurrent;
-  D:= DoTabAdd(Pages);
+  D:= DoTabAdd(APages, ExtractFileName(AFilename));
   F:= D.TabObject as TEditorFrame;
   F.DoFileOpen(AFilename);
   Result:= F;
 
   UpdateStatus;
-  MsgStatus('Opened: '+pchar(ExtractFileName(AFilename)));
+  MsgStatus(msgStatusOpened+' '+pchar(ExtractFileName(AFilename)));
   DoPyEvent(F.Editor, cEventOnOpen, []);
+  Result.DoFocusEditor;
 end;
 
 procedure TfmMain.DoFileOpenDialog;
@@ -1710,7 +1803,7 @@ var
   Form: TfmCommands;
   Cmd: integer;
 begin
-  MsgStatus('Commands: F9 to configure keys; "@key" to find hotkey');
+  MsgStatus(msgStatusHelpOnShowCommands);
 
   Form:= TfmCommands.Create(Self);
   try
@@ -1742,6 +1835,7 @@ begin
     fmGoto.Align:= alBottom;
     fmGoto.Color:= GetAppColor('TabBg');
   end;
+  DoLocalize_FormGoto;
 
   with fmGoto do
   begin
@@ -1771,7 +1865,7 @@ begin
     Num:= StrToIntDef(fmGoto.edInput.Text, 0)-1;
     if Num<0 then
     begin
-      MsgStatus(msgStatusBadNum);
+      MsgStatus(msgStatusBadLineNum);
       Exit
     end;
     Num:= Min(Num, Ed.Strings.Count-1);
@@ -1800,9 +1894,15 @@ begin
     for i:= 0 to ed.Strings.Count-1 do
       if ed.Strings.LinesBm[i]>0 then
       begin
-        str:= 'Line '+Inttostr(i+1)+': '+ed.Strings.Lines[i];
+        str:= cHintScrollPrefix + Inttostr(i+1) + ': ' + ed.Strings.Lines[i];
         items.AddObject(Utf8Encode(str), TObject(ptrint(i)));
       end;
+
+    if items.Count=0 then
+    begin
+      MsgStatus(msgCannotFindBookmarks);
+      Exit;
+    end;
 
     Num:= -1;
     Form:= TfmGotoList.Create(Self);
@@ -1823,7 +1923,7 @@ begin
 
   if Num<0 then
   begin
-    MsgStatus(msgStatusCancel);
+    MsgStatus(msgStatusCancelled);
     Exit
   end;
 
@@ -1844,15 +1944,15 @@ const
 var
   str: string;
 begin
-  if DoDialogConfColors(Theme) then
+  if DoDialogConfColors(AppTheme) then
   begin
     DoApplyTheme;
-    if Msgbox(msgConfirmSaveColors, MB_OKCANCEL or MB_ICONQUESTION)=id_ok then
+    if Msgbox(msgConfirmSaveColorsToFile, MB_OKCANCEL or MB_ICONQUESTION)=id_ok then
     begin
       str:= Trim(InputBox(msgTitle, msgThemeName, cDef));
       if str='' then exit;
       str:= GetAppPath(cDirDataThemes)+DirectorySeparator+str+'.json';
-      DoSaveTheme(str, Theme);
+      DoSaveTheme(str, AppTheme);
       UpdateMenuThemes(mnuThemes);
     end;
   end;
@@ -1967,14 +2067,20 @@ end;
 
 procedure TfmMain.SetFrameEncoding(Frame: TEditorFrame; const AEnc: string; AAlsoReloadFile: boolean);
 begin
+  if Frame.EncodingName=AEnc then exit;
   Frame.EncodingName:= AEnc;
 
   if AAlsoReloadFile then
   begin
     if Frame.FileName<>'' then
-      Frame.DoFileReload(false)
+      Frame.DoFileReload_DisableDetectEncoding
     else
-      MsgBox('Cannot reload untitled tab', MB_OK);
+      MsgBox(msgCannotReloadUntitledTab, MB_OK or MB_ICONWARNING);
+  end
+  else
+  begin
+    //set modified to allow save
+    Frame.Editor.Modified:= true;
   end;
 
   UpdateFrame;
@@ -1983,37 +2089,81 @@ begin
 end;
 
 procedure TfmMain.MenuLexClick(Sender: TObject);
+var
+  an: TecSyntAnalyzer;
 begin
-  CurrentFrame.Lexer:= TecSyntAnalyzer(pointer((Sender as TComponent).Tag));
+  an:= TecSyntAnalyzer((Sender as TComponent).Tag);
+  CurrentFrame.Lexer:= an;
   UpdateFrame;
   UpdateStatus;
 end;
 
 procedure TfmMain.DoOps_LoadLexlib;
 var
-  fn: string;
+  dir, fn, lexname: string;
+  L: TStringlist;
+  an: TecSyntAnalyzer;
+  ini: TIniFile;
+  i, j: integer;
 begin
-  fn:= GetAppPath(cFileLexlib);
-  if not FileExistsUTF8(fn) then
-  begin
-    MsgBox(msgCannotFindLexlib+#13+fn, mb_ok or mb_iconerror);
-    Exit
+  AppManager.Clear;
+
+  //load .lcf files to lib
+  dir:= GetAppPath(cDirDataLexlib);
+  L:= TStringlist.Create;
+  try
+    FindAllFiles(L, dir, '*.lcf', false);
+    L.Sort;
+
+    //upgrade from lexerlib to lcf files
+    //delete this block after 2016.05-.06
+    if L.Count=0 then
+      if FileExists(UiOps.LexerLibFilename) then
+      begin
+        AppManager.LoadFromFile(UiOps.LexerLibFilename);
+        Py_RunPlugin_Command('cudatext_upgrade_lexerlib', 'run', '');
+        AppManager.Clear;
+        FindAllFiles(L, dir, '*.lcf', false);
+        L.Sort;
+      end;
+
+    if L.Count=0 then
+    begin
+      MsgStatusAlt('Cannot find lexer files: data/lexlib/*.lcf', 3);
+      exit
+    end;
+
+    for i:= 0 to L.Count-1 do
+    begin
+      an:= AppManager.AddAnalyzer;
+      an.LoadFromFile(L[i]);
+    end;
+  finally
+    FreeAndNil(L);
   end;
-  Manager.LoadFromFile(fn);
+
+  //correct sublexer links
+  for i:= 0 to AppManager.AnalyzerCount-1 do
+  begin
+    an:= AppManager.Analyzers[i];
+    fn:= dir+DirectorySeparator+an.LexerName+'.cuda-lexmap';
+    if FileExists(fn) then
+    begin
+      ini:= TIniFile.Create(fn);
+      try
+        for j:= 0 to an.SubAnalyzers.Count-1 do
+        begin
+          lexname:= ini.ReadString('ref', IntToStr(j), '');
+          if lexname<>'' then
+            an.SubAnalyzers[j].SyntAnalyzer:= AppManager.FindAnalyzer(lexname);
+        end;
+      finally
+        FreeAndNil(ini);
+      end;
+    end;
+  end;
+
   UpdateMenuLexers;
-end;
-
-procedure TfmMain.DoOps_SaveLexlib(Cfm: boolean);
-var
-  fn: string;
-begin
-  if Cfm then
-    if MsgBox(msgConfirmSaveLib, MB_OKCANCEL or MB_ICONWARNING)<>id_ok then exit;
-
-  fn:= GetAppPath(cFileLexlib);
-  if not FileExistsUTF8(fn) then exit;
-  Manager.SaveToFile(fn);
-  MsgStatus(msgStatusLexlibSave);
 end;
 
 
@@ -2042,9 +2192,9 @@ begin
   sl:= tstringlist.create;
   try
     //make stringlist of all lexers
-    for i:= 0 to Manager.AnalyzerCount-1 do
+    for i:= 0 to AppManager.AnalyzerCount-1 do
     begin
-      an:= Manager.Analyzers[i];
+      an:= AppManager.Analyzers[i];
       if not an.Internal then
         sl.AddObject(an.LexerName, an);
     end;
@@ -2143,13 +2293,14 @@ begin
   begin
     F:= Frames[i];
     if F.Modified then
-      F.DoFileSave(false, SaveDlg);
+      F.DoFileSave(false, SaveDlg, nil);
   end;
 end;
 
 procedure TfmMain.DoFileReopen;
 var
   F: TEditorFrame;
+  bRO: boolean;
 begin
   F:= CurrentFrame;
   if F.FileName='' then exit;
@@ -2158,10 +2309,12 @@ begin
       Format(msgConfirmReopenModifiedTab, [F.FileName]),
       MB_OKCANCEL or MB_ICONQUESTION)<>id_ok then exit;
 
-  F.DoSaveHistory; //save hist to reopen at same scrollpos
-  F.DoFileOpen(F.FileName, true);
+  bRO:= F.ReadOnly;
+  F.ReadOnly:= false;
+  F.DoFileReload;
+  F.ReadOnly:= bRO;
 
-  MsgStatus('Re-opened: '+ExtractFileName(F.Filename));
+  MsgStatus(msgStatusReopened+' '+ExtractFileName(F.Filename));
 end;
 
 function TfmMain.DoFileCloseAll: boolean;
@@ -2183,7 +2336,7 @@ begin
   fn:= CurrentFrame.FileName;
   if fn='' then exit;
 
-  if MsgBox(msgConfirmCloseDel+#13+fn, MB_OKCANCEL or MB_ICONWARNING)=id_ok then
+  if MsgBox(msgConfirmCloseDelFile+#13+fn, MB_OKCANCEL or MB_ICONWARNING)=id_ok then
     if Groups.CloseTabs(tabCloseCurrent, false) then
       DeleteFileUTF8(fn);
 end;
@@ -2278,6 +2431,12 @@ begin
   TabsBottom.TabIndex:= 2;
 end;
 
+procedure TfmMain.DoShowSearchResults;
+begin
+  ShowBottom:= true;
+  TabsBottom.TabIndex:= 3;
+end;
+
 procedure TfmMain.DoShowSidePanel(const ATabCaption: string);
 begin
   if ATabCaption='-' then
@@ -2340,6 +2499,33 @@ begin
   UpdateStatus;
 end;
 
+procedure TfmMain.DoFileSave;
+var
+  F: TEditorFrame;
+begin
+  F:= CurrentFrame;
+  if F.Modified or (F.FileName='') then
+    F.DoFileSave(false, SaveDlg, nil);
+end;
+
+procedure TfmMain.DoFileSaveAs;
+var
+  F: TEditorFrame;
+begin
+  F:= CurrentFrame;
+  F.DoFileSave(true, SaveDlg, @DoCheckFilenameOpened);
+end;
+
+function TfmMain.DoCheckFilenameOpened(const AStr: string): boolean;
+var
+  i: integer;
+begin
+  Result:= false;
+  if AStr='' then exit;
+  for i:= 0 to FrameCount-1 do
+    if Frames[i].FileName=AStr then exit(true);
+end;
+
 procedure TfmMain.DoOps_OpenFile_Default;
 var
   fn: string;
@@ -2385,7 +2571,7 @@ begin
   if an=nil then exit;
   if an.LexerName='' then exit;
 
-  fn:= GetLexerOverrideFN(an.LexerName);
+  fn:= GetAppLexerOverrideFilename(an.LexerName);
   if not FileExistsUTF8(fn) then
   begin
     FCreateFile(fn, true);
@@ -2421,7 +2607,8 @@ begin
     SModule:= SGetItem(SHint);
     SMethod:= SGetItem(SHint);
     SParam:= SHint; //not SGetItem, allows to use ","
-    DoPyCommand(SModule, SMethod, SParam);
+    if (SModule<>'') and (SMethod<>'') then
+      DoPyCommand(SModule, SMethod, SParam);
   end
   else
     CurrentEditor.DoCommand(Cmd);
@@ -2432,12 +2619,13 @@ end;
 
 procedure TfmMain.SetLexerIndex(N: integer);
 begin
-  if (N>=0) and (N<Manager.AnalyzerCount) then
-  begin
-    CurrentFrame.Lexer:= Manager.Analyzers[N];
-    UpdateFrame;
-    UpdateStatus;
-  end;
+  if (N>=0) and (N<AppManager.AnalyzerCount) then
+    CurrentFrame.Lexer:= AppManager.Analyzers[N]
+  else
+    CurrentFrame.Lexer:= nil;
+
+  UpdateFrame;
+  UpdateStatus;
 end;
 
 
@@ -2458,7 +2646,7 @@ begin
   if Ed.Carets.Count<>1 then exit;
 
   LexName:= F.LexerNameAtPos(Point(Ed.Carets[0].PosX, Ed.Carets[0].PosY));
-  MsgStatus('Trying auto-complete for: '+LexName);
+  MsgStatus(msgStatusTryingAutocomplete+' '+LexName);
   if LexName='' then exit;
 
   //'php_'->'php'
@@ -2587,7 +2775,7 @@ begin
     GetAppColor('ExportHtmlNumbers')
     );
 
-  if MsgBox('Open created document?', MB_OKCANCEL or MB_ICONQUESTION)=id_ok then
+  if MsgBox(msgConfirmOpenCreatedDoc, MB_OKCANCEL or MB_ICONQUESTION)=id_ok then
     OpenDocument(SaveDlg.FileName);
 end;
 
@@ -2621,16 +2809,27 @@ begin
   end;
 end;
 
-function TfmMain.DoDialogConfColors(var AColors: TAppTheme): boolean;
+function TfmMain.DoDialogConfColors(var AData: TAppTheme): boolean;
+var
+  Form: TfmColorSetup;
+  i: integer;
 begin
-  with TfmColorSetup.Create(nil) do
+  Form:= TfmColorSetup.Create(nil);
   try
-    OnApply:= @FormColorsApply;
-    Data:= AColors;
-    Result:= ShowModal=mrOk;
-    if Result then AColors:= Data;
+    DoLocalize_FormColorSetup(Form);
+    Form.OnApply:= @FormColorsApply;
+    Form.Data:= AData;
+    Result:= Form.ShowModal=mrOk;
+    if Result then
+    begin
+      AData:= Form.Data;
+
+      for i:= 0 to FrameCount-1 do
+        with Frames[i] do Lexer:= Lexer;
+      UpdateFrame;
+    end;
   finally
-    Free
+    FreeAndNil(Form);
   end;
 end;
 
@@ -2687,12 +2886,12 @@ begin
     Prop:= @AppPanelProp_Val;
 
   if not ((List.ItemIndex>=0) and
-          (List.ItemIndex<Prop^.Items.Count)) then exit;
+          (List.ItemIndex<Prop^.Listbox.Items.Count)) then exit;
 
   //Ctrl+C
   if (Key=Ord('C')) and (Shift=[ssCtrl]) then
   begin
-    Clipboard.AsText:= Prop^.Items.Text;
+    Clipboard.AsText:= Prop^.Listbox.Items.Text;
     Key:= 0;
     exit
   end;
@@ -2700,7 +2899,7 @@ begin
   //Ctrl+D
   if (Key=Ord('D')) and (Shift=[ssCtrl]) then
   begin
-    Clipboard.AsText:= Prop^.Items[List.ItemIndex];
+    Clipboard.AsText:= Prop^.Listbox.Items[List.ItemIndex];
     Key:= 0;
     exit
   end;
@@ -2713,9 +2912,9 @@ begin
     //  Prop^.Items.Delete(List.ItemIndex);
 
     if Shift=[ssCtrl] then
-      Prop^.Items.Clear;
+      Prop^.Listbox.Items.Clear;
 
-    List.ItemCount:= Prop^.Items.Count;
+    List.ItemCount:= Prop^.Listbox.Items.Count;
     if List.ItemCount=0 then
       List.ItemIndex:= -1
     else
@@ -2732,29 +2931,58 @@ var
 begin
   fn:= FListThemes[(Sender as TComponent).Tag];
   FThemeName:= ExtractFileNameOnly(fn);
-  DoLoadTheme(fn, Theme);
+
+  DoClearLexersAskedList;
+  DoLoadTheme(fn, AppTheme);
   DoApplyTheme;
 end;
+
+procedure TfmMain.MenuLangClick(Sender: TObject);
+var
+  NTag: integer;
+begin
+  NTag:= (Sender as TComponent).Tag;
+  if NTag>=0 then
+  begin
+    AppLangName:= ExtractFileNameOnly(FListLangs[NTag]);
+    UpdateMenuLangs(mnuLang);
+    DoLocalize;
+  end
+  else
+  begin
+    AppLangName:= '';
+    MsgBox('Built-in translation will be used after app restart', mb_ok or MB_ICONINFORMATION);
+  end;
+end;
+
 
 procedure TfmMain.DoHelpLexers;
 begin
   DoFileOpen(GetAppPath(cFileReadmeLexerInst));
 end;
 
-procedure TfmMain.mnuOpKeysClick(Sender: TObject);
+procedure TfmMain.DoHelpIssues;
 begin
-  MsgBox('To customize hotkeys, call Commands dialog, focus any command, and press F9, you''ll see additional dialog', mb_ok);
+  OpenURL('https://github.com/Alexey-T/CudaText/issues');
+end;
+
+procedure TfmMain.DoHelpHotkeys;
+begin
+  MsgBox(msgStatusHelpOnKeysConfig, MB_OK or MB_ICONINFORMATION);
 end;
 
 procedure TfmMain.mnuTabColorClick(Sender: TObject);
 var
   F: TEditorFrame;
+  Form: TfmPalette;
 begin
   F:= FrameOfPopup;
   if F=nil then exit;
 
-  with TfmPalette.Create(Self) do
+  Form:= TfmPalette.Create(Self);
+  with Form do
   try
+    DoLocalize_FormPalette(Form);
     ResColor:= F.TabColor;
     case ShowModal of
       mrOk: F.TabColor:= ResColor;
@@ -2768,7 +2996,8 @@ end;
 procedure TfmMain.MenuThemeDefClick(Sender: TObject);
 begin
   FThemeName:= '';
-  DoInitTheme(Theme);
+  DoClearLexersAskedList;
+  DoInitTheme(AppTheme);
   DoApplyTheme;
 end;
 
@@ -2836,10 +3065,10 @@ begin
 
   NIndex:= Prop^.Listbox.ItemIndex;
   if NIndex<0 then exit;
-  if NIndex>=Prop^.Items.Count then exit;
+  if NIndex>=Prop^.Listbox.Items.Count then exit;
 
-  SText:= Prop^.Items[NIndex];
-  NTag:= PtrInt(Prop^.Items.Objects[NIndex]);
+  SText:= Prop^.Listbox.Items[NIndex];
+  NTag:= PtrInt(Prop^.Listbox.Items.Objects[NIndex]);
 
   DoParseOutputLine(Prop^, SText, ResFilename, ResLine, ResCol);
   if (ResFilename<>'') and (ResLine>=0) then
@@ -2856,7 +3085,7 @@ begin
   end
   else
   begin
-    MsgStatus('Clicking log line');
+    MsgStatus(msgStatusClickingLogLine);
     DoPyEvent(CurrentEditor, cEventOnOutputNav,
       [SStringToPythonString(SText), IntToStr(NTag)] );
   end;
@@ -2875,7 +3104,7 @@ begin
   Prop:= GetAppPanelProps_ByListbox(Sender as TATListbox);
   if Prop=nil then exit;
 
-  DoParseOutputLine(Prop^, Prop^.Items[AIndex], ResFilename, ResLine, ResCol);
+  DoParseOutputLine(Prop^, Prop^.Listbox.Items[AIndex], ResFilename, ResLine, ResCol);
   if (ResFilename<>'') and (ResLine>=0) then
   begin
     C.Font.Color:= GetAppColor('ListFontHotkey');
@@ -2889,18 +3118,19 @@ begin
 
   if AIndex=Prop^.Listbox.ItemIndex then
   begin
+    C.Font.Color:= GetAppColor('ListSelFont');
     C.Brush.Color:= GetAppColor('ListSelBg');
     C.FillRect(ARect);
   end;
 
-  C.TextOut(ARect.Left+cDx, ARect.Top+cDy, Prop^.Items[AIndex]);
+  C.TextOut(ARect.Left+cDx, ARect.Top+cDy, Prop^.Listbox.Items[AIndex]);
 end;
 
 
 procedure TfmMain.DoGotoDefinition;
 begin
   if DoPyEvent(CurrentEditor, cEventOnGotoDef, [])<>cPyTrue then
-    MsgStatus('No goto-definition plugins installed for this lexer');
+    MsgStatus(msgStatusNoGotoDefinitionPlugins);
 end;
 
 procedure TfmMain.DoShowFuncHint;
@@ -2925,6 +3155,7 @@ begin
   UpKey(mnuTextDelete, cCommand_TextDeleteSelection);
   UpKey(mnuTextSel, cCommand_SelectAll);
   UpKey(mnuTextGotoDef, cmd_GotoDefinition);
+  UpKey(mnuTextOpenUrl, cmd_LinkAtPopup_Open);
 
   Ed:= CurrentEditor;
   if assigned(mnuTextCut) then mnuTextCut.Enabled:= not Ed.ModeReadOnly;
@@ -2932,6 +3163,7 @@ begin
   if assigned(mnuTextDelete) then mnuTextDelete.Enabled:= not Ed.ModeReadOnly and Ed.Carets.IsSelection;
   if assigned(mnuTextUndo) then mnuTextUndo.Enabled:= not Ed.ModeReadOnly and (Ed.UndoCount>0);
   if assigned(mnuTextRedo) then mnuTextRedo.Enabled:= not Ed.ModeReadOnly and (Ed.RedoCount>0);
+  if assigned(mnuTextOpenUrl) then mnuTextOpenUrl.Enabled:= EditorGetLinkAtScreenCoord(Ed, PopupText.PopupPoint)<>'';
 end;
 
 
@@ -2943,20 +3175,21 @@ var
 begin
   Form:= TfmLexerStylesRestore.Create(nil);
   try
+    DoLocalize_FormLexerRestoreStyles(Form);
     Form.StylesFilename:= GetAppPath(cFileLexerStyles);
     if Form.ShowModal=mrOk then
     begin
       for i:= 0 to Form.List.Count-1 do
         if Form.List.Checked[i] then
         begin
-          An:= Manager.FindAnalyzer(Form.List.Items[i]);
+          An:= AppManager.FindAnalyzer(Form.List.Items[i]);
           if Assigned(An) then
-            LoadLexerStylesFromFile(An, Form.StylesFilename)
+            DoLoadLexerStylesFromFile(An, Form.StylesFilename)
           else
-            MsgBox('Cannot find lexer in library: '+Form.List.Items[i], MB_OK);
+            MsgBox(msgCannotFindLexerInLibrary+' '+Form.List.Items[i], MB_OK);
         end;
 
-      DoOps_SaveLexlib(false);
+      //DoOps_SaveLexlib(false);
       UpdateFrame;
     end;
   finally
@@ -2993,21 +3226,10 @@ end;
 procedure TfmMain.CharmapOnInsert(const AStr: string);
 var
   Ed: TATSynEdit;
-  Caret: TATCaretItem;
-  Str: atString;
-  Shift, PosAfter: TPoint;
 begin
   Ed:= CurrentEditor;
   if Ed.Carets.Count=0 then exit;
-  Caret:= Ed.Carets[0];
-  Str:= Utf8Decode(AStr);
-
-  Ed.Strings.TextInsert(Caret.PosX, Caret.PosY, Str,
-    Ed.ModeOverwrite, Shift, PosAfter);
-  Ed.DoCaretSingle(Caret.PosX+Length(Str), Caret.PosY);
-
-  Ed.Strings.Modified:= true;
-  Ed.DoEventChange;
+  Ed.DoCommand(cCommand_TextInsert, Utf8Decode(AStr));
 
   UpdateFrame(true);
   UpdateStatus;
@@ -3020,6 +3242,7 @@ begin
   begin
     fmCharmaps:= TfmCharmaps.Create(nil);
     fmCharmaps.OnInsert:= @CharmapOnInsert;
+    DoLocalize_FormCharmap(fmCharmaps);
   end;
 
   fmCharmaps.InitialStr:= Utf8Encode(Widestring(EditorGetCurrentChar(CurrentEditor)));
@@ -3045,14 +3268,17 @@ begin
 end;
 
 procedure TfmMain.DoPyCommand(const AModule, AMethod: string; const AParam: string='');
+var
+  Frame: TEditorFrame;
 begin
   PyLastCommandModule:= AModule;
   PyLastCommandMethod:= AMethod;
   PyLastCommandParam:= AParam;
 
-  with CurrentFrame do
-    if MacroRecord then
-      MacroString:= MacroString+ ('py:'+AModule+','+AMethod+','+AParam+#10);
+  Frame:= CurrentFrame;
+  if Assigned(Frame) then
+    if Frame.MacroRecord then
+      Frame.MacroString:= Frame.MacroString+ ('py:'+AModule+','+AMethod+','+AParam+#10);
 
   CurrentEditor.Strings.BeginUndoGroup;
   PyCommandRunning:= true;
@@ -3092,7 +3318,6 @@ begin
 
   Props:= TAppPanelPropsClass.Create;
   Props.Data.Listbox:= Listbox;
-  Props.Data.Items:= TStringList.Create;
 
   FPanelCaptions.AddObject(SCaption, Props);
   TabsBottom.AddTab(-1, SCaption, nil);
@@ -3112,7 +3337,6 @@ begin
   if N<0 then exit;
   PropObject:= fmMain.FPanelCaptions.Objects[N] as TAppPanelPropsClass;
   PropObject.Data.Listbox.Free;
-  PropObject.Data.Items.Free;
   PropObject.Free;
   FPanelCaptions.Delete(N);
 
@@ -3196,9 +3420,201 @@ begin
   DoPyEvent(CurrentEditor, cEventOnLexer, []);
 end;
 
+procedure TfmMain.DoToolbarAddButton(AStr: string);
+var
+  SHint, SCmd, SImageIndex: string;
+  btn: TToolButton;
+  mi: TMenuItem;
+begin
+  if AStr='' then
+  begin
+    btn:= TToolButton.Create(Self);
+    btn.Parent:= ToolbarMain;
+    btn.Left:= ToolbarMain.ClientWidth;
+    btn.Style:= tbsDivider;
+    btn.Width:= 12;
+    exit
+  end;
+
+  SHint:= SGetItem(AStr, ';');
+  SImageIndex:= SGetItem(AStr, ';');
+  SCmd:= SGetItem(AStr, ';');
+
+  btn:= TToolButton.Create(Self);
+  btn.Parent:= ToolbarMain;
+  btn.Left:= ToolbarMain.ClientWidth;
+
+  if SBeginsWith(SCmd, 'toolmenu:') then
+  begin
+    mi:= TMenuItem.Create(Self);
+    mi.Caption:= '('+SCmd+')';
+    btn.Style:= tbsButtonDrop;
+    btn.MenuItem:= TPopupMenu.Create(Self).Items;
+    btn.MenuItem.Add(mi);
+  end
+  else
+    btn.OnClick:= @DoToolbarClick;
+
+  btn.Caption:= SCmd;
+  btn.Hint:= SHint;
+  btn.ImageIndex:= StrToIntDef(SImageIndex, -1);
+end;
+
+
+procedure TfmMain.DoToolbarClick(Sender: TObject);
+var
+  SHint, SModule, SMethod, SParam: string;
+  NCmd: integer;
+begin
+  //'module,method,param' or 'NN'
+  SHint:= (Sender as TToolButton).Caption;
+  NCmd:= StrToIntDef(SHint, 0);
+
+  if NCmd=0 then
+  begin
+    SModule:= SGetItem(SHint);
+    SMethod:= SGetItem(SHint);
+    SParam:= SHint; //not SGetItem, allows to use ","
+    DoPyCommand(SModule, SMethod, SParam);
+  end
+  else
+    CurrentEditor.DoCommand(NCmd);
+
+  UpdateFrame;
+  UpdateStatus;
+end;
+
+
+function TfmMain.DoMenuEnum(const AStr: string): string;
+var
+  mi: TMenuItem;
+  i: integer;
+begin
+  Result:= '';
+
+  //this updates PopupText items tags
+  PopupText.OnPopup(nil);
+
+  mi:= Py_MenuItemFromId(AStr);
+  if Assigned(mi) then
+    for i:= 0 to mi.Count-1 do
+      Result:= Result+
+        mi.Items[i].Caption +'|'+
+        IfThen(mi.Items[i].Tag>0,
+               IntToStr(mi.Items[i].Tag),
+               mi.Items[i].Hint) +'|'+
+        IntToStr(PtrInt(mi.Items[i]))
+        +#10;
+end;
+
+
+procedure TfmMain.DoMenuClear(const AStr: string);
+var
+  mi: TMenuItem;
+begin
+  mi:= Py_MenuItemFromId(AStr);
+  if Assigned(mi) then
+  begin
+    mi.Clear;
+    if AStr=PyMenuId_Top then
+    begin
+      mnuFileOpenSub:= nil;
+      mnuThemes:= nil;
+      mnuLang:= nil;
+      mnuPlug:= nil;
+    end;
+    if AStr=PyMenuId_TopOptions then
+    begin
+      mnuThemes:= nil;
+      mnuLang:= nil;
+    end;
+    if AStr=PyMenuId_TopFile then
+    begin
+      mnuFileOpenSub:= nil;
+    end;
+    if AStr=PyMenuId_Text then
+    begin
+      mnuTextCopy:= nil;
+      mnuTextCut:= nil;
+      mnuTextDelete:= nil;
+      mnuTextPaste:= nil;
+      mnuTextUndo:= nil;
+      mnuTextRedo:= nil;
+      mnuTextSel:= nil;
+      mnuTextGotoDef:= nil;
+      mnuTextOpenUrl:= nil;
+    end;
+  end;
+end;
+
+function TfmMain.DoMenuAdd(AStr: string): string;
+var
+  StrId, StrCmd, StrCaption, StrIndex: string;
+  mi, miMain: TMenuItem;
+  Num: integer;
+begin
+  Result:= '';
+  StrId:= SGetItem(AStr, ';');
+  StrCmd:= SGetItem(AStr, ';');
+  StrCaption:= SGetItem(AStr, ';');
+  StrIndex:= SGetItem(AStr, ';');
+
+  miMain:= Py_MenuItemFromId(StrId);
+  if Assigned(miMain) and (StrCaption<>'') then
+  begin
+    mi:= TMenuItem.Create(Self);
+    mi.Caption:= StrCaption;
+
+    Num:= StrToIntDef(StrCmd, 0);
+    if Num>0 then
+      UpKey(mi, Num)
+    else
+    if StrCmd=PyMenuCmd_Recents then
+    begin
+      mnuFileOpenSub:= mi;
+      UpdateMenuRecent(nil);
+    end
+    else
+    if StrCmd=PyMenuCmd_Themes then
+    begin
+      mnuThemes:= mi;
+      UpdateMenuThemes(mi);
+    end
+    else
+    if StrCmd=PyMenuCmd_Langs then
+    begin
+      mnuLang:= mi;
+      UpdateMenuLangs(mi);
+    end
+    else
+    if StrCmd=PyMenuCmd_Plugins then
+    begin
+      mnuPlug:= mi;
+      UpdateMenuPlugins;
+    end
+    else
+    begin
+      mi.Tag:= -1;
+      mi.Hint:= StrCmd;
+      if StrCmd<>'0' then
+        mi.OnClick:= @MenuMainClick;
+    end;
+
+    Num:= StrToIntDef(StrIndex, -1);
+    if Num>=0 then
+      miMain.Insert(Num, mi)
+    else
+      miMain.Add(mi);
+
+    Result:= IntToStr(PtrInt(mi));
+  end;
+end;
+
+
 //----------------------------
 {$I formmain_loadsave.inc}
 {$I formmain_updates_proc.inc}
+{$I formmain_translation.inc}
 {$I formmain_frame_proc.inc}
 {$I formmain_tab_proc.inc}
 {$I formmain_find.inc}

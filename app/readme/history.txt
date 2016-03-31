@@ -3,8 +3,103 @@ Legend:
   - fixed
   * changed
 
-1.2.21.2
-- fix OSX/Qt: Esc don't work in console/Find/Goto
+
+1.3.5-tst
++ autocomplete for HTML: completion listbox inserts tag+ closing tag after caret
++ autocomplete for HTML: auto show when typed "<"+wordchar
++ autocomplete for HTML: better for a/img/link
++ autocomplete for CSS: auto show when wordchar typed on attribute pos
++ opt auto_close_brackets
+
+1.3.4
++ drag-drop text to other group: opt mouse_drag_drop_focus_target
++ drag-drop text to other group: Ctrl pressed means "copy"
++ drag-drop file from explorer: use group under cursor
++ lexer Python: keywords def/class/global/lambda have other style (like ST3)
+- rework restore caret on file-reload
+- fix MakePlugin
+
+1.3.3
++ drag-drop of tabs to other groups (all OSes)
++ drag-drop of select-text to other groups
++ cmd "rescan python plugins inf-files"
+- fix: Ansi encoding was broken (since using FPC 3)
+
+1.3.2
+* lexer-lib file (lib.lxl) not used. Used .lcf files instead. Sublexer links must be stored in .cuda-lexmap files. On start app suggests to convert lexer-lib file to .lcf files.
+* delete option "lexlib" (used only to convert lexer-lib to .lcf)
+
+1.3.1
++ opt ui_lexer_themes
++ color "editor, gutter font, lines with carets"
++ color "listbox, sel line font"
++ colors "statusbar, font/bg/border"
++ commands item "lexer: (none)"
+- many fixes (github)
+
+1.3.0
++ themes contain now 40 styles: to map to concrete lexer styles. Dialog "Lexer styles map" added. It shows on activating lexer w/o configured map. Maps are saved to "lexlib/*.cuda-lexmap".
+* not used anymore settings/plugins.json (delete it), used install.inf's only
+* renamed translations to nn_NN (e.g. ru_RU)
++ can show .gif pics
++ upd lexer XML
++ upd lexer LESS (style: color)
++ upd lexer SCSS (style: color)
++ upd lexer JS (style: doc comment)
++ upd lexer PHP (style: doc comment)
++ color "editor, combobox border"
++ statusbar macros {yb} {ye}
+- fixes
+
+1.2.29
++ lexer CSS handles @media{...}
++ char-map uses multi-carets on insert
++ more toolbar api
+
+1.2.28
++ translation possible: see menu item Options/Translations, see folder "data/lang"
++ translation Russian, in AddonManager
++ font opt named with suffix on Linux/OSX: font_name__linux, font_size__linux...
++ AddonManager has cmd "Visit plugin homepage"; plugins need field "homepage=" in install.inf
+- fix to handle line length 10k
+- fix to support SpellChecker/Linux 
+
+1.2.26
++ opt minimap_at_left
++ opt caret_after_paste_column
++ opt ui_statusbar_tabsize
++ opt ui_max_history_edits
+* opt spacing_y: default=1
++ cmds "open url at caret", "copy url at caret"
++ api
+
+1.2.25.2
+- fix major issue: lexerlib breaks on installing addon (reason: FPC 3)
+- fix cmds for line-comment
++ allow trailing comma in user.json
+
+1.2.25
++ used FPC 3.0
++ hilite URLs: opts links_hilite, links_regex
++ hilite URLs: commands to open/copy URL at pos of right-click
+
+1.2.24
++ opt font of bottom-panel listboxes
++ api (plugin Tabs List, bookmark hints in CudaLint)
+
+1.2.23
+- fix Addon Manager "Install" (SF.net blocked http)
+* change in api. Must update plugs: NumberedBookmarks, PythonIntel, CudaExt, Snippets
++ added 120+ snippets for HTML. These mimic hehaviour of Synwrite's feature "SmartTagTabbing". You need plugin Snippets.
++ autodelete markers in deleted selection
++ statusbar panel "msg" now autosized (can put "msg" to left)
+
+1.2.22
++ toolbar api
++ add ui_statusbar_panels panel "ins" (hidden by default)
++ add bottom pane "Search Res", for future
+- fix Qt build: Esc key in find/goto
+- fix: must set modified on conv-encoding
 
 1.2.21
 + opt micromap_show
@@ -124,9 +219,3 @@ Legend:
 + cmd "unfold range at current line"
 + cmd "goto next bookmark": from last goto first
 + color for "fold mark border"
-
-1.0.2
-+ opt ui_tab_numbers
-+ cmd "Edit--Char map"
-+ cmd "reset python plugins" (like Synwrite)
-+ plugins.json can have "menu":false key to hide Plugins menu item
